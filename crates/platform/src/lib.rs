@@ -2,11 +2,17 @@
 
 pub mod hotkey;
 pub mod launcher;
-pub mod linux;
-pub mod macos;
 pub mod mock;
 pub mod notification;
 pub mod traits;
+
+#[cfg(all(unix, not(target_os = "macos")))]
+pub mod linux;
+
+#[cfg(target_os = "macos")]
+pub mod macos;
+
+#[cfg(target_os = "windows")]
 pub mod windows;
 
 pub use hotkey::*;

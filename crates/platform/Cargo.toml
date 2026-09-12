@@ -34,6 +34,7 @@ windows = { version = "0.61", features = [
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = { version = "5", default-features = false, features = ["tokio"] }
+tokio = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
