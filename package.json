@@ -5,6 +5,9 @@
   "description": "BBQ — Lightweight, cross-platform desktop productivity island",
   "author": "BBQ Team",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.6.0"
+  },
   "scripts": {
     "dev": "pnpm --filter @bbq/desktop dev",
     "build": "pnpm --filter @bbq/types build && pnpm --filter @bbq/desktop build",

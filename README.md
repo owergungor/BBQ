@@ -154,7 +154,7 @@ Uninstalling BBQ cleans up application binaries, Start Menu shortcuts, and autos
 ## Development & Build Instructions
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (v20.x or higher)
+- [Node.js](https://nodejs.org/) (v22.x or higher, LTS)
 - [pnpm](https://pnpm.io/) (v9.x or higher)
 - [Rust](https://www.rust-lang.org/) (1.78.x or higher, stable toolchain)
 - Platform C++ build tools (Visual Studio C++ Build Tools on Windows, Xcode CLI on macOS)
