@@ -1,0 +1,776 @@
+import React, { useState, useEffect } from "react";
+import {
+  useSettingsState,
+  updateSettingsBatch,
+  resetSettingsToDefaults,
+} from "../../state/settingsState.ts";
+import { widgetRegistry } from "../../island/widgetRegistry.ts";
+import {
+  DEFAULT_COMPACT_INDICATOR_ORDER,
+  resolveEffectiveIndicatorOrder,
+} from "../../island/compactOrder.ts";
+import type { ThemePreference } from "@bbq/types";
+
+type SettingsTab = "appearance" | "island" | "hotkey" | "privacy" | "notifications" | "widgets" | "about";
+
+export const SettingsWidget: React.FC = () => {
+  const { settings, isLoading } = useSettingsState();
+  const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  // Local draft states for sliders and text inputs to prevent IPC write storms
+  const [draftWidth, setDraftWidth] = useState(settings.island_width);
+  const [draftHeight, setDraftHeight] = useState(settings.island_height);
+  const [draftClipboardMax, setDraftClipboardMax] = useState(settings.clipboard_max_entries);
+  const [draftRetention, setDraftRetention] = useState(settings.clipboard_retention_days);
+  const [draftHotkey, setDraftHotkey] = useState(settings.global_hotkey);
+
+  useEffect(() => {
+    setDraftWidth(settings.island_width);
+  }, [settings.island_width]);
+
+  useEffect(() => {
+    setDraftHeight(settings.island_height);
+  }, [settings.island_height]);
+
+  useEffect(() => {
+    setDraftClipboardMax(settings.clipboard_max_entries);
+  }, [settings.clipboard_max_entries]);
+
+  useEffect(() => {
+    setDraftRetention(settings.clipboard_retention_days);
+  }, [settings.clipboard_retention_days]);
+
+  useEffect(() => {
+    setDraftHotkey(settings.global_hotkey);
+  }, [settings.global_hotkey]);
+
+  const showStatus = (msg: string) => {
+    setStatusMessage(msg);
+    setTimeout(() => setStatusMessage(null), 2500);
+  };
+
+  const handleThemeChange = async (theme: ThemePreference) => {
+    await updateSettingsBatch({ theme });
+    showStatus(`Theme set to ${theme}`);
+  };
+
+  const handleToggle = async (key: keyof typeof settings, value: boolean) => {
+    await updateSettingsBatch({ [key]: value });
+    showStatus("Preference updated");
+  };
+
+  const commitWidth = async () => {
+    if (draftWidth !== settings.island_width) {
+      await updateSettingsBatch({ island_width: draftWidth });
+      showStatus("Island width updated");
+    }
+  };
+
+  const commitHeight = async () => {
+    if (draftHeight !== settings.island_height) {
+      await updateSettingsBatch({ island_height: draftHeight });
+      showStatus("Island height updated");
+    }
+  };
+
+  const commitClipboardMax = async () => {
+    if (draftClipboardMax !== settings.clipboard_max_entries) {
+      await updateSettingsBatch({ clipboard_max_entries: draftClipboardMax });
+      showStatus("Clipboard capacity updated");
+    }
+  };
+
+  const commitRetention = async () => {
+    if (draftRetention !== settings.clipboard_retention_days) {
+      await updateSettingsBatch({ clipboard_retention_days: draftRetention });
+      showStatus("Clipboard retention updated");
+    }
+  };
+
+  const commitHotkey = async () => {
+    const trimmed = draftHotkey.trim();
+    if (trimmed && trimmed !== settings.global_hotkey) {
+      const ok = await updateSettingsBatch({ global_hotkey: trimmed });
+      if (ok) {
+        showStatus("Global hotkey updated");
+      } else {
+        setDraftHotkey(settings.global_hotkey);
+      }
+    }
+  };
+
+  const handleReset = async () => {
+    if (window.confirm("Are you sure you want to reset all preferences to default values?")) {
+      await resetSettingsToDefaults();
+      showStatus("Reset to default settings");
+    }
+  };
+
+  const allRegisteredWidgets = widgetRegistry.getAll().filter((w) => w.id !== "settings");
+  const disabledSet = new Set(settings.disabled_widgets);
+
+  const toggleWidget = async (widgetId: string) => {
+    const nextList = disabledSet.has(widgetId)
+      ? settings.disabled_widgets.filter((id) => id !== widgetId)
+      : [...settings.disabled_widgets, widgetId];
+    await updateSettingsBatch({ disabled_widgets: nextList });
+    showStatus(disabledSet.has(widgetId) ? `Enabled ${widgetId}` : `Disabled ${widgetId}`);
+  };
+
+  // Compact Indicator Ordering Logic
+  const currentIndicatorOrder = resolveEffectiveIndicatorOrder(
+    settings.compact_indicator_order,
+    settings.disabled_widgets
+  );
+
+  const moveIndicator = async (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= currentIndicatorOrder.length) return;
+
+    const newOrder = [...currentIndicatorOrder];
+    const temp = newOrder[index];
+    newOrder[index] = newOrder[targetIndex];
+    newOrder[targetIndex] = temp;
+
+    await updateSettingsBatch({ compact_indicator_order: newOrder });
+    showStatus("Indicator priority updated");
+  };
+
+  const resetIndicatorOrder = async () => {
+    await updateSettingsBatch({ compact_indicator_order: DEFAULT_COMPACT_INDICATOR_ORDER });
+    showStatus("Indicator priority reset to defaults");
+  };
+
+  const tabs: { id: SettingsTab; label: string }[] = [
+    { id: "appearance", label: "Appearance" },
+    { id: "island", label: "Island" },
+    { id: "hotkey", label: "Hotkey" },
+    { id: "privacy", label: "Privacy" },
+    { id: "notifications", label: "Notifications" },
+    { id: "widgets", label: "Widgets" },
+    { id: "about", label: "About" },
+  ];
+
+  return (
+    <div className="bbq-settings-container" style={{ padding: "16px", color: "var(--bbq-text)" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+        <h2 style={{ fontSize: "16px", fontWeight: 600, margin: 0 }}>⚙️ Preferences</h2>
+        {statusMessage && (
+          <span
+            style={{ fontSize: "12px", color: "var(--bbq-accent)", fontWeight: 500 }}
+            role="status"
+            aria-live="polite"
+          >
+            {statusMessage}
+          </span>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div
+        role="tablist"
+        aria-label="Settings Categories"
+        style={{
+          display: "flex",
+          gap: "4px",
+          marginBottom: "14px",
+          borderBottom: "1px solid var(--bbq-border)",
+          overflowX: "auto",
+        }}
+      >
+        {tabs.map((tab) => {
+          const isSelected = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              id={`settings-tab-${tab.id}`}
+              type="button"
+              role="tab"
+              aria-selected={isSelected}
+              aria-controls={`settings-panel-${tab.id}`}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: "6px 10px",
+                background: isSelected ? "var(--bbq-surface-elevated)" : "transparent",
+                border: "none",
+                borderBottom: isSelected ? "2px solid var(--bbq-accent)" : "2px solid transparent",
+                color: isSelected ? "var(--bbq-text)" : "var(--bbq-text-muted)",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: isSelected ? 600 : 500,
+                borderRadius: "4px 4px 0 0",
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tab Panels */}
+      <div
+        id={`settings-panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`settings-tab-${activeTab}`}
+        style={{ minHeight: "230px", fontSize: "13px" }}
+      >
+        {/* APPEARANCE */}
+        {activeTab === "appearance" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div>
+              <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
+                Theme Mode
+              </label>
+              <div style={{ display: "flex", gap: "8px" }} role="radiogroup" aria-label="Theme selection">
+                {(["system", "dark", "light"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    role="radio"
+                    aria-checked={settings.theme === t}
+                    onClick={() => handleThemeChange(t)}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: "6px",
+                      border: "1px solid var(--bbq-border)",
+                      background:
+                        settings.theme === t ? "var(--bbq-accent)" : "var(--bbq-surface-elevated)",
+                      color: settings.theme === t ? "#ffffff" : "var(--bbq-text)",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      textTransform: "capitalize",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+              <div>
+                <label htmlFor="reduced-motion-toggle" style={{ fontWeight: 500, display: "block" }}>
+                  Reduced Motion
+                </label>
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+                  Disables non-essential scale transitions and floating animations for accessibility.
+                </span>
+              </div>
+              <input
+                id="reduced-motion-toggle"
+                type="checkbox"
+                checked={settings.reduced_motion}
+                onChange={(e) => handleToggle("reduced_motion", e.target.checked)}
+                style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                aria-label="Reduced Motion"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ISLAND */}
+        {activeTab === "island" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <label htmlFor="island-width-slider" style={{ fontWeight: 500 }}>Compact Width</label>
+                <span style={{ color: "var(--bbq-text-muted)" }}>{draftWidth}px</span>
+              </div>
+              <input
+                id="island-width-slider"
+                type="range"
+                min={180}
+                max={480}
+                step={10}
+                value={draftWidth}
+                onChange={(e) => setDraftWidth(Number(e.target.value))}
+                onPointerUp={commitWidth}
+                onKeyUp={commitWidth}
+                style={{ width: "100%", cursor: "pointer" }}
+                aria-label="Island compact width in pixels"
+              />
+            </div>
+
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <label htmlFor="island-height-slider" style={{ fontWeight: 500 }}>Compact Height</label>
+                <span style={{ color: "var(--bbq-text-muted)" }}>{draftHeight}px</span>
+              </div>
+              <input
+                id="island-height-slider"
+                type="range"
+                min={36}
+                max={54}
+                step={2}
+                value={draftHeight}
+                onChange={(e) => setDraftHeight(Number(e.target.value))}
+                onPointerUp={commitHeight}
+                onKeyUp={commitHeight}
+                style={{ width: "100%", cursor: "pointer" }}
+                aria-label="Island compact height in pixels"
+              />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+              <div>
+                <label htmlFor="auto-expand-toggle" style={{ fontWeight: 500, display: "block" }}>
+                  Auto-Expand on Incoming Event
+                </label>
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+                  Expand the island when timers fire, media changes, or drop events occur.
+                </span>
+              </div>
+              <input
+                id="auto-expand-toggle"
+                type="checkbox"
+                checked={settings.auto_expand_on_event}
+                onChange={(e) => handleToggle("auto_expand_on_event", e.target.checked)}
+                style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                aria-label="Auto expand island on event"
+              />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+              <div>
+                <label htmlFor="start-login-toggle" style={{ fontWeight: 500, display: "block" }}>
+                  Start at Login
+                </label>
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+                  Launch BBQ automatically in background when system boots.
+                </span>
+              </div>
+              <input
+                id="start-login-toggle"
+                type="checkbox"
+                checked={settings.start_at_login}
+                onChange={(e) => handleToggle("start_at_login", e.target.checked)}
+                style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                aria-label="Start at system login"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* HOTKEY */}
+        {activeTab === "hotkey" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div>
+              <label htmlFor="global-hotkey-input" style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>
+                Global Hotkey
+              </label>
+              <input
+                id="global-hotkey-input"
+                type="text"
+                value={draftHotkey}
+                onChange={(e) => setDraftHotkey(e.target.value)}
+                onBlur={commitHotkey}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitHotkey();
+                }}
+                placeholder="e.g. Ctrl+Space"
+                style={{
+                  width: "100%",
+                  padding: "8px 10px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--bbq-border)",
+                  background: "var(--bbq-surface)",
+                  color: "var(--bbq-text)",
+                  fontSize: "13px",
+                  boxSizing: "border-box",
+                }}
+                aria-label="Global hotkey combination"
+              />
+              <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "4px" }}>
+                Pressing this shortcut globally brings BBQ to front and focuses the Launcher search.
+              </span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+              <div>
+                <label htmlFor="hotkey-enable-toggle" style={{ fontWeight: 500, display: "block" }}>
+                  Hotkey Trigger Enabled
+                </label>
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+                  Toggle whether the global shortcut is actively registered with the OS.
+                </span>
+              </div>
+              <input
+                id="hotkey-enable-toggle"
+                type="checkbox"
+                checked={settings.hotkey_enabled}
+                onChange={(e) => handleToggle("hotkey_enabled", e.target.checked)}
+                style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                aria-label="Enable global hotkey"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* PRIVACY */}
+        {activeTab === "privacy" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+              <div>
+                <label htmlFor="clipboard-history-toggle" style={{ fontWeight: 500, display: "block" }}>
+                  Clipboard History
+                </label>
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+                  Stores copied text clips in local SQLite. Disabling immediately purges all stored items.
+                </span>
+              </div>
+              <input
+                id="clipboard-history-toggle"
+                type="checkbox"
+                checked={settings.clipboard_history_enabled}
+                onChange={(e) => handleToggle("clipboard_history_enabled", e.target.checked)}
+                style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                aria-label="Enable clipboard history"
+              />
+            </div>
+
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <label htmlFor="clipboard-max-slider" style={{ fontWeight: 500 }}>Max Entries</label>
+                <span style={{ color: "var(--bbq-text-muted)" }}>{draftClipboardMax} items</span>
+              </div>
+              <input
+                id="clipboard-max-slider"
+                type="range"
+                min={10}
+                max={100}
+                step={10}
+                value={draftClipboardMax}
+                onChange={(e) => setDraftClipboardMax(Number(e.target.value))}
+                onPointerUp={commitClipboardMax}
+                onKeyUp={commitClipboardMax}
+                style={{ width: "100%", cursor: "pointer" }}
+                aria-label="Maximum clipboard history entries"
+              />
+            </div>
+
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <label htmlFor="clipboard-retention-slider" style={{ fontWeight: 500 }}>Retention Period</label>
+                <span style={{ color: "var(--bbq-text-muted)" }}>{draftRetention} days</span>
+              </div>
+              <input
+                id="clipboard-retention-slider"
+                type="range"
+                min={1}
+                max={90}
+                step={1}
+                value={draftRetention}
+                onChange={(e) => setDraftRetention(Number(e.target.value))}
+                onPointerUp={commitRetention}
+                onKeyUp={commitRetention}
+                style={{ width: "100%", cursor: "pointer" }}
+                aria-label="Clipboard history retention days"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* NOTIFICATIONS */}
+        {activeTab === "notifications" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+              <div>
+                <label htmlFor="notifications-enable-toggle" style={{ fontWeight: 500, display: "block" }}>
+                  Desktop Notifications
+                </label>
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+                  Receive OS desktop banner alerts for timer completions and reminders.
+                </span>
+              </div>
+              <input
+                id="notifications-enable-toggle"
+                type="checkbox"
+                checked={settings.notifications_enabled}
+                onChange={(e) => handleToggle("notifications_enabled", e.target.checked)}
+                style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                aria-label="Enable system notifications"
+              />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+              <div>
+                <label htmlFor="timer-sound-toggle" style={{ fontWeight: 500, display: "block" }}>
+                  Timer Sound
+                </label>
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+                  Play an auditory chime when timers and Pomodoro phases expire.
+                </span>
+              </div>
+              <input
+                id="timer-sound-toggle"
+                type="checkbox"
+                checked={settings.timer_sound_enabled}
+                onChange={(e) => handleToggle("timer_sound_enabled", e.target.checked)}
+                style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                aria-label="Enable timer sound"
+              />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+              <div>
+                <label htmlFor="reminder-sound-toggle" style={{ fontWeight: 500, display: "block" }}>
+                  Reminder Sound
+                </label>
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+                  Play an auditory notification when a scheduled reminder is due.
+                </span>
+              </div>
+              <input
+                id="reminder-sound-toggle"
+                type="checkbox"
+                checked={settings.reminder_sound_enabled}
+                onChange={(e) => handleToggle("reminder_sound_enabled", e.target.checked)}
+                style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                aria-label="Enable reminder sound"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* WIDGETS */}
+        {activeTab === "widgets" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Widget Toggles */}
+            <div>
+              <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)", display: "block", marginBottom: "6px" }}>
+                Active Island Widgets:
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {allRegisteredWidgets.map((w) => {
+                  const isChecked = !disabledSet.has(w.id);
+                  return (
+                    <div
+                      key={w.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "6px 8px",
+                        borderRadius: "6px",
+                        background: "var(--bbq-surface-elevated)",
+                        border: "1px solid var(--bbq-border)",
+                      }}
+                    >
+                      <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span aria-hidden="true">{w.icon}</span>
+                        <span style={{ fontWeight: 500 }}>{w.title}</span>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleWidget(w.id)}
+                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                        aria-label={`Enable ${w.title} widget`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Compact Indicator Priority */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)" }}>
+                  Compact Indicator Priority:
+                </span>
+                <button
+                  type="button"
+                  onClick={resetIndicatorOrder}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--bbq-accent)",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    padding: 0,
+                  }}
+                  aria-label="Reset indicator priority to defaults"
+                >
+                  Reset Order
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                {currentIndicatorOrder.map((indicatorId, idx) => (
+                  <div
+                    key={indicatorId}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      background: "var(--bbq-surface)",
+                      border: "1px solid var(--bbq-border)",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <span style={{ textTransform: "capitalize", fontWeight: 500 }}>
+                      {idx + 1}. {indicatorId}
+                    </span>
+                    <div style={{ display: "flex", gap: "4px" }}>
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => moveIndicator(idx, "up")}
+                        style={{
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          border: "1px solid var(--bbq-border)",
+                          background: "var(--bbq-surface-elevated)",
+                          color: "var(--bbq-text)",
+                          cursor: idx === 0 ? "not-allowed" : "pointer",
+                          opacity: idx === 0 ? 0.4 : 1,
+                          fontSize: "10px",
+                        }}
+                        aria-label={`Move ${indicatorId} up`}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        disabled={idx === currentIndicatorOrder.length - 1}
+                        onClick={() => moveIndicator(idx, "down")}
+                        style={{
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          border: "1px solid var(--bbq-border)",
+                          background: "var(--bbq-surface-elevated)",
+                          color: "var(--bbq-text)",
+                          cursor: idx === currentIndicatorOrder.length - 1 ? "not-allowed" : "pointer",
+                          opacity: idx === currentIndicatorOrder.length - 1 ? 0.4 : 1,
+                          fontSize: "10px",
+                        }}
+                        aria-label={`Move ${indicatorId} down`}
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ABOUT */}
+        {activeTab === "about" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div
+              style={{
+                padding: "12px",
+                background: "var(--bbq-surface-elevated)",
+                borderRadius: "8px",
+                border: "1px solid var(--bbq-border)",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+              }}
+            >
+              <span style={{ fontSize: "32px" }} aria-hidden="true">🏝️</span>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>BBQ Desktop</h3>
+                <span style={{ fontSize: "12px", color: "var(--bbq-accent)", fontWeight: 600 }}>
+                  Version 1.0.0 (Production Edition)
+                </span>
+                <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+                  Lightweight, hardware-accelerated desktop productivity island.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--bbq-text-muted)" }}>License:</span>
+                <span style={{ fontWeight: 500 }}>MIT License (Open Source)</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--bbq-text-muted)" }}>Architecture:</span>
+                <span style={{ fontWeight: 500 }}>Tauri 2 + Rust Core + React 19</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--bbq-text-muted)" }}>Telemetry & Tracking:</span>
+                <span style={{ fontWeight: 500, color: "var(--bbq-success)" }}>None (100% Local-First)</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--bbq-text-muted)" }}>Local Database:</span>
+                <span style={{ fontWeight: 500 }}>SQLite 3 (WAL Mode)</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--bbq-text-muted)" }}>Safe Uninstall:</span>
+                <span style={{ fontWeight: 500 }}>Non-destructive (Preferences preserved)</span>
+              </div>
+            </div>
+
+            <div style={{ paddingTop: "8px", borderTop: "1px solid var(--bbq-border)" }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  await updateSettingsBatch({ onboarding_completed: false });
+                  showStatus("Welcome tour activated");
+                }}
+                style={{
+                  width: "100%",
+                  padding: "8px 14px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--bbq-accent)",
+                  background: "rgba(59, 130, 246, 0.1)",
+                  color: "var(--bbq-accent)",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+                aria-label="Replay welcome onboarding tour"
+              >
+                Replay Welcome Tour
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer Actions */}
+      <div
+        style={{
+          marginTop: "16px",
+          paddingTop: "12px",
+          borderTop: "1px solid var(--bbq-border)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleReset}
+          disabled={isLoading}
+          style={{
+            padding: "6px 12px",
+            borderRadius: "6px",
+            border: "1px solid var(--bbq-danger)",
+            background: "rgba(239, 68, 68, 0.1)",
+            color: "var(--bbq-danger)",
+            cursor: "pointer",
+            fontSize: "12px",
+            fontWeight: 500,
+          }}
+          aria-label="Reset all preferences to defaults"
+        >
+          Reset to Defaults
+        </button>
+        <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+          Preferences are automatically saved to SQLite
+        </span>
+      </div>
+    </div>
+  );
+};

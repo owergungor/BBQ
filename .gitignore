@@ -1,0 +1,30 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.pnpm-debug.log*
+
+# Tauri
+apps/desktop/src-tauri/target/
+
+# Local databases, logs and cache
+*.sqlite
+*.sqlite3
+*.db
+*.log
+local_data/
+cache/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

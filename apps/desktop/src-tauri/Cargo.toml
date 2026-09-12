@@ -1,0 +1,32 @@
+[package]
+name = "bbq-desktop"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "bbq_desktop_lib"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "bbq-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+bbq-core = { workspace = true }
+bbq-storage = { workspace = true }
+bbq-platform = { workspace = true }
+bbq-services = { workspace = true }
+
+tauri = { version = "2", features = [] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

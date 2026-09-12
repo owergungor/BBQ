@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141416" />
+      <stop offset="100%" stop-color="#0a0a0c" />
+    </linearGradient>
+    <linearGradient id="flameGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff4500" />
+      <stop offset="50%" stop-color="#ff7f50" />
+      <stop offset="100%" stop-color="#ffa07a" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <!-- Background rounded squircle -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.12)" stroke-width="6" />
+
+  <!-- BBQ Dynamic Island Capsule -->
+  <rect x="96" y="216" width="320" height="80" rx="40" fill="#1f1f24" stroke="rgba(255,255,255,0.18)" stroke-width="4" />
+
+  <!-- Glowing Ember Accent -->
+  <circle cx="160" cy="256" r="16" fill="url(#flameGrad)" filter="url(#glow)" />
+  <circle cx="160" cy="256" r="12" fill="#fff" opacity="0.8" />
+
+  <!-- Island Grill / Pulse Bars -->
+  <rect x="220" y="244" width="32" height="24" rx="6" fill="rgba(255,255,255,0.85)" />
+  <rect x="268" y="238" width="48" height="36" rx="6" fill="url(#flameGrad)" />
+  <rect x="332" y="248" width="24" height="16" rx="5" fill="rgba(255,255,255,0.6)" />
+</svg>

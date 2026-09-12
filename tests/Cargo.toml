@@ -1,0 +1,16 @@
+[package]
+name = "bbq-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+bbq-core = { workspace = true }
+bbq-storage = { workspace = true }
+bbq-platform = { workspace = true }
+bbq-services = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
+
+[lints]
+workspace = true
