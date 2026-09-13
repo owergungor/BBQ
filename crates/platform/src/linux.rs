@@ -280,12 +280,12 @@ mod x11_native {
     const RTLD_LAZY: c_int = 1;
 
     pub unsafe fn enumerate_x11_monitors() -> Option<Vec<DisplayInfo>> {
-        let x11_lib = dlopen(b"libX11.so.6\0".as_ptr() as *const _, RTLD_LAZY);
+        let x11_lib = dlopen(c"libX11.so.6".as_ptr(), RTLD_LAZY);
         if x11_lib.is_null() {
             return None;
         }
 
-        let xrandr_lib = dlopen(b"libXrandr.so.2\0".as_ptr() as *const _, RTLD_LAZY);
+        let xrandr_lib = dlopen(c"libXrandr.so.2".as_ptr(), RTLD_LAZY);
         if xrandr_lib.is_null() {
             dlclose(x11_lib);
             return None;
@@ -301,18 +301,18 @@ mod x11_native {
         type FnXFree = unsafe extern "C" fn(*mut c_void) -> c_int;
 
         let x_open_display: FnXOpenDisplay =
-            std::mem::transmute(dlsym(x11_lib, b"XOpenDisplay\0".as_ptr() as *const _));
+            std::mem::transmute(dlsym(x11_lib, c"XOpenDisplay".as_ptr()));
         let x_close_display: FnXCloseDisplay =
-            std::mem::transmute(dlsym(x11_lib, b"XCloseDisplay\0".as_ptr() as *const _));
+            std::mem::transmute(dlsym(x11_lib, c"XCloseDisplay".as_ptr()));
         let x_default_root_window: FnXDefaultRootWindow =
-            std::mem::transmute(dlsym(x11_lib, b"XDefaultRootWindow\0".as_ptr() as *const _));
+            std::mem::transmute(dlsym(x11_lib, c"XDefaultRootWindow".as_ptr()));
         let xrr_get_monitors: FnXRRGetMonitors =
-            std::mem::transmute(dlsym(xrandr_lib, b"XRRGetMonitors\0".as_ptr() as *const _));
+            std::mem::transmute(dlsym(xrandr_lib, c"XRRGetMonitors".as_ptr()));
         let xrr_free_monitors: FnXRRFreeMonitors =
-            std::mem::transmute(dlsym(xrandr_lib, b"XRRFreeMonitors\0".as_ptr() as *const _));
+            std::mem::transmute(dlsym(xrandr_lib, c"XRRFreeMonitors".as_ptr()));
         let x_get_atom_name: FnXGetAtomName =
-            std::mem::transmute(dlsym(x11_lib, b"XGetAtomName\0".as_ptr() as *const _));
-        let x_free: FnXFree = std::mem::transmute(dlsym(x11_lib, b"XFree\0".as_ptr() as *const _));
+            std::mem::transmute(dlsym(x11_lib, c"XGetAtomName".as_ptr()));
+        let x_free: FnXFree = std::mem::transmute(dlsym(x11_lib, c"XFree".as_ptr()));
 
         let dpy = x_open_display(std::ptr::null());
         if dpy.is_null() {

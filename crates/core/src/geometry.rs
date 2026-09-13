@@ -198,26 +198,50 @@ pub fn calculate_island_geometry(
     }
 
     // 3. Compute (x, y) coordinates relative to work_area (supports negative coordinates)
+    // When hovering, expand symmetrically in all directions (up, down, left, right)
+    // around the idle visual center by offsetting Y upward by half of the height delta.
+    let y_hover_offset = if layout_state == IslandLayoutState::Hovering {
+        (bounded_h as i32 - DEFAULT_IDLE_HEIGHT as i32) / 2
+    } else {
+        0
+    };
+
     let (x, y) = match anchor {
         IslandAnchor::TopCenter => {
             let offset_x = (display.work_area.width as i32 - bounded_w as i32) / 2;
             let x = display.work_area.x + offset_x;
-            let y = display.work_area.y + DEFAULT_TOP_MARGIN;
+            let y = display.work_area.y + DEFAULT_TOP_MARGIN - y_hover_offset;
             (x, y)
         }
         IslandAnchor::TopLeft => {
-            let x = display.work_area.x + 8;
-            let y = display.work_area.y + DEFAULT_TOP_MARGIN;
+            let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
+                (bounded_w as i32 - DEFAULT_IDLE_WIDTH as i32) / 2
+            } else {
+                0
+            };
+            let x = display.work_area.x + 8 - x_hover_offset;
+            let y = display.work_area.y + DEFAULT_TOP_MARGIN - y_hover_offset;
             (x, y)
         }
         IslandAnchor::TopRight => {
-            let x = display.work_area.x + (display.work_area.width as i32 - bounded_w as i32) - 8;
-            let y = display.work_area.y + DEFAULT_TOP_MARGIN;
+            let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
+                (bounded_w as i32 - DEFAULT_IDLE_WIDTH as i32) / 2
+            } else {
+                0
+            };
+            let x = display.work_area.x + (display.work_area.width as i32 - bounded_w as i32) - 8
+                + x_hover_offset;
+            let y = display.work_area.y + DEFAULT_TOP_MARGIN - y_hover_offset;
             (x, y)
         }
         IslandAnchor::Custom { offset_x, offset_y } => {
-            let x = display.work_area.x + offset_x;
-            let y = display.work_area.y + offset_y;
+            let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
+                (bounded_w as i32 - DEFAULT_IDLE_WIDTH as i32) / 2
+            } else {
+                0
+            };
+            let x = display.work_area.x + offset_x - x_hover_offset;
+            let y = display.work_area.y + offset_y - y_hover_offset;
             (x, y)
         }
     };
@@ -781,5 +805,52 @@ mod tests {
         // 1920 + (1080 - 400) / 2 = 1920 + 340 = 2260
         assert_eq!(exp.x, 2260);
         assert_eq!(exp.y, DEFAULT_TOP_MARGIN);
+    }
+
+    #[test]
+    fn test_hover_symmetrical_expansion_preserves_center() {
+        let display = sample_primary_display();
+        let idle = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        let hover = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Hovering,
+            None,
+            IslandAnchor::TopCenter,
+        );
+
+        // Hover container expands symmetrically
+        assert_eq!(idle.width, DEFAULT_IDLE_WIDTH); // 240
+        assert_eq!(idle.height, DEFAULT_IDLE_HEIGHT); // 40
+        assert_eq!(hover.width, DEFAULT_HOVER_WIDTH); // 260 (+20px)
+        assert_eq!(hover.height, DEFAULT_HOVER_HEIGHT); // 44 (+4px)
+
+        // Expansion is directional in all 4 axes:
+        // Left expands by 10px, right expands by 10px:
+        assert_eq!(hover.x, idle.x - 10);
+        assert_eq!(
+            hover.x + hover.width as i32,
+            idle.x + idle.width as i32 + 10
+        );
+
+        // Top expands upward by 2px, bottom expands downward by 2px:
+        assert_eq!(hover.y, idle.y - 2);
+        assert_eq!(
+            hover.y + hover.height as i32,
+            idle.y + idle.height as i32 + 2
+        );
+
+        // Visual Center (X, Y) is mathematically identical:
+        let idle_center_x = idle.x + (idle.width as i32) / 2;
+        let idle_center_y = idle.y + (idle.height as i32) / 2;
+        let hover_center_x = hover.x + (hover.width as i32) / 2;
+        let hover_center_y = hover.y + (hover.height as i32) / 2;
+
+        assert_eq!(idle_center_x, hover_center_x);
+        assert_eq!(idle_center_y, hover_center_y);
     }
 }

@@ -204,3 +204,16 @@ export async function subscribeToSettingsChanged(
     return () => {};
   }
 }
+
+export async function subscribeToOpenSettings(
+  callback: () => void
+): Promise<UnlistenFn> {
+  try {
+    return await listen<void>("bbq://open_settings", () => {
+      callback();
+    });
+  } catch {
+    return () => {};
+  }
+}
+

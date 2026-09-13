@@ -7,7 +7,8 @@ import { initializeFileStore } from "../../state/fileState.ts";
 import { initializeSystemStore } from "../../state/systemState.ts";
 import { initHotkeyStore } from "../../state/hotkeyState.ts";
 import { setDragOver, inspectDrop } from "../../state/dropState.ts";
-import { subscribeToIslandMode, subscribeToHotkeyTriggered } from "../../ipc/events.ts";
+import { subscribeToIslandMode, subscribeToHotkeyTriggered, subscribeToOpenSettings } from "../../ipc/events.ts";
+import { setActiveWidget } from "../../island/islandState.ts";
 import { IslandShell } from "./IslandShell.tsx";
 import { IslandContent } from "./IslandContent.tsx";
 
@@ -30,6 +31,7 @@ export const Island: React.FC = () => {
     let unlistenSystem: (() => void) | undefined;
     let unlistenHotkey: (() => void) | undefined;
     let unlistenHotkeyTrigger: (() => void) | undefined;
+    let unlistenOpenSettings: (() => void) | undefined;
 
     (async () => {
       await islandRuntime.init();
@@ -52,6 +54,10 @@ export const Island: React.FC = () => {
       unlistenHotkeyTrigger = await subscribeToHotkeyTriggered(async () => {
         await islandRuntime.handleHotkeyTriggered();
       });
+      unlistenOpenSettings = await subscribeToOpenSettings(async () => {
+        setActiveWidget("settings");
+        await islandRuntime.transitionTo("Expanded", "event");
+      });
     })();
 
     return () => {
@@ -63,6 +69,7 @@ export const Island: React.FC = () => {
       if (unlistenSystem) unlistenSystem();
       if (unlistenHotkey) unlistenHotkey();
       if (unlistenHotkeyTrigger) unlistenHotkeyTrigger();
+      if (unlistenOpenSettings) unlistenOpenSettings();
     };
   }, []);
 

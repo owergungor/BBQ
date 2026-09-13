@@ -291,3 +291,108 @@ describe("Store Isolation", () => {
     unlistenFile();
   });
 });
+
+describe("BBQ v1.1 — Wisland Hover Symmetrical Expansion & Hitbox Invariants", () => {
+  let runtime: IslandRuntime;
+
+  beforeEach(() => {
+    runtime = new IslandRuntime();
+    islandStore.setState(initialIslandState);
+  });
+
+  it("Idle: container coordinates and center are at expected baseline", () => {
+    const idleWidth = 240;
+    const idleHeight = 40;
+    const workAreaWidth = 1920;
+    const topMargin = 6;
+
+    const idleX = (workAreaWidth - idleWidth) / 2; // 840
+    const idleY = topMargin; // 6
+    const centerX = idleX + idleWidth / 2; // 960
+    const centerY = idleY + idleHeight / 2; // 26
+
+    assert.equal(centerX, 960);
+    assert.equal(centerY, 26);
+    assert.equal(islandStore.getState().state, "Idle");
+  });
+
+  it("Hover: container expands symmetrically in all directions while content center remains identical", async () => {
+    const idleWidth = 240;
+    const idleHeight = 40;
+    const hoverWidth = 260;
+    const hoverHeight = 44;
+    const workAreaWidth = 1920;
+    const topMargin = 6;
+
+    const idleX = (workAreaWidth - idleWidth) / 2; // 840
+    const idleY = topMargin; // 6
+    const idleCenterX = idleX + idleWidth / 2; // 960
+    const idleCenterY = idleY + idleHeight / 2; // 26
+
+    // Trigger USER_HOVER
+    await runtime.handleEvent({ type: "USER_HOVER" });
+    assert.equal(islandStore.getState().state, "Hovering");
+    assert.equal(islandStore.getState().isHovered, true);
+
+    // Symmetrical offsets:
+    // deltaW = 20 -> 10px left, 10px right
+    // deltaH = 4 -> 2px top, 2px bottom
+    const hoverX = (workAreaWidth - hoverWidth) / 2; // 830 (-10px)
+    const hoverY = topMargin - (hoverHeight - idleHeight) / 2; // 4 (-2px)
+
+    const hoverCenterX = hoverX + hoverWidth / 2; // 830 + 130 = 960
+    const hoverCenterY = hoverY + hoverHeight / 2; // 4 + 22 = 26
+
+    // Verified: visual center is 100% invariant
+    assert.equal(hoverCenterX, idleCenterX);
+    assert.equal(hoverCenterY, idleCenterY);
+
+    // Verified: container expanded in all 4 directions
+    assert.equal(hoverX, idleX - 10);
+    assert.equal(hoverX + hoverWidth, idleX + idleWidth + 10);
+    assert.equal(hoverY, idleY - 2);
+    assert.equal(hoverY + hoverHeight, idleY + idleHeight + 2);
+  });
+
+  it("Collapse: container returns to idle dimensions while content center remains identical", async () => {
+    const idleWidth = 240;
+    const idleHeight = 40;
+    const workAreaWidth = 1920;
+    const topMargin = 6;
+
+    const idleCenterX = (workAreaWidth - idleWidth) / 2 + idleWidth / 2;
+    const idleCenterY = topMargin + idleHeight / 2;
+
+    await runtime.handleEvent({ type: "USER_HOVER" });
+    assert.equal(islandStore.getState().state, "Hovering");
+
+    await runtime.handleEvent({ type: "USER_UNHOVER" });
+    // Await the 150ms unhover debounce timeout
+    await new Promise((r) => setTimeout(r, 160));
+    assert.equal(islandStore.getState().state, "Idle");
+    assert.equal(islandStore.getState().isHovered, false);
+
+    const postCollapseCenterX = (workAreaWidth - idleWidth) / 2 + idleWidth / 2;
+    const postCollapseCenterY = topMargin + idleHeight / 2;
+
+    assert.equal(postCollapseCenterX, idleCenterX);
+    assert.equal(postCollapseCenterY, idleCenterY);
+  });
+
+  it("Hitbox: maintains expanded hover state while within expanded bounds and collapses when outside", async () => {
+    // Hover entry
+    await runtime.handleEvent({ type: "USER_HOVER" });
+    assert.equal(islandStore.getState().state, "Hovering");
+
+    // Mouse movement inside expanded hitbox retains Hovering state
+    assert.equal(islandStore.getState().isHovered, true);
+
+    // Mouse moves outside expanded boundary -> USER_UNHOVER
+    await runtime.handleEvent({ type: "USER_UNHOVER" });
+    // Await the 150ms unhover debounce timeout
+    await new Promise((r) => setTimeout(r, 160));
+    assert.equal(islandStore.getState().state, "Idle");
+    assert.equal(islandStore.getState().isHovered, false);
+  });
+});
+

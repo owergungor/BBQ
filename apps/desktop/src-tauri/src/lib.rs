@@ -22,6 +22,8 @@ use bbq_storage::DatabaseManager;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State};
 
+pub mod tray;
+
 pub struct AppState {
     pub current_mode: Mutex<IslandMode>,
     pub services: ServiceRegistry,
@@ -992,6 +994,11 @@ pub fn run() {
                 "Registered {} services in BBQ registry",
                 services_clone.len()
             );
+
+            // Initialize System Tray
+            if let Err(e) = tray::setup_tray(handle) {
+                tracing::warn!("Failed to initialize system tray: {}", e);
+            }
 
             // Forward media events to frontend
             let app_handle = handle.clone();
