@@ -28,5 +28,8 @@ serde_json = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
 
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
 [lints]
 workspace = true

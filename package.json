@@ -11,6 +11,8 @@
   "scripts": {
     "dev": "pnpm --filter @bbq/desktop dev",
     "build": "pnpm --filter @bbq/types build && pnpm --filter @bbq/desktop build",
+    "build:desktop": "pnpm --filter @bbq/desktop tauri build --no-bundle",
+    "build:bundle": "pnpm --filter @bbq/desktop tauri build",
     "typecheck": "pnpm --filter @bbq/types typecheck && pnpm --filter @bbq/desktop typecheck",
     "test": "pnpm --filter @bbq/desktop test",
     "lint": "pnpm --filter @bbq/desktop lint",
