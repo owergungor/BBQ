@@ -20,6 +20,7 @@ apps/desktop/src-tauri/target/
 *.log
 local_data/
 cache/
+scratch/
 
 # OS / Editor
 .DS_Store

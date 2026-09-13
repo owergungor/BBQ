@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { updateSettingsBatch, useSettingsState } from "../../state/settingsState.ts";
+import { islandRuntime } from "../../island/IslandRuntime.ts";
 import type { ThemePreference } from "@bbq/types";
 
 interface OnboardingStep {
@@ -76,11 +77,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
   const [currentStep, setCurrentStep] = useState(0);
   const { settings } = useSettingsState();
 
+  useEffect(() => {
+    islandRuntime.transitionTo("Expanded", "event");
+  }, []);
+
   const handleFinish = useCallback(async () => {
     await updateSettingsBatch({
       first_run_completed: true,
       onboarding_completed: true,
     });
+    await islandRuntime.transitionTo("Idle", "event");
     if (onClose) {
       onClose();
     }
@@ -130,68 +136,28 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
   };
 
   return (
-    <div
-      className="bbq-onboarding-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="onboarding-title"
-      aria-describedby="onboarding-desc"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        background: "rgba(0, 0, 0, 0.75)",
-        backdropFilter: "blur(8px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "16px",
-      }}
-    >
+    <div className="bbq-onboarding-wrapper" role="presentation">
       <div
-        className="bbq-onboarding-card"
-        style={{
-          width: "100%",
-          maxWidth: "460px",
-          background: "var(--bbq-surface)",
-          border: "1px solid var(--bbq-border)",
-          borderRadius: "14px",
-          padding: "24px",
-          color: "var(--bbq-text)",
-          boxShadow: "var(--bbq-shadow)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "18px",
-        }}
+        className="bbq-onboarding-island"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-title"
+        aria-describedby="onboarding-desc"
       >
-        {/* Step Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span
-            style={{
-              fontSize: "11px",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              color: "var(--bbq-accent)",
-              background: "var(--bbq-surface-elevated)",
-              padding: "3px 8px",
-              borderRadius: "6px",
-              border: "1px solid var(--bbq-border)",
-            }}
-          >
-            {step.badge} • {currentStep + 1} / {ONBOARDING_STEPS.length}
-          </span>
+        {/* Step Top Bar */}
+        <div className="bbq-onboarding-top-bar">
+          <div className="bbq-onboarding-badge-group">
+            <span className="bbq-onboarding-icon" aria-hidden="true">
+              {step.icon}
+            </span>
+            <span className="bbq-onboarding-badge">
+              {step.badge} • {currentStep + 1} / {ONBOARDING_STEPS.length}
+            </span>
+          </div>
           <button
             type="button"
+            className="bbq-onboarding-skip-btn"
             onClick={handleFinish}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--bbq-text-muted)",
-              fontSize: "12px",
-              cursor: "pointer",
-              padding: "4px",
-            }}
             title="Skip onboarding (Esc)"
             aria-label="Skip welcome tour"
           >
@@ -200,67 +166,27 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
         </div>
 
         {/* Step Content */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "28px" }} aria-hidden="true">
-              {step.icon}
-            </span>
-            <div>
-              <h2
-                id="onboarding-title"
-                style={{ fontSize: "17px", fontWeight: 700, margin: 0, color: "var(--bbq-text)" }}
-              >
-                {step.title}
-              </h2>
-              <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)" }}>
-                {step.subtitle}
-              </span>
-            </div>
+        <div className="bbq-onboarding-body">
+          <div className="bbq-onboarding-headings">
+            <h2 id="onboarding-title" className="bbq-onboarding-title">
+              {step.title}
+            </h2>
+            <span className="bbq-onboarding-subtitle">{step.subtitle}</span>
           </div>
 
-          <p
-            id="onboarding-desc"
-            style={{
-              fontSize: "13px",
-              lineHeight: 1.5,
-              color: "var(--bbq-text)",
-              margin: "6px 0 0 0",
-            }}
-          >
+          <p id="onboarding-desc" className="bbq-onboarding-desc">
             {step.description}
           </p>
 
           {/* Interactive Personalization controls on step 4 */}
           {currentStep === 4 && (
-            <div
-              style={{
-                display: "flex",
-                gap: "8px",
-                marginTop: "8px",
-                padding: "8px",
-                background: "var(--bbq-surface-elevated)",
-                borderRadius: "8px",
-                border: "1px solid var(--bbq-border)",
-              }}
-            >
+            <div className="bbq-onboarding-theme-group" role="group" aria-label="Theme selection">
               {(["system", "dark", "light"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => handleThemeSelect(t)}
-                  style={{
-                    flex: 1,
-                    padding: "6px 10px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--bbq-border)",
-                    background:
-                      settings.theme === t ? "var(--bbq-accent)" : "transparent",
-                    color: settings.theme === t ? "#ffffff" : "var(--bbq-text)",
-                    fontSize: "11px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    textTransform: "capitalize",
-                  }}
+                  className={`bbq-onboarding-theme-btn ${settings.theme === t ? "active" : ""}`}
                   aria-label={`Select ${t} theme`}
                 >
                   {t}
@@ -270,68 +196,29 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
           )}
 
           {step.tip && (
-            <div
-              style={{
-                marginTop: "6px",
-                padding: "8px 10px",
-                borderRadius: "6px",
-                background: "rgba(59, 130, 246, 0.08)",
-                border: "1px solid rgba(59, 130, 246, 0.2)",
-                fontSize: "11px",
-                color: "var(--bbq-accent)",
-              }}
-            >
+            <div className="bbq-onboarding-tip">
               {step.tip}
             </div>
           )}
         </div>
 
         {/* Step Progress Dots */}
-        <div
-          style={{ display: "flex", justifyContent: "center", gap: "6px", margin: "4px 0" }}
-          aria-hidden="true"
-        >
+        <div className="bbq-onboarding-dots" aria-hidden="true">
           {ONBOARDING_STEPS.map((_, idx) => (
             <div
               key={idx}
-              style={{
-                width: idx === currentStep ? "18px" : "6px",
-                height: "6px",
-                borderRadius: "3px",
-                background:
-                  idx === currentStep ? "var(--bbq-accent)" : "var(--bbq-surface-elevated)",
-                border: "1px solid var(--bbq-border)",
-                transition: "width 0.2s ease, background 0.2s ease",
-              }}
+              className={`bbq-onboarding-dot ${idx === currentStep ? "active" : ""}`}
             />
           ))}
         </div>
 
-        {/* Action Buttons */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingTop: "12px",
-            borderTop: "1px solid var(--bbq-border)",
-          }}
-        >
+        {/* Action Footer */}
+        <div className="bbq-onboarding-footer">
           <button
             type="button"
+            className="bbq-btn bbq-onboarding-back-btn"
             onClick={handleBack}
             disabled={currentStep === 0}
-            style={{
-              padding: "8px 14px",
-              borderRadius: "6px",
-              border: "1px solid var(--bbq-border)",
-              background: "var(--bbq-surface-elevated)",
-              color: "var(--bbq-text)",
-              fontSize: "12px",
-              fontWeight: 500,
-              cursor: currentStep === 0 ? "not-allowed" : "pointer",
-              opacity: currentStep === 0 ? 0.4 : 1,
-            }}
             aria-label="Previous step"
           >
             ← Back
@@ -339,18 +226,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
 
           <button
             type="button"
+            className="bbq-btn bbq-btn-primary bbq-onboarding-next-btn"
             onClick={handleNext}
-            style={{
-              padding: "8px 18px",
-              borderRadius: "6px",
-              border: "none",
-              background: "var(--bbq-accent)",
-              color: "#ffffff",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-              boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-            }}
             aria-label={isLastStep ? "Finish onboarding" : "Next step"}
           >
             {isLastStep ? "Get Started 🚀" : "Next →"}

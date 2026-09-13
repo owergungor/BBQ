@@ -22,8 +22,9 @@ export const MediaWidget: React.FC = () => {
 
   if (!currentSession || currentSession.state === "stopped") {
     return (
-      <div className="bbq-media-empty-state" style={{ textAlign: "center", padding: "24px 0", color: "var(--text-secondary)", fontSize: "12px" }}>
-        <span>🎵 No active media session detected.</span>
+      <div className="bbq-media-empty-state">
+        <span className="bbq-media-empty-icon" aria-hidden="true">🎵</span>
+        <span className="bbq-media-empty-text">No active media session detected</span>
       </div>
     );
   }
@@ -54,42 +55,42 @@ export const MediaWidget: React.FC = () => {
             {currentSession.album ? ` • ${currentSession.album}` : ""}
           </div>
         </div>
-      </div>
 
-      <div className="bbq-media-controls-expanded">
-        {caps.canGoPrevious && (
-          <button
-            type="button"
-            className="bbq-btn"
-            onClick={handlePrevious}
-            title="Previous Track"
-            aria-label="Previous track"
-          >
-            ⏮ Prev
-          </button>
-        )}
-        {(caps.canPlay || caps.canPause) && (
-          <button
-            type="button"
-            className="bbq-btn bbq-media-ctrl-primary"
-            onClick={handleTogglePlayPause}
-            title={isPlaying ? "Pause" : "Play"}
-            aria-label={isPlaying ? "Pause" : "Play"}
-          >
-            {isPlaying ? "⏸ Pause" : "▶ Play"}
-          </button>
-        )}
-        {caps.canGoNext && (
-          <button
-            type="button"
-            className="bbq-btn"
-            onClick={handleNext}
-            title="Next Track"
-            aria-label="Next track"
-          >
-            Next ⏭
-          </button>
-        )}
+        <div className="bbq-media-controls-expanded">
+          {caps.canGoPrevious && (
+            <button
+              type="button"
+              className="bbq-media-expanded-ctrl-btn"
+              onClick={handlePrevious}
+              title="Previous Track"
+              aria-label="Previous track"
+            >
+              ◀
+            </button>
+          )}
+          {(caps.canPlay || caps.canPause) && (
+            <button
+              type="button"
+              className="bbq-media-expanded-ctrl-btn primary"
+              onClick={handleTogglePlayPause}
+              title={isPlaying ? "Pause" : "Play"}
+              aria-label={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? "❚❚" : "▶"}
+            </button>
+          )}
+          {caps.canGoNext && (
+            <button
+              type="button"
+              className="bbq-media-expanded-ctrl-btn"
+              onClick={handleNext}
+              title="Next Track"
+              aria-label="Next track"
+            >
+              ▶
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

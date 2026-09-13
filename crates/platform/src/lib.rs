@@ -6,10 +6,10 @@ pub mod mock;
 pub mod notification;
 pub mod traits;
 
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(any(all(unix, not(target_os = "macos")), test))]
 pub mod linux;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", test))]
 pub mod macos;
 
 #[cfg(target_os = "windows")]

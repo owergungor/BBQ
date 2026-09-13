@@ -250,3 +250,30 @@ A change in media status will never trigger a rerender in the timer widget or cl
 
 ### Bounded Memory Footprint
 - **State Overhead**: `hotkeyStore` and `HotkeyService` maintain a tiny fixed footprint (< 1 KB RAM) consisting of the active hotkey definition and capabilities.
+
+---
+
+## 13. Production Release Benchmarks (v1.0.0) & 1.1 Sustainability Invariants
+
+### v1.0.0 Verified Host Metrics (Windows 11 x64)
+- **Idle Memory (WorkingSet)**: **51.68 MB** (Strict budget: <= 60.0 MB).
+- **Idle Memory (PrivateBytes)**: **32.40 MB**.
+- **Idle CPU**: **0.0%** (zero wakeups when resting in compact mode).
+- **Active Loops**:
+  - `setInterval`: **0**
+  - Continuous `requestAnimationFrame`: **0**
+  - Continuous `tokio::time::interval`: **0**
+- **Test Invariant Suites**:
+  - Frontend: 124 tests pass in ~600ms.
+  - Rust Backend: 144 tests pass in ~1.5s.
+
+### 1.1 Development Sustainability Rule
+For every new feature proposed for 1.1 and beyond, developers must answer the Sustainability Question:
+
+> **"Does this feature consume CPU cycles, GPU shaders, or RAM allocations while BBQ is in an idle compact state?"**
+
+If the answer is **YES**, the design is rejected. The feature must be re-architected to be:
+1. **Event-driven** (woken strictly by OS signals or user interactions),
+2. **Lazy** (computed strictly upon widget activation/expansion), and
+3. **Bounded** (strictly bounded cache retention and resource limits).
+

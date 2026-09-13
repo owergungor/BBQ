@@ -97,14 +97,12 @@ export async function updateSetting(key: string, value: string): Promise<boolean
 }
 
 export async function updateSettingsBatch(patch: Partial<BbqSettings>): Promise<boolean> {
+  const current = settingsStore.getState().settings;
+  const nextSettings: BbqSettings = { ...current, ...patch };
+  settingsStore.setState({ settings: nextSettings });
+  applyThemeAndMotionToDom(nextSettings);
   try {
-    const current = settingsStore.getState().settings;
-    const nextSettings: BbqSettings = { ...current, ...patch };
     const success = await bbqCommands.updateSettings(nextSettings);
-    if (success) {
-      settingsStore.setState({ settings: nextSettings });
-      applyThemeAndMotionToDom(nextSettings);
-    }
     return success;
   } catch (err) {
     settingsStore.setState({

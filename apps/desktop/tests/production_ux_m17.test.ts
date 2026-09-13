@@ -144,6 +144,14 @@ describe("BBQ — Milestone 17: Production UX & Visual System", () => {
       );
     });
 
+    it("routes open_files action strictly to files widget", () => {
+      const normalizedCode = launcherCode.replace(/\r\n/g, "\n");
+      assert.ok(
+        normalizedCode.includes('case "open_files":\n            onSelectWidget("files");'),
+        "Launcher open_files action must route to 'files'"
+      );
+    });
+
     it("provides aria-activedescendant for accessible listbox navigation", () => {
       assert.ok(
         launcherCode.includes("aria-activedescendant="),
@@ -174,6 +182,13 @@ describe("BBQ — Milestone 17: Production UX & Visual System", () => {
       assert.ok(
         settingsCode.includes("reminder_sound_enabled"),
         "SettingsWidget missing reminder_sound_enabled toggle"
+      );
+    });
+
+    it("implements launch at login toggle in appearance preferences", () => {
+      assert.ok(
+        settingsCode.includes('handleToggle("start_at_login"'),
+        "SettingsWidget missing start_at_login toggle"
       );
     });
 

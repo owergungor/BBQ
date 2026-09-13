@@ -2,7 +2,9 @@ use async_trait::async_trait;
 use bbq_core::BbqResult;
 use serde::{Deserialize, Serialize};
 
-pub use bbq_core::{DisplayInfo, DisplayRect, IslandGeometry};
+pub use bbq_core::{
+    DisplayCapabilities, DisplayGeometrySupport, DisplayInfo, DisplayRect, IslandGeometry,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PlatformDisplayEvent {
@@ -62,6 +64,9 @@ pub trait PlatformDisplay: Send + Sync {
     async fn get_displays(&self) -> BbqResult<Vec<DisplayInfo>>;
     async fn get_primary_display(&self) -> BbqResult<DisplayInfo>;
     async fn get_active_display(&self) -> BbqResult<DisplayInfo>;
+    fn capabilities(&self) -> DisplayCapabilities {
+        DisplayCapabilities::default()
+    }
     fn subscribe(&self, _sink: DisplayEventSink) -> BbqResult<()> {
         Ok(())
     }

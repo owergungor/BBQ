@@ -612,3 +612,18 @@ Island transitions to Idle
    - Reuses hardened `LauncherService::launch_action`.
    - Arbitrary shell strings, `cmd.exe /c`, `powershell`, and raw `Command::new` are strictly forbidden.
    - URLs require strict `http://` or `https://` schemes.
+
+---
+
+## 11. Version 1.0.0 Release Freeze & 1.1 Architectural Evolution
+
+### 1.0.0 Invariant Seal
+- **Platform Invariant**: Windows 1.0.0 is verified and sealed. Zero arbitrary shell executions (`sh -c`, `bash -c`, `cmd.exe /c`, `powershell -Command`).
+- **Scheduling Invariant**: Zero continuous background loops (`setInterval = 0`, continuous `requestAnimationFrame = 0`, `tokio::time::interval = 0`).
+- **Resource Invariant**: Bounded memory footprint (WorkingSet <= 60 MB, actual 51.68 MB) and bounded database retention (30 days, 100 clipboard entries).
+
+### 1.1 Architectural Targets
+- **Native OS Runtime Parity**: Direct platform binding transitions for macOS (`CoreGraphics`, `MPNowPlaying`, `RegisterEventHotKey`) and Linux (`XRandR`, `zbus` MPRIS, `XGrabKey`, `zwlr_layer_shell_v1`).
+- **Formalized Widget Lifecycle**: Introduction of `WidgetLifecycle` interface ensuring strict isolation, memory cleanup, error boundaries, and capability gating.
+- **Sandboxed Extension System**: Long-term declarative extension model with zero arbitrary code execution and strict capability permissions.
+

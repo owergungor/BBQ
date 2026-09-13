@@ -6,12 +6,15 @@ use std::sync::{Arc, Mutex};
 
 pub type DisplayServiceEventSink = Arc<dyn Fn(BbqEvent) + Send + Sync>;
 
+pub use bbq_platform::DisplayCapabilities;
+
 #[async_trait]
 pub trait DisplayServiceTrait: Service {
     async fn list_displays(&self) -> BbqResult<Vec<DisplayInfo>>;
     async fn get_primary_display(&self) -> BbqResult<DisplayInfo>;
     async fn get_active_display(&self) -> BbqResult<DisplayInfo>;
     async fn get_target_display(&self, display_id: Option<&str>) -> BbqResult<DisplayInfo>;
+    fn capabilities(&self) -> DisplayCapabilities;
     async fn subscribe_events(&self, sink: DisplayServiceEventSink) -> BbqResult<()>;
 }
 
@@ -114,6 +117,10 @@ impl DisplayServiceTrait for DisplayService {
             }
         }
         self.get_primary_display().await
+    }
+
+    fn capabilities(&self) -> DisplayCapabilities {
+        self.platform.capabilities()
     }
 
     async fn subscribe_events(&self, sink: DisplayServiceEventSink) -> BbqResult<()> {

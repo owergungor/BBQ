@@ -273,7 +273,8 @@ export type BbqActionType =
   | 'open_reminders'
   | 'open_timer'
   | 'open_system'
-  | 'open_media';
+  | 'open_media'
+  | 'open_files';
 
 export type LauncherAction =
   | { type: 'open_application'; payload: { id: string } }

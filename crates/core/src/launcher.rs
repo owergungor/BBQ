@@ -29,6 +29,7 @@ pub enum BbqActionType {
     OpenTimer,
     OpenSystem,
     OpenMedia,
+    OpenFiles,
 }
 
 /// Strongly typed launcher actions. Arbitrary shell execution is forbidden.

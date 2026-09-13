@@ -84,10 +84,8 @@ export const Island: React.FC = () => {
     if (state !== "Expanded") return;
 
     const handleDocumentClick = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
+      const shell = document.getElementById("bbq-island-shell");
+      if (shell && !shell.contains(e.target as Node)) {
         islandRuntime.handleEvent({ type: "CLICK_OUTSIDE" });
       }
     };

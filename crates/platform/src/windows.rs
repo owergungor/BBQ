@@ -320,6 +320,19 @@ impl PlatformDisplay for WindowsDisplay {
         self.get_primary_display().await
     }
 
+    fn capabilities(&self) -> DisplayCapabilities {
+        DisplayCapabilities {
+            multi_monitor: true,
+            dpi_scaling: true,
+            absolute_positioning: true,
+            geometry_support: DisplayGeometrySupport::Supported,
+            backend_name: "Win32 GDI / MonitorFromPoint".to_string(),
+            notes: Some(
+                "Native Win32 EnumDisplayMonitors & GetDpiForMonitor runtime verified.".to_string(),
+            ),
+        }
+    }
+
     fn subscribe(&self, sink: DisplayEventSink) -> BbqResult<()> {
         #[cfg(windows)]
         {

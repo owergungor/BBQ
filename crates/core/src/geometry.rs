@@ -22,6 +22,51 @@ pub struct DisplayInfo {
     pub work_area: DisplayRect,
 }
 
+/// Capability level for display geometry and monitor enumeration on host platform.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DisplayGeometrySupport {
+    /// Fully verified native multi-monitor display enumeration & coordinate system.
+    Supported,
+    /// Partial support: display info is queried, but compositor or OS dictates window coordinates.
+    Partial,
+    /// Compositor-dependent: Wayland restricts absolute window placement; requires layer-shell protocol.
+    CompositorDependent,
+    /// Native implementation present but runtime unverified on physical hardware.
+    Unverified,
+}
+
+/// Host platform display subsystem capabilities and limitations.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DisplayCapabilities {
+    /// Whether host platform supports enumerating multiple displays.
+    pub multi_monitor: bool,
+    /// Whether display scale factor / DPI is dynamically queried.
+    pub dpi_scaling: bool,
+    /// Whether absolute window positioning (set_position) is supported by the window server.
+    pub absolute_positioning: bool,
+    /// Level of geometry support.
+    pub geometry_support: DisplayGeometrySupport,
+    /// Underlying backend identifier (e.g. "Win32 GDI", "CoreGraphics", "X11 XRandR", "Wayland Compositor").
+    pub backend_name: String,
+    /// Optional explanatory notes on compositor limitations or security boundaries.
+    pub notes: Option<String>,
+}
+
+impl Default for DisplayCapabilities {
+    fn default() -> Self {
+        Self {
+            multi_monitor: true,
+            dpi_scaling: true,
+            absolute_positioning: true,
+            geometry_support: DisplayGeometrySupport::Supported,
+            backend_name: "Generic".to_string(),
+            notes: None,
+        }
+    }
+}
+
 /// Minimum allowed Island width in logical pixels.
 pub const MIN_ISLAND_WIDTH: u32 = 180;
 /// Maximum allowed Island width in logical pixels.
@@ -364,5 +409,377 @@ mod tests {
         // 1920 + (1080 - 400)/2 = 1920 + 340 = 2260
         assert_eq!(geo.x, 2260);
         assert_eq!(geo.y, DEFAULT_TOP_MARGIN);
+    }
+
+    #[test]
+    fn test_resolutions_and_scale_factors() {
+        let resolutions = [(1366, 768), (1920, 1080), (2560, 1440)];
+        let scale_factors = [1.0, 1.25, 1.5, 2.0];
+
+        for (w, h) in resolutions {
+            for scale in scale_factors {
+                let display = DisplayInfo {
+                    id: format!("disp-{}x{}-{}", w, h, scale),
+                    name: "Test Display".to_string(),
+                    is_primary: true,
+                    scale_factor: scale,
+                    bounds: DisplayRect {
+                        x: 0,
+                        y: 0,
+                        width: w,
+                        height: h,
+                    },
+                    work_area: DisplayRect {
+                        x: 0,
+                        y: 0,
+                        width: w,
+                        height: h.saturating_sub(40),
+                    },
+                };
+
+                // Test Idle State
+                let idle_geo = calculate_island_geometry(
+                    &display,
+                    IslandLayoutState::Idle,
+                    None,
+                    IslandAnchor::TopCenter,
+                );
+                assert_eq!(idle_geo.width, DEFAULT_IDLE_WIDTH);
+                assert_eq!(idle_geo.height, DEFAULT_IDLE_HEIGHT);
+                assert_eq!(idle_geo.x, (w as i32 - DEFAULT_IDLE_WIDTH as i32) / 2);
+                assert_eq!(idle_geo.y, DEFAULT_TOP_MARGIN);
+                assert_eq!(idle_geo.scale_factor, scale);
+
+                // Test Expanded State
+                let exp_geo = calculate_island_geometry(
+                    &display,
+                    IslandLayoutState::Expanded,
+                    None,
+                    IslandAnchor::TopCenter,
+                );
+                assert_eq!(exp_geo.width, 400);
+                assert_eq!(exp_geo.height, 280);
+                assert_eq!(exp_geo.x, (w as i32 - 400) / 2);
+                assert_eq!(exp_geo.y, DEFAULT_TOP_MARGIN);
+                assert_eq!(exp_geo.scale_factor, scale);
+            }
+        }
+    }
+
+    #[test]
+    fn test_scenario_1_single_monitor() {
+        // Single monitor: origin (0,0), size 1920x1080
+        let display = DisplayInfo {
+            id: "mon-single".to_string(),
+            name: "Primary Single".to_string(),
+            is_primary: true,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1040,
+            },
+        };
+
+        let idle = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // (1920 - 240) / 2 = 840
+        assert_eq!(idle.x, 840);
+        assert_eq!(idle.y, DEFAULT_TOP_MARGIN);
+        assert_eq!(idle.width, DEFAULT_IDLE_WIDTH);
+        assert_eq!(idle.height, DEFAULT_IDLE_HEIGHT);
+    }
+
+    #[test]
+    fn test_scenario_2_right_secondary_monitor() {
+        // Primary at (0,0), Secondary to the right at (1920,0)
+        let primary = DisplayInfo {
+            id: "mon-prim".to_string(),
+            name: "Primary".to_string(),
+            is_primary: true,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1040,
+            },
+        };
+
+        let secondary = DisplayInfo {
+            id: "mon-right".to_string(),
+            name: "Secondary Right".to_string(),
+            is_primary: false,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+        };
+
+        let prim_geo = calculate_island_geometry(
+            &primary,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(prim_geo.x, 840);
+
+        let sec_geo = calculate_island_geometry(
+            &secondary,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // 1920 + (1920 - 240) / 2 = 1920 + 840 = 2760
+        assert_eq!(sec_geo.x, 2760);
+        assert_eq!(sec_geo.y, DEFAULT_TOP_MARGIN);
+    }
+
+    #[test]
+    fn test_scenario_3_left_secondary_monitor_negative_coords() {
+        // Secondary to the left at (-1920,0), Primary at (0,0)
+        let secondary = DisplayInfo {
+            id: "mon-left".to_string(),
+            name: "Secondary Left".to_string(),
+            is_primary: false,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: -1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: -1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+        };
+
+        let sec_geo = calculate_island_geometry(
+            &secondary,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // -1920 + (1920 - 240) / 2 = -1920 + 840 = -1080
+        assert_eq!(sec_geo.x, -1080);
+        assert_eq!(sec_geo.y, DEFAULT_TOP_MARGIN);
+        // Ensure window bounds stay completely within left monitor [-1920, 0]
+        assert!(sec_geo.x >= -1920);
+        assert!(sec_geo.x + sec_geo.width as i32 <= 0);
+    }
+
+    #[test]
+    fn test_scenario_4_top_secondary_monitor_negative_coords() {
+        // Secondary above at (0,-1080)
+        let secondary = DisplayInfo {
+            id: "mon-top".to_string(),
+            name: "Secondary Top".to_string(),
+            is_primary: false,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: -1080,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 0,
+                y: -1080,
+                width: 1920,
+                height: 1080,
+            },
+        };
+
+        let sec_geo = calculate_island_geometry(
+            &secondary,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(sec_geo.x, 840);
+        // -1080 + 6 = -1074
+        assert_eq!(sec_geo.y, -1080 + DEFAULT_TOP_MARGIN);
+        // Ensure window stays within top monitor vertical bounds [-1080, 0]
+        assert!(sec_geo.y >= -1080);
+        assert!(sec_geo.y + sec_geo.height as i32 <= 0);
+    }
+
+    #[test]
+    fn test_scenario_5_different_resolutions() {
+        // Primary 2560x1440, Secondary 1920x1080
+        let primary = DisplayInfo {
+            id: "mon-2k".to_string(),
+            name: "2K Primary".to_string(),
+            is_primary: true,
+            scale_factor: 1.25,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 2560,
+                height: 1440,
+            },
+            work_area: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 2560,
+                height: 1392,
+            },
+        };
+
+        let secondary = DisplayInfo {
+            id: "mon-1080p".to_string(),
+            name: "1080p Secondary".to_string(),
+            is_primary: false,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 2560,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 2560,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+        };
+
+        let prim_geo = calculate_island_geometry(
+            &primary,
+            IslandLayoutState::Expanded,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // (2560 - 400) / 2 = 1080
+        assert_eq!(prim_geo.x, 1080);
+        assert_eq!(prim_geo.y, DEFAULT_TOP_MARGIN);
+
+        let sec_geo = calculate_island_geometry(
+            &secondary,
+            IslandLayoutState::Expanded,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // 2560 + (1920 - 400) / 2 = 2560 + 760 = 3320
+        assert_eq!(sec_geo.x, 3320);
+        assert_eq!(sec_geo.y, DEFAULT_TOP_MARGIN);
+    }
+
+    #[test]
+    fn test_scenario_6_retina_logical_vs_physical() {
+        // Retina: logical size 1440x900 points, physical pixels 2880x1800, scale 2.0
+        let retina = DisplayInfo {
+            id: "macos-retina".to_string(),
+            name: "Built-in Retina Display".to_string(),
+            is_primary: true,
+            scale_factor: 2.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1440,
+                height: 900,
+            },
+            work_area: DisplayRect {
+                x: 0,
+                y: 25,
+                width: 1440,
+                height: 875,
+            },
+        };
+
+        let idle_geo = calculate_island_geometry(
+            &retina,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // In logical coordinates: (1440 - 240) / 2 = 600
+        assert_eq!(idle_geo.x, 600);
+        // In work area with menu bar: 25 + 6 = 31
+        assert_eq!(idle_geo.y, 31);
+        assert_eq!(idle_geo.scale_factor, 2.0);
+
+        let exp_geo = calculate_island_geometry(
+            &retina,
+            IslandLayoutState::Expanded,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // (1440 - 400) / 2 = 520
+        assert_eq!(exp_geo.x, 520);
+        assert_eq!(exp_geo.y, 31);
+    }
+
+    #[test]
+    fn test_scenario_7_portrait_monitor() {
+        // Portrait orientation: 1080x1920
+        let portrait = DisplayInfo {
+            id: "mon-portrait".to_string(),
+            name: "Portrait Secondary".to_string(),
+            is_primary: false,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 1920,
+                y: 0,
+                width: 1080,
+                height: 1920,
+            },
+            work_area: DisplayRect {
+                x: 1920,
+                y: 0,
+                width: 1080,
+                height: 1920,
+            },
+        };
+
+        let idle = calculate_island_geometry(
+            &portrait,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // 1920 + (1080 - 240) / 2 = 1920 + 420 = 2340
+        assert_eq!(idle.x, 2340);
+        assert_eq!(idle.y, DEFAULT_TOP_MARGIN);
+
+        let exp = calculate_island_geometry(
+            &portrait,
+            IslandLayoutState::Expanded,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // 1920 + (1080 - 400) / 2 = 1920 + 340 = 2260
+        assert_eq!(exp.x, 2260);
+        assert_eq!(exp.y, DEFAULT_TOP_MARGIN);
     }
 }

@@ -15,7 +15,7 @@ export function useBatteryDisplay(): string {
   return useSystemState((s) => {
     return s.system.battery.available && s.system.battery.percentage !== null
       ? `${s.system.battery.percentage}%`
-      : "100%";
+      : "";
   });
 }
 
@@ -310,13 +310,15 @@ export const CompactIdleIndicator: React.FC = () => {
   const batteryDisplay = useBatteryDisplay();
   return (
     <div className="bbq-island-idle-pill">
-      <div style={{ display: "flex", alignItems: "center" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
         <span className="bbq-status-dot" />
-        <span>BBQ</span>
+        <span style={{ fontWeight: 600, letterSpacing: "0.02em" }}>BBQ</span>
       </div>
-      <div style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
-        {batteryDisplay}
-      </div>
+      {batteryDisplay ? (
+        <div style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
+          {batteryDisplay}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -327,12 +329,15 @@ export {
 } from "../../island/compactOrder.ts";
 import { resolveEffectiveIndicatorOrder } from "../../island/compactOrder.ts";
 
+import { useIslandState } from "../../island/islandState.ts";
+
 export interface CompactIslandPillProps {
   state: IslandMachineState;
   activeWidgetId: string | null;
 }
 
 export const CompactIslandPill: React.FC<CompactIslandPillProps> = ({ state, activeWidgetId }) => {
+  const userLockedWidget = useIslandState((s) => s.userLockedWidget);
   const isDraggingOver = useDropState((s) => s.isDraggingOver);
   const fileCount = useFileState((s) => s.entries.length);
   const clipboardEnabled = useClipboardState((s) => s.enabled);
@@ -362,7 +367,7 @@ export const CompactIslandPill: React.FC<CompactIslandPillProps> = ({ state, act
   }
 
   // Constraint 11: User-locked active widget must NOT be hijacked by background events
-  if (activeWidgetId && isEnabled(activeWidgetId)) {
+  if (userLockedWidget && activeWidgetId && isEnabled(activeWidgetId)) {
     let lockedContent: React.ReactNode = null;
     switch (activeWidgetId) {
       case "drop":

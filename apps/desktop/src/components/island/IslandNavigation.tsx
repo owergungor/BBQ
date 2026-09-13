@@ -20,6 +20,15 @@ export const IslandNavigation: React.FC<IslandNavigationProps> = ({
   onSelectWidget,
   onCollapse,
 }) => {
+  React.useEffect(() => {
+    if (activeWidgetId) {
+      const el = document.getElementById(`tab-${activeWidgetId}`);
+      if (el) {
+        el.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+      }
+    }
+  }, [activeWidgetId]);
+
   return (
     <nav
       className="bbq-island-navigation"
@@ -81,7 +90,7 @@ export const IslandNavigation: React.FC<IslandNavigationProps> = ({
               aria-selected={isActive}
               tabIndex={isActive ? 0 : -1}
               aria-controls={`widget-container-${widget.id}`}
-              className={`bbq-btn bbq-nav-tab ${isActive ? "bbq-btn-active" : ""}`}
+              className={`bbq-nav-tab ${isActive ? "active" : ""}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelectWidget(widget.id);
@@ -103,7 +112,7 @@ export const IslandNavigation: React.FC<IslandNavigationProps> = ({
       <div className="bbq-nav-actions" role="presentation">
         <button
           type="button"
-          className="bbq-btn bbq-collapse-btn"
+          className="bbq-collapse-btn"
           onClick={(e) => {
             e.stopPropagation();
             onCollapse();
@@ -111,7 +120,7 @@ export const IslandNavigation: React.FC<IslandNavigationProps> = ({
           title="Collapse Island (Esc)"
           aria-label="Collapse Island"
         >
-          Collapse
+          ✕
         </button>
       </div>
     </nav>

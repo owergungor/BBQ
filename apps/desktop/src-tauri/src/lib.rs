@@ -130,6 +130,13 @@ async fn get_active_display(state: State<'_, AppState>) -> Result<DisplayInfo, S
 }
 
 #[tauri::command]
+fn get_display_capabilities(
+    state: State<'_, AppState>,
+) -> Result<bbq_core::DisplayCapabilities, String> {
+    Ok(state.display_service.capabilities())
+}
+
+#[tauri::command]
 async fn calculate_island_geometry(
     state: State<'_, AppState>,
     layout_state: bbq_core::IslandLayoutState,
@@ -852,7 +859,9 @@ pub fn run() {
     let settings_repo = db.settings_repository();
     let file_repo = db.file_repository();
 
-    let settings_service = Arc::new(SettingsService::new(db.settings_repository()));
+    let settings_service = Arc::new(
+        SettingsService::new(db.settings_repository()).with_autostart(platform.autostart()),
+    );
     let clipboard = Arc::new(ClipboardService::new(
         platform.clipboard(),
         Some(clipboard_repo),
@@ -912,6 +921,7 @@ pub fn run() {
             get_displays,
             get_primary_display,
             get_active_display,
+            get_display_capabilities,
             calculate_island_geometry,
             apply_island_geometry,
             get_settings,
@@ -1371,22 +1381,29 @@ pub fn run() {
                     }
                 });
 
+                use bbq_services::SettingsServiceTrait;
                 let display_svc = state.display_service.clone();
                 let win_svc = state.window_service.clone();
-                let settings_svc = state.settings_service.clone();
+                let initial_settings = state.settings_service.get_settings().unwrap_or_default();
+                let initial_layout = if !initial_settings.onboarding_completed {
+                    if let Ok(mut current) = state.current_mode.lock() {
+                        *current = IslandMode::Expanded;
+                    }
+                    bbq_core::IslandLayoutState::Expanded
+                } else {
+                    bbq_core::IslandLayoutState::Idle
+                };
                 let window_clone = window.clone();
                 tauri::async_runtime::spawn(async move {
                     use bbq_services::DisplayServiceTrait;
-                    use bbq_services::SettingsServiceTrait;
                     use bbq_services::WindowServiceTrait;
-                    let initial_settings = settings_svc.get_settings().unwrap_or_default();
                     if let Ok(target_display) = display_svc
                         .get_target_display(initial_settings.target_display_id.as_deref())
                         .await
                     {
                         let geo = bbq_core::calculate_island_geometry(
                             &target_display,
-                            bbq_core::IslandLayoutState::Idle,
+                            initial_layout,
                             Some(bbq_core::WidgetDimensions {
                                 preferred_width: Some(initial_settings.island_width),
                                 preferred_height: Some(initial_settings.island_height),

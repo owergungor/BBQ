@@ -153,13 +153,31 @@ export const SettingsWidget: React.FC = () => {
   ];
 
   return (
-    <div className="bbq-settings-container" style={{ padding: "16px", color: "var(--bbq-text)" }}>
+    <div
+      className="bbq-settings-container"
+      style={{
+        padding: "6px 10px",
+        color: "var(--bbq-text)",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-        <h2 style={{ fontSize: "16px", fontWeight: 600, margin: 0 }}>⚙️ Preferences</h2>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "6px",
+          flexShrink: 0,
+        }}
+      >
+        <h2 style={{ fontSize: "13px", fontWeight: 600, margin: 0 }}>⚙️ Preferences</h2>
         {statusMessage && (
           <span
-            style={{ fontSize: "12px", color: "var(--bbq-accent)", fontWeight: 500 }}
+            style={{ fontSize: "11px", color: "var(--bbq-accent)", fontWeight: 500 }}
             role="status"
             aria-live="polite"
           >
@@ -170,14 +188,16 @@ export const SettingsWidget: React.FC = () => {
 
       {/* Tabs */}
       <div
+        className="bbq-settings-tablist"
         role="tablist"
         aria-label="Settings Categories"
         style={{
           display: "flex",
-          gap: "4px",
-          marginBottom: "14px",
-          borderBottom: "1px solid var(--bbq-border)",
+          gap: "2px",
+          marginBottom: "8px",
+          borderBottom: "1px solid var(--bbq-border-subtle)",
           overflowX: "auto",
+          flexShrink: 0,
         }}
       >
         {tabs.map((tab) => {
@@ -192,15 +212,17 @@ export const SettingsWidget: React.FC = () => {
               aria-controls={`settings-panel-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
               style={{
-                padding: "6px 10px",
-                background: isSelected ? "var(--bbq-surface-elevated)" : "transparent",
+                padding: "3px 8px",
+                background: isSelected ? "rgba(255, 255, 255, 0.08)" : "transparent",
                 border: "none",
                 borderBottom: isSelected ? "2px solid var(--bbq-accent)" : "2px solid transparent",
                 color: isSelected ? "var(--bbq-text)" : "var(--bbq-text-muted)",
                 cursor: "pointer",
-                fontSize: "12px",
-                fontWeight: isSelected ? 600 : 500,
+                fontSize: "11px",
+                fontWeight: isSelected ? 600 : 400,
                 borderRadius: "4px 4px 0 0",
+                whiteSpace: "nowrap",
+                transition: "all 120ms ease",
               }}
             >
               {tab.label}
@@ -214,11 +236,11 @@ export const SettingsWidget: React.FC = () => {
         id={`settings-panel-${activeTab}`}
         role="tabpanel"
         aria-labelledby={`settings-tab-${activeTab}`}
-        style={{ minHeight: "230px", fontSize: "13px" }}
+        style={{ flex: 1, minHeight: 0, overflowY: "auto", fontSize: "12px" }}
       >
         {/* APPEARANCE */}
         {activeTab === "appearance" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <div>
               <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
                 Theme Mode
@@ -266,6 +288,25 @@ export const SettingsWidget: React.FC = () => {
                 onChange={(e) => handleToggle("reduced_motion", e.target.checked)}
                 style={{ cursor: "pointer", width: "16px", height: "16px" }}
                 aria-label="Reduced Motion"
+              />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+              <div>
+                <label htmlFor="start-at-login-toggle" style={{ fontWeight: 500, display: "block" }}>
+                  Launch at Login
+                </label>
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+                  Start BBQ automatically on system startup.
+                </span>
+              </div>
+              <input
+                id="start-at-login-toggle"
+                type="checkbox"
+                checked={settings.start_at_login}
+                onChange={(e) => handleToggle("start_at_login", e.target.checked)}
+                style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                aria-label="Launch at Login"
               />
             </div>
           </div>

@@ -78,6 +78,9 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
       if (item.action.type === "bbq_action" && onSelectWidget) {
         const bbqAction = item.action.payload.action as BbqActionType;
         switch (bbqAction) {
+          case "open_files":
+            onSelectWidget("files");
+            return;
           case "open_clipboard":
             onSelectWidget("clipboard");
             return;

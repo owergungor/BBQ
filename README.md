@@ -14,7 +14,9 @@ BBQ is built with **Tauri 2.x**, **Rust**, and **React 19**, engineered from the
 - **First-Run Onboarding**: 30-second interactive welcome tour explaining island mechanics, hotkeys, privacy, and widget customization.
 - **Privacy-First Clipboard History**: Fully opt-in, bounded local retention (up to 100 entries), zero background telemetry, and strictly local SQLite persistence.
 - **Media & Audio Controls**: Native OS media session integration with playback toggles and track progress.
-- **Smart Quick Launcher**: Instant keyboard-driven application launcher and command palette.
+- **Smart Quick Launcher**: Instant keyboard-driven application launcher and command palette with built-in actions.
+- **File Workspace**: Safe drag & drop file workspace with path traversal guards, reveal in file explorer, and file inspection.
+- **Reminders & Notifications**: Scheduled alerts with native OS notifications and timestamp-driven execution.
 - **Pomodoro & Focus Timers**: Integrated timers with phase transitions and subtle desktop audio cues.
 - **Native OS Autostart**: Clean, platform-native registry/agent startup without shell scripts or wrapper daemons.
 - **Accessible & Responsive**: Full keyboard navigation, visible focus rings, native dark/light/system theme inheritance, and reduced motion awareness.
@@ -23,21 +25,42 @@ BBQ is built with **Tauri 2.x**, **Rust**, and **React 19**, engineered from the
 
 ## Platform Support Matrix
 
-BBQ runs natively on Windows, macOS, and Linux. Below is the honest breakdown of capabilities across platforms:
-
-| Feature / Capability | Windows (10/11) | macOS (12+) | Linux (X11) | Linux (Wayland) |
+| Capability | Windows | macOS | Linux X11 | Linux Wayland |
 | :--- | :---: | :---: | :---: | :---: |
-| **Window Positioning (Top Center)** | ✅ Native Win32 | ✅ Native Cocoa | ✅ EWMH / X11 | ⚠️ Compositor-dependent (Layer Shell) |
-| **Always-on-Top / Overlapped** | ✅ Native | ✅ Native | ✅ Supported | ⚠️ Restricted by some Wayland compositors |
-| **Global Hotkey (`Ctrl+Space`)** | ✅ RegisterHotKey | ✅ Carbon / CGEvent | ✅ XGrabKey | ⚠️ Requires desktop portal / shortcut protocol |
-| **Media Session Metadata** | ✅ WinRT GSMTC | ✅ MPNowPlaying | ✅ MPRIS DBus | ✅ MPRIS DBus |
-| **Clipboard Monitoring** | ✅ Opt-in (Win32) | ✅ Opt-in (NSPasteboard) | ✅ Opt-in (X11 selection) | ⚠️ Compositor clipboard portal required |
-| **Native Autostart** | ✅ HKCU Run Registry | ✅ LaunchAgents Plist | ✅ XDG Autostart `.desktop` | ✅ XDG Autostart `.desktop` |
-| **System Resource Telemetry** | ✅ sysinfo / Win32 | ✅ sysinfo / Darwin | ✅ sysinfo / procfs | ✅ sysinfo / procfs |
-| **Local SQLite Persistence** | ✅ %APPDATA% | ✅ ~/Library/Application Support | ✅ ~/.config or XDG_DATA_HOME | ✅ ~/.config or XDG_DATA_HOME |
+| **Window transparency** | Verified | Build Verified / Runtime Pending | Build Verified / Runtime Pending | Partial / Compositor Dependent |
+| **Always on top** | Verified | Build Verified / Runtime Pending | Build Verified / Runtime Pending | Partial / Compositor Dependent |
+| **Global hotkey** | Verified | Unsupported (In-App Fallback) | Unsupported (In-App Fallback) | Unsupported (In-App Fallback) |
+| **Media control** | Verified | Executable Bridge (AppleScript) | Optional CLI (playerctl) | Optional CLI (playerctl) |
+| **Notifications** | Verified | Executable Bridge (osascript) | Optional CLI (notify-send) | Optional CLI (notify-send) |
+| **Clipboard** | Verified | On-Demand CLI (pbcopy/pbpaste) | On-Demand CLI (xclip) | On-Demand CLI (wl-clipboard) |
+| **Autostart** | Verified | Native (LaunchAgents Plist) | Native (XDG Autostart) | Native (XDG Autostart) |
+| **File opening** | Verified | Standard CLI (open) | Standard CLI (xdg-open) | Standard CLI (xdg-open) |
+| **Launcher** | Verified | Trait Verified | Trait Verified | Trait Verified |
+| **Display geometry** | Verified (Win32 GDI) | IMPLEMENTED — RUNTIME UNVERIFIED (CoreGraphics) | IMPLEMENTED — RUNTIME UNVERIFIED (X11 XRandR FFI) | PARTIAL / COMPOSITOR_DEPENDENT (Kernel DRM) |
+| **Multi-monitor** | Verified (EnumDisplayMonitors) | IMPLEMENTED — RUNTIME UNVERIFIED (CGGetActiveDisplayList) | IMPLEMENTED — RUNTIME UNVERIFIED (XRandR Multi-Screen) | COMPOSITOR_DEPENDENT (Compositor Placement) |
+| **DPI / Scale** | Verified (GetDpiForMonitor) | IMPLEMENTED — RUNTIME UNVERIFIED (Retina Physical vs Logical) | IMPLEMENTED — RUNTIME UNVERIFIED (XRandR Physical/Pixel) | COMPOSITOR_DEPENDENT (Compositor Buffer Scale) |
+| **Top-center positioning** | Verified (Logical TopCenter) | IMPLEMENTED — RUNTIME UNVERIFIED (Quartz WorkArea Centering) | IMPLEMENTED — RUNTIME UNVERIFIED (X11 WorkArea Centering) | COMPOSITOR_DEPENDENT (Requires wlr-layer-shell) |
 
 > [!NOTE]
-> On Linux Wayland sessions, global positioning and hotkeys rely on modern compositor protocols (e.g. `wlr-layer-shell`, XDG Desktop Portals). When unsupported by the desktop compositor, BBQ gracefully falls back to normal window mode and application-scoped shortcuts.
+> **Cross-Platform Verification Boundary**: Windows runtime is physically verified on the host system. macOS and Linux platform adapters are statically verified, trait-conformant, and unit-tested in the workspace, but physical runtime execution on native macOS/Linux hardware remains a verification boundary. On Linux Wayland, client-driven absolute window positioning (`set_position`) is disallowed by design and requires `wlr-layer-shell` or compositor rules.
+
+---
+
+## Native CLI Dependencies & Fallback Behavior
+
+BBQ interfaces with native operating system subsystems directly or via standard desktop CLI utilities. Missing optional utilities degrade gracefully without causing crashes or panics:
+
+### macOS Dependencies
+- `osascript` (**Standard / Built-in**): Used for AppleScript notifications and Music/Spotify media playback control.
+- `pbcopy` / `pbpaste` (**Standard / Built-in**): Used for lazy on-demand clipboard read/write.
+- `open` (**Standard / Built-in**): Used for opening URLs, launching applications, and revealing files in Finder.
+
+### Linux Dependencies
+- `xdg-open` (**Standard / Recommended**): Used for opening files, folders, and browser URLs. If missing, file launching fails gracefully.
+- `notify-send` (**Optional / libnotify-bin**): Used for desktop notification toasts. If missing, notification capabilities report `available: false` and notifications degrade gracefully.
+- `playerctl` (**Optional**): Used for MPRIS media player playback control and metadata inspection. If missing, media reports `None` active session without error.
+- `wl-clipboard` (`wl-copy` / `wl-paste`) (**Optional / Wayland**): Used for Wayland clipboard synchronization. If missing, clipboard reads return `None`.
+- `xclip` / `xsel` (**Optional / X11**): Used for X11 selection clipboard synchronization. If missing, clipboard reads return `None`.
 
 ---
 
@@ -49,9 +72,10 @@ BBQ runs natively on Windows, macOS, and Linux. Below is the honest breakdown of
 
 ## Release & Verification Status
 
-- **Windows (10/11 x64)**: **Runtime Verified** on physical Windows 11 host. Clean installation, NSIS packaging, startup, autostart registry, and memory benchmarks (51.68 MB) certified.
-- **macOS (12+)**: **Build Verified** via cross-platform CI matrix (`macos-latest`). Physical runtime testing on Apple Silicon / Intel pending.
-- **Linux (X11 / Wayland)**: **Build Verified** via cross-platform CI matrix (`ubuntu-latest`). Physical runtime testing across distros pending.
+- **Windows (10/11 x64)**: **READY / VERIFIED** — Physically verified on Windows 11 x64 host. Clean installation, NSIS & MSI packaging, startup, autostart registry, and memory benchmarks (51.68 MB) certified.
+- **macOS (12+)**: **IMPLEMENTED WHERE AVAILABLE / RUNTIME VALIDATION PENDING** — Native trait architecture and bundle build verified via CI (`macos-latest`). Physical hardware runtime validation pending.
+- **Linux X11**: **IMPLEMENTED WHERE AVAILABLE / RUNTIME VALIDATION PENDING** — Native X11 trait architecture and bundle build verified via CI (`ubuntu-latest`). Physical hardware runtime validation pending.
+- **Linux Wayland**: **COMPOSITOR-DEPENDENT / LIMITED** — Absolute positioning and global key grabs restricted by Wayland security architecture; client gracefully degrades.
 - **Code Signing**: Currently **Unsigned** (Ad-hoc developer build). Windows Defender SmartScreen may show an "Unknown Publisher" prompt; macOS Gatekeeper requires right-click -> Open until an Apple Developer ID certificate is applied.
 
 ---
@@ -111,7 +135,7 @@ BBQ is built with a strict **Zero-Telemetry, Local-First** security model:
 - **No Analytics / Telemetry**: BBQ contains zero analytics trackers, telemetry libraries, or remote phone-home beacons.
 - **No Background Network Activity**: The application does not issue remote HTTP/HTTPS requests. All operations execute strictly on the local machine.
 - **Opt-In Sensitive Capabilities**: Clipboard history tracking is **disabled by default**. When explicitly enabled, history is capped at a strict budget (100 entries, 30 days retention) and passwords / sensitive types are excluded where platform hints allow.
-- **Local SQLite Database**: All state (settings, bookmarks, history) is encrypted at rest by your OS user permissions and stored locally in `%APPDATA%\com.bbq.desktop\bbq.db` (Windows) or `~/Library/Application Support/com.bbq.desktop/bbq.db` (macOS).
+- **Local SQLite Database**: All state (settings, bookmarks, history) is encrypted at rest by your OS user permissions and stored locally in `%APPDATA%\BBQ\data\bbq.sqlite` (Windows), `~/Library/Application Support/BBQ/data/bbq.sqlite` (macOS), or `~/.local/share/BBQ/data/bbq.sqlite` (Linux).
 - **PII-Sanitized Logging**: Rust backend tracing sanitizes clipboard text, file paths, and passwords before writing to any log stream.
 
 ---
@@ -126,15 +150,15 @@ BBQ provides an integrated **Launch at Login** preference:
 
 ---
 
-## Uninstall Policy
+## Uninstall Policy (Uninstall Leaves User Data)
 
 Uninstalling BBQ cleans up application binaries, Start Menu shortcuts, and autostart registry entries.
 
 > [!IMPORTANT]
-> **Non-Destructive User Data Policy**: In accordance with desktop application best practices, uninstalling BBQ **does NOT delete your user database or settings** (`bbq.db`). If you wish to completely remove all BBQ user data after uninstalling, manually delete the configuration folder:
-> - **Windows**: `%APPDATA%\com.bbq.desktop`
-> - **macOS**: `~/Library/Application Support/com.bbq.desktop`
-> - **Linux**: `~/.config/com.bbq.desktop` or `~/.local/share/com.bbq.desktop`
+> **Uninstall Leaves User Data Policy**: In accordance with desktop application data preservation standards, uninstalling BBQ **does NOT delete your user database, settings, or logs** (`bbq.sqlite`). Uninstall leaves user data intact so that updates, rollbacks, or re-installations preserve your configuration. If you wish to completely remove all BBQ user data after uninstalling, manually delete the BBQ application data directory:
+> - **Windows**: `%APPDATA%\BBQ`
+> - **macOS**: `~/Library/Application Support/BBQ`
+> - **Linux**: `~/.local/share/BBQ` and `~/.config/BBQ`
 
 ---
 
