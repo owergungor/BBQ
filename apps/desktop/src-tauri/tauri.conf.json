@@ -14,9 +14,9 @@
       {
         "title": "BBQ",
         "label": "main",
-        "width": 240,
-        "height": 40,
-        "resizable": false,
+        "width": 260,
+        "height": 44,
+        "resizable": true,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,

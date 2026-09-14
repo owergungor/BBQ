@@ -72,10 +72,10 @@
   --bbq-radius-xl: 24px;
   --bbq-radius-full: 9999px;
 
-  /* Shadows */
-  --bbq-shadow-idle: 0 4px 16px -2px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(255, 255, 255, 0.08);
-  --bbq-shadow-expanded: 0 16px 40px -8px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.1);
-  --bbq-shadow: var(--bbq-shadow-expanded);
+  /* Shadows - Completely eliminated for crisp zero-halo outer edge */
+  --bbq-shadow-idle: none;
+  --bbq-shadow-expanded: none;
+  --bbq-shadow: none;
 
   /* Motion */
   --bbq-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
@@ -93,7 +93,7 @@
   --text-secondary: var(--bbq-text-secondary);
   --accent: var(--bbq-accent);
   --accent-glow: var(--bbq-accent-glow);
-  --shadow-island: var(--bbq-shadow-expanded);
+  --shadow-island: none;
   --ease-spring: var(--bbq-ease-spring);
   --font-family: var(--bbq-font-sans);
 }
@@ -119,9 +119,9 @@
   --bbq-text-muted: #8e8e93;
   --bbq-text: var(--bbq-text-primary);
 
-  --bbq-shadow-idle: 0 4px 16px -2px rgba(0, 0, 0, 0.12), 0 0 1px 1px rgba(0, 0, 0, 0.08);
-  --bbq-shadow-expanded: 0 16px 40px -8px rgba(0, 0, 0, 0.18), 0 0 1px 1px rgba(0, 0, 0, 0.1);
-  --bbq-shadow: var(--bbq-shadow-expanded);
+  --bbq-shadow-idle: none;
+  --bbq-shadow-expanded: none;
+  --bbq-shadow: none;
 
   --bbq-danger-bg: rgba(239, 68, 68, 0.1);
   --bbq-warning-bg: rgba(245, 158, 11, 0.1);
@@ -151,9 +151,9 @@
     --bbq-text-muted: #8e8e93;
     --bbq-text: var(--bbq-text-primary);
 
-    --bbq-shadow-idle: 0 4px 16px -2px rgba(0, 0, 0, 0.12), 0 0 1px 1px rgba(0, 0, 0, 0.08);
-    --bbq-shadow-expanded: 0 16px 40px -8px rgba(0, 0, 0, 0.18), 0 0 1px 1px rgba(0, 0, 0, 0.1);
-    --bbq-shadow: var(--bbq-shadow-expanded);
+    --bbq-shadow-idle: none;
+    --bbq-shadow-expanded: none;
+    --bbq-shadow: none;
 
     --bbq-danger-bg: rgba(239, 68, 68, 0.1);
     --bbq-warning-bg: rgba(245, 158, 11, 0.1);
@@ -292,7 +292,7 @@ html, body {
   width: 100%;
   background: var(--bbq-bg-idle);
   border: 1px solid var(--bbq-border);
-  box-shadow: var(--bbq-shadow-idle);
+  box-shadow: none;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -328,7 +328,7 @@ html, body {
   border-radius: 9999px;
   background: var(--bbq-bg-active);
   border-color: var(--bbq-border-glow);
-  box-shadow: var(--bbq-shadow-expanded);
+  box-shadow: none;
 }
 
 .bbq-island-shell.state-expanded {
@@ -338,7 +338,7 @@ html, body {
   max-height: 280px;
   border-radius: 26px;
   background: var(--bbq-bg-expanded);
-  box-shadow: var(--bbq-shadow-expanded);
+  box-shadow: none;
   cursor: default;
   transform: translate3d(0, 0, 0);
 }
@@ -351,7 +351,7 @@ html, body {
   max-height: 56px;
   border-radius: 22px;
   border-color: rgba(59, 130, 246, 0.8) !important;
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4) !important;
+  box-shadow: none !important;
   transform: scale(1.01);
 }
 
@@ -805,7 +805,7 @@ html, body {
   border-radius: 26px;
   padding: 14px 18px;
   color: var(--bbq-text-primary);
-  box-shadow: var(--bbq-shadow-expanded);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   justify-content: space-between;

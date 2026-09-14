@@ -26,6 +26,7 @@ pub mod tray;
 
 pub struct AppState {
     pub current_mode: Mutex<IslandMode>,
+    pub last_geometry: Mutex<Option<bbq_core::IslandGeometry>>,
     pub services: ServiceRegistry,
     pub platform: Arc<dyn PlatformProvider>,
     pub db: Arc<DatabaseManager>,
@@ -68,6 +69,9 @@ async fn set_island_mode(
     mode: IslandMode,
 ) -> Result<(), String> {
     if let Ok(mut current) = state.current_mode.lock() {
+        if *current == mode {
+            return Ok(());
+        }
         *current = mode;
     }
 
@@ -86,26 +90,60 @@ async fn set_island_mode(
         .get_target_display(settings.target_display_id.as_deref())
         .await
     {
+        // For compact envelope (Idle or Hovering), calculate Hovering geometry (260x44)
+        // so the OS window maintains a stable envelope and does not oscillate or re-position during hover.
+        // For Expanded, calculate 400x280 expanded geometry with dims = None (not idle settings).
+        let (calc_state, dims) = match layout_state {
+            bbq_core::IslandLayoutState::Expanded => (bbq_core::IslandLayoutState::Expanded, None),
+            _ => (
+                bbq_core::IslandLayoutState::Hovering,
+                Some(bbq_core::WidgetDimensions {
+                    preferred_width: Some(settings.island_width),
+                    preferred_height: Some(settings.island_height),
+                }),
+            ),
+        };
+
         let geo = bbq_core::calculate_island_geometry(
             &target_disp,
-            layout_state,
-            Some(bbq_core::WidgetDimensions {
-                preferred_width: Some(settings.island_width),
-                preferred_height: Some(settings.island_height),
-            }),
+            calc_state,
+            dims,
             bbq_core::IslandAnchor::TopCenter,
         );
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
-                width: geo.width as f64,
-                height: geo.height as f64,
-            }));
-            let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
-                x: geo.x as f64,
-                y: geo.y as f64,
-            }));
+
+        let should_apply = if let Ok(mut last) = state.last_geometry.lock() {
+            if let Some(ref last_geo) = *last {
+                if last_geo.x == geo.x
+                    && last_geo.y == geo.y
+                    && last_geo.width == geo.width
+                    && last_geo.height == geo.height
+                {
+                    false
+                } else {
+                    *last = Some(geo.clone());
+                    true
+                }
+            } else {
+                *last = Some(geo.clone());
+                true
+            }
+        } else {
+            true
+        };
+
+        if should_apply {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                    width: geo.width as f64,
+                    height: geo.height as f64,
+                }));
+                let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                    x: geo.x as f64,
+                    y: geo.y as f64,
+                }));
+            }
+            let _ = state.window_service.apply_geometry(&geo).await;
         }
-        let _ = state.window_service.apply_geometry(&geo).await;
     }
 
     use tauri::Emitter;
@@ -910,6 +948,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
             current_mode: Mutex::new(IslandMode::Idle),
+            last_geometry: Mutex::new(None),
             services,
             platform,
             db,
@@ -1368,6 +1407,7 @@ pub fn run() {
 
             // Setup main window and DragDrop listener
             if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_shadow(false);
                 let drop_svc_window = state.drop_service.clone();
                 let app_handle_window_drop = handle.clone();
                 window.on_window_event(move |event| match event {
@@ -1412,22 +1452,40 @@ pub fn run() {
                     bbq_core::IslandLayoutState::Idle
                 };
                 let window_clone = window.clone();
+                let initial_target_display_id = initial_settings.target_display_id.clone();
+                let initial_island_width = initial_settings.island_width;
+                let initial_island_height = initial_settings.island_height;
+                let handle_geo = handle.clone();
                 tauri::async_runtime::spawn(async move {
                     use bbq_services::DisplayServiceTrait;
                     use bbq_services::WindowServiceTrait;
                     if let Ok(target_display) = display_svc
-                        .get_target_display(initial_settings.target_display_id.as_deref())
+                        .get_target_display(initial_target_display_id.as_deref())
                         .await
                     {
+                        let (calc_state, dims) = match initial_layout {
+                            bbq_core::IslandLayoutState::Expanded => {
+                                (bbq_core::IslandLayoutState::Expanded, None)
+                            }
+                            _ => (
+                                bbq_core::IslandLayoutState::Hovering,
+                                Some(bbq_core::WidgetDimensions {
+                                    preferred_width: Some(initial_island_width),
+                                    preferred_height: Some(initial_island_height),
+                                }),
+                            ),
+                        };
                         let geo = bbq_core::calculate_island_geometry(
                             &target_display,
-                            initial_layout,
-                            Some(bbq_core::WidgetDimensions {
-                                preferred_width: Some(initial_settings.island_width),
-                                preferred_height: Some(initial_settings.island_height),
-                            }),
+                            calc_state,
+                            dims,
                             bbq_core::IslandAnchor::TopCenter,
                         );
+                        if let Some(state_ref) = handle_geo.try_state::<AppState>() {
+                            if let Ok(mut last) = state_ref.last_geometry.lock() {
+                                *last = Some(geo.clone());
+                            }
+                        }
                         let _ = window_clone.set_size(tauri::Size::Logical(tauri::LogicalSize {
                             width: geo.width as f64,
                             height: geo.height as f64,

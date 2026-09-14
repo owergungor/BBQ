@@ -64,7 +64,7 @@ export const Island: React.FC = () => {
       });
       unlistenOpenSettings = await subscribeToOpenSettings(async () => {
         setActiveWidget("settings");
-        await islandRuntime.transitionTo("Expanded", "event");
+        await islandRuntime.transitionTo("Expanded", "none");
       });
       unlistenWindowBlur = await subscribeToWindowBlur(async () => {
         if (islandStore.getState().state === "Expanded") {
@@ -72,7 +72,7 @@ export const Island: React.FC = () => {
         }
       });
       unlistenShowIsland = await subscribeToShowIsland(async () => {
-        await islandRuntime.transitionTo("Expanded", "event");
+        await islandRuntime.transitionTo("Expanded", "none");
       });
     })();
 

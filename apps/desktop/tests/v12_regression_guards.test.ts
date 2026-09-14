@@ -292,6 +292,83 @@ describe("BBQ v1.2 — Core Stabilization & Regression Guards", () => {
       assert.equal(tauriConfig.build.frontendDist, "../dist");
       assert.equal(tauriConfig.app.windows[0].transparent, true);
       assert.equal(tauriConfig.app.windows[0].alwaysOnTop, true);
+      assert.equal(tauriConfig.app.windows[0].resizable, true);
+      assert.equal(tauriConfig.app.windows[0].shadow, false);
+      assert.equal(tauriConfig.app.windows[0].width, 260);
+      assert.equal(tauriConfig.app.windows[0].height, 44);
+    });
+  });
+
+  describe("6. Compact -> Expanded Click Transition Contract", () => {
+    it("compact BBQ click from Idle transitions to Expanded state", async () => {
+      assert.equal(islandStore.getState().state, "Idle");
+      assert.equal(islandStore.getState().expanded, false);
+
+      await runtime.handleEvent({ type: "USER_CLICK" });
+
+      assert.equal(islandStore.getState().state, "Expanded");
+      assert.equal(islandStore.getState().mode, "EXPANDED");
+      assert.equal(islandStore.getState().expanded, true);
+    });
+
+    it("compact BBQ click from Hovering transitions to Expanded state", async () => {
+      await runtime.handleEvent({ type: "USER_HOVER" });
+      assert.equal(islandStore.getState().state, "Hovering");
+
+      await runtime.handleEvent({ type: "USER_CLICK" });
+
+      assert.equal(islandStore.getState().state, "Expanded");
+      assert.equal(islandStore.getState().mode, "EXPANDED");
+      assert.equal(islandStore.getState().expanded, true);
+    });
+
+    it("clicking inside expanded view does not collapse island", async () => {
+      await runtime.transitionTo("Expanded", "mouse");
+      assert.equal(islandStore.getState().state, "Expanded");
+
+      // Clicking tabs or widgets inside expanded island dispatches WIDGET_SELECT
+      await runtime.handleEvent({ type: "WIDGET_SELECT", widgetId: "timer" });
+      assert.equal(islandStore.getState().state, "Expanded");
+
+      await runtime.handleEvent({ type: "WIDGET_SELECT", widgetId: "reminder" });
+      assert.equal(islandStore.getState().state, "Expanded");
+
+      await runtime.handleEvent({ type: "WIDGET_SELECT", widgetId: "settings" });
+      assert.equal(islandStore.getState().state, "Expanded");
+    });
+  });
+
+  describe("7. Zero Outer Shadows & Halos Invariant", () => {
+    it("guarantees complete elimination of outer shadows and halos in index.css", async () => {
+      const fs = await import("node:fs");
+      const path = await import("node:path");
+      const cssContent = fs.readFileSync(
+        path.resolve(import.meta.dirname, "../src/styles/index.css"),
+        "utf8"
+      );
+
+      assert.ok(
+        cssContent.includes("--bbq-shadow-idle: none;"),
+        "CSS must set --bbq-shadow-idle to none"
+      );
+      assert.ok(
+        cssContent.includes("--bbq-shadow-expanded: none;"),
+        "CSS must set --bbq-shadow-expanded to none"
+      );
+      assert.ok(
+        cssContent.includes("--bbq-shadow: none;"),
+        "CSS must set --bbq-shadow to none"
+      );
+      assert.ok(
+        cssContent.includes("--shadow-island: none;"),
+        "CSS must set --shadow-island to none"
+      );
+
+      // Verify no drop-shadow filter
+      assert.ok(
+        !cssContent.includes("drop-shadow"),
+        "CSS must not contain drop-shadow filter"
+      );
     });
   });
 });
