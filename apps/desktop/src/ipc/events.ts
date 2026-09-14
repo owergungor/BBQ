@@ -217,3 +217,27 @@ export async function subscribeToOpenSettings(
   }
 }
 
+export async function subscribeToWindowBlur(
+  callback: () => void
+): Promise<UnlistenFn> {
+  try {
+    return await listen<void>("bbq://window_blur", () => {
+      callback();
+    });
+  } catch {
+    return () => {};
+  }
+}
+
+export async function subscribeToShowIsland(
+  callback: () => void
+): Promise<UnlistenFn> {
+  try {
+    return await listen<void>("bbq://show_island", () => {
+      callback();
+    });
+  } catch {
+    return () => {};
+  }
+}
+

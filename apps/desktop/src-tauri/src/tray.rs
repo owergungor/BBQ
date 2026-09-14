@@ -7,7 +7,7 @@ use tauri::{
 /// Sets up the system tray icon and context menu for BBQ.
 ///
 /// Features:
-/// - Left-click: Restores, shows and focuses the Wisland window.
+/// - Left-click: Restores, shows and focuses the BBQ window.
 /// - Right-click context menu: Show / Open, Settings, and Quit.
 /// - Clean termination: "Quit" triggers a graceful application exit (shutting down services & listeners).
 /// - Zero polling / event-driven.
@@ -43,6 +43,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                     let _ = window.show();
                     let _ = window.set_focus();
                 }
+                let _ = app.emit("bbq://show_island", ());
             }
             "settings" => {
                 if let Some(window) = app.get_webview_window("main") {
@@ -71,6 +72,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                     let _ = window.show();
                     let _ = window.set_focus();
                 }
+                let _ = app.emit("bbq://show_island", ());
             }
         })
         .build(app)?;

@@ -292,7 +292,7 @@ describe("Store Isolation", () => {
   });
 });
 
-describe("BBQ v1.1 — Wisland Hover Symmetrical Expansion & Hitbox Invariants", () => {
+describe("BBQ — Hover Symmetrical Expansion & Hitbox Invariants", () => {
   let runtime: IslandRuntime;
 
   beforeEach(() => {

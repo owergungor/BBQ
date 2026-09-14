@@ -3,8 +3,8 @@
 > **Document Type**: AI Master Project Memory / Context Document  
 > **Repository**: `owergungor/bbq` (`C:\Users\omr03\Documents\antigravity\bbq`)  
 > **Target Audience**: Future AI Engineers & Core Developers  
-> **Current Version**: `v1.1` (Active Development Phase: Wisland Polish & System Tray Implemented; v1.0.0 Sealed & Released)  
-> **Last Synchronized**: 2026-09-13
+> **Current Version**: `v1.2` (Active Development Phase: BBQ Core Stabilization, Top-Center Positioning, Zero-Jitter Hover, Event Boundary Hardening)  
+> **Last Synchronized**: 2026-09-14
 
 ---
 
@@ -35,16 +35,16 @@ Key vision pillars:
 
 ---
 
-## 3. Wisland
+## 3. The BBQ Island Concept
 
-### What is Wisland?
-**Wisland** is the foundational concept behind the BBQ Island interface:
-> *"Transforming the top edge / camera notch of the computer monitor into a live, interactive, functional information and interaction command center."*
+### What is the BBQ Island?
+The **BBQ Island** interface is designed to:
+> *"Transform the top edge / camera notch of the computer monitor into a live, interactive, functional information and interaction command center."*
 
-Wisland is **not** a decorative or cosmetic gimmick; it is an ergonomic, information-dense interaction surface designed to eliminate workflow friction.
+It is an ergonomic, information-dense interaction surface designed to eliminate workflow friction.
 
-### The Lifecycle Philosophy of Wisland
-Wisland operates on a strict expansion-contraction cycle:
+### The Lifecycle Philosophy of the Island
+The island operates on a strict expansion-contraction cycle:
 $$\text{Compact (Idle)} \xrightarrow{\text{Event / Interaction}} \text{Expanded (Interactive)} \xrightarrow{\text{Action Complete / Dismiss}} \text{Compact (Idle)}$$
 
 1. **Resting State (Idle Pill)**: 240px × 40px pill resting at top-center. Displays minimal compact status indicators (media icon, timer badge, reminder dot, battery status).

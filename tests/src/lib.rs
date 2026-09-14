@@ -1236,4 +1236,174 @@ mod tests {
             let _ = autostart.set_enabled(true).await;
         }
     }
+
+    #[test]
+    fn test_v12_dpi_scaling_and_top_center_invariants() {
+        use bbq_core::{
+            calculate_island_geometry, DisplayInfo, DisplayRect, IslandAnchor, IslandLayoutState,
+            DEFAULT_IDLE_HEIGHT, DEFAULT_IDLE_WIDTH,
+        };
+
+        // Test across 100%, 125%, 150%, and 200% DPI scales
+        let test_scales = [1.0, 1.25, 1.5, 2.0];
+        let physical_widths = [1920, 1920, 2560, 3840];
+
+        for (scale, phys_w) in test_scales.iter().zip(physical_widths.iter()) {
+            let logical_w = (*phys_w as f64 / scale).round() as u32;
+            let display = DisplayInfo {
+                id: format!("scale_{}", scale),
+                name: format!("Monitor at {}x", scale),
+                is_primary: true,
+                scale_factor: *scale,
+                bounds: DisplayRect {
+                    x: 0,
+                    y: 0,
+                    width: logical_w,
+                    height: 1080,
+                },
+                work_area: DisplayRect {
+                    x: 0,
+                    y: 0,
+                    width: logical_w,
+                    height: 1040,
+                },
+            };
+
+            let geo = calculate_island_geometry(
+                &display,
+                IslandLayoutState::Idle,
+                None,
+                IslandAnchor::TopCenter,
+            );
+
+            // In logical coordinates, center must be exact:
+            let expected_logical_x = (logical_w as i32 - DEFAULT_IDLE_WIDTH as i32) / 2;
+            assert_eq!(
+                geo.x, expected_logical_x,
+                "Logical X must be exactly top-centered for scale {}",
+                scale
+            );
+            assert_eq!(geo.width, DEFAULT_IDLE_WIDTH);
+            assert_eq!(geo.height, DEFAULT_IDLE_HEIGHT);
+
+            // In physical coordinates, the center point must match the physical monitor center:
+            let physical_island_x = (geo.x as f64 * scale).round() as i32;
+            let physical_island_w = (geo.width as f64 * scale).round() as i32;
+            let physical_center = physical_island_x + physical_island_w / 2;
+            let expected_phys_center = *phys_w / 2;
+            let delta = (physical_center - expected_phys_center).abs();
+            assert!(
+                delta <= 1,
+                "Physical center delta must be <= 1 pixel for scale {}, got delta {}",
+                scale,
+                delta
+            );
+        }
+    }
+
+    #[test]
+    fn test_v12_multimonitor_negative_offset_dpi_centering() {
+        use bbq_core::{
+            calculate_island_geometry, DisplayInfo, DisplayRect, IslandAnchor, IslandLayoutState,
+            DEFAULT_IDLE_WIDTH,
+        };
+
+        // Secondary monitor positioned to the left in negative coordinate space with 1.25 scaling
+        // Physical: x = -1920, width = 1920. Logical: x = -1536, width = 1536
+        let secondary_left = DisplayInfo {
+            id: "left_mon".to_string(),
+            name: "Left Secondary Display".to_string(),
+            is_primary: false,
+            scale_factor: 1.25,
+            bounds: DisplayRect {
+                x: -1536,
+                y: 0,
+                width: 1536,
+                height: 864,
+            },
+            work_area: DisplayRect {
+                x: -1536,
+                y: 0,
+                width: 1536,
+                height: 864,
+            },
+        };
+
+        let geo = calculate_island_geometry(
+            &secondary_left,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+
+        let expected_x = -1536 + (1536 - DEFAULT_IDLE_WIDTH as i32) / 2;
+        assert_eq!(geo.x, expected_x);
+        assert_eq!(geo.width, DEFAULT_IDLE_WIDTH);
+
+        // Verify center: geo.x + width/2 == -1536 + 1536/2 == -768
+        assert_eq!(geo.x + (geo.width as i32) / 2, -1536 + 768);
+    }
+
+    #[test]
+    fn test_v12_hover_geometry_symmetric_expansion() {
+        use bbq_core::{
+            calculate_island_geometry, DisplayInfo, DisplayRect, IslandAnchor, IslandLayoutState,
+            DEFAULT_HOVER_HEIGHT, DEFAULT_HOVER_WIDTH, DEFAULT_IDLE_HEIGHT, DEFAULT_IDLE_WIDTH,
+            DEFAULT_TOP_MARGIN,
+        };
+
+        let display = DisplayInfo {
+            id: "primary".to_string(),
+            name: "Primary".to_string(),
+            is_primary: true,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1040,
+            },
+        };
+
+        let idle_geo = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        let hover_geo = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Hovering,
+            None,
+            IslandAnchor::TopCenter,
+        );
+
+        // Symmetrical horizontal expansion around the same center
+        let idle_center_x = idle_geo.x + (idle_geo.width as i32) / 2;
+        let hover_center_x = hover_geo.x + (hover_geo.width as i32) / 2;
+        assert_eq!(
+            idle_center_x, hover_center_x,
+            "Center X must remain identical between Idle and Hovering"
+        );
+        assert_eq!(
+            hover_geo.width - idle_geo.width,
+            DEFAULT_HOVER_WIDTH - DEFAULT_IDLE_WIDTH
+        );
+
+        // Symmetrical vertical expansion around the visual center
+        // y moves up by (hover_h - idle_h) / 2 = 2px
+        let y_delta = idle_geo.y - hover_geo.y;
+        assert_eq!(
+            y_delta,
+            ((DEFAULT_HOVER_HEIGHT - DEFAULT_IDLE_HEIGHT) / 2) as i32,
+            "Y must move up by half height delta for 4-direction symmetry"
+        );
+        assert_eq!(idle_geo.y, DEFAULT_TOP_MARGIN);
+    }
 }

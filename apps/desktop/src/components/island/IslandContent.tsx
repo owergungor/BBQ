@@ -182,7 +182,10 @@ export const IslandContent: React.FC<IslandContentProps> = ({
   const activeDef = currentWidgetId ? widgetRegistry.get(currentWidgetId) : undefined;
 
   return (
-    <div className="bbq-island-content expanded">
+    <div
+      className="bbq-island-content expanded"
+      onClick={(e) => e.stopPropagation()}
+    >
       <div className="bbq-island-expanded-view">
         <IslandNavigation
           activeWidgetId={currentWidgetId}

@@ -132,18 +132,36 @@ unsafe extern "system" fn monitor_enum_proc(
     )
     .as_bool()
     {
-        let is_primary = (mi.monitorInfo.dwFlags & 1) != 0; // 1 = MONITORINFOF_PRIMARY
+        let is_primary = (mi.monitorInfo.dwFlags & 1) != 0;
+        let scale_factor = get_monitor_scale_factor(hmonitor);
+        let safe_scale = if scale_factor > 0.0 {
+            scale_factor
+        } else {
+            1.0
+        };
         let bounds = DisplayRect {
-            x: mi.monitorInfo.rcMonitor.left,
-            y: mi.monitorInfo.rcMonitor.top,
-            width: (mi.monitorInfo.rcMonitor.right - mi.monitorInfo.rcMonitor.left) as u32,
-            height: (mi.monitorInfo.rcMonitor.bottom - mi.monitorInfo.rcMonitor.top) as u32,
+            x: (mi.monitorInfo.rcMonitor.left as f64 / safe_scale).round() as i32,
+            y: (mi.monitorInfo.rcMonitor.top as f64 / safe_scale).round() as i32,
+            width: (((mi.monitorInfo.rcMonitor.right - mi.monitorInfo.rcMonitor.left) as f64)
+                / safe_scale)
+                .round()
+                .max(1.0) as u32,
+            height: (((mi.monitorInfo.rcMonitor.bottom - mi.monitorInfo.rcMonitor.top) as f64)
+                / safe_scale)
+                .round()
+                .max(1.0) as u32,
         };
         let work_area = DisplayRect {
-            x: mi.monitorInfo.rcWork.left,
-            y: mi.monitorInfo.rcWork.top,
-            width: (mi.monitorInfo.rcWork.right - mi.monitorInfo.rcWork.left) as u32,
-            height: (mi.monitorInfo.rcWork.bottom - mi.monitorInfo.rcWork.top) as u32,
+            x: (mi.monitorInfo.rcWork.left as f64 / safe_scale).round() as i32,
+            y: (mi.monitorInfo.rcWork.top as f64 / safe_scale).round() as i32,
+            width: (((mi.monitorInfo.rcWork.right - mi.monitorInfo.rcWork.left) as f64)
+                / safe_scale)
+                .round()
+                .max(1.0) as u32,
+            height: (((mi.monitorInfo.rcWork.bottom - mi.monitorInfo.rcWork.top) as f64)
+                / safe_scale)
+                .round()
+                .max(1.0) as u32,
         };
         let name_len = mi
             .szDevice
@@ -152,7 +170,6 @@ unsafe extern "system" fn monitor_enum_proc(
             .unwrap_or(mi.szDevice.len());
         let name = String::from_utf16_lossy(&mi.szDevice[..name_len]);
         let id = format!("win_mon_{}", monitors.len() + 1);
-        let scale_factor = get_monitor_scale_factor(hmonitor);
         monitors.push(DisplayInfo {
             id,
             name,
@@ -218,17 +235,37 @@ fn get_native_cursor_display() -> Option<DisplayInfo> {
             .as_bool()
             {
                 let is_primary = (mi.monitorInfo.dwFlags & 1) != 0;
+                let scale_factor = get_monitor_scale_factor(hmonitor);
+                let safe_scale = if scale_factor > 0.0 {
+                    scale_factor
+                } else {
+                    1.0
+                };
                 let bounds = DisplayRect {
-                    x: mi.monitorInfo.rcMonitor.left,
-                    y: mi.monitorInfo.rcMonitor.top,
-                    width: (mi.monitorInfo.rcMonitor.right - mi.monitorInfo.rcMonitor.left) as u32,
-                    height: (mi.monitorInfo.rcMonitor.bottom - mi.monitorInfo.rcMonitor.top) as u32,
+                    x: (mi.monitorInfo.rcMonitor.left as f64 / safe_scale).round() as i32,
+                    y: (mi.monitorInfo.rcMonitor.top as f64 / safe_scale).round() as i32,
+                    width: (((mi.monitorInfo.rcMonitor.right - mi.monitorInfo.rcMonitor.left)
+                        as f64)
+                        / safe_scale)
+                        .round()
+                        .max(1.0) as u32,
+                    height: (((mi.monitorInfo.rcMonitor.bottom - mi.monitorInfo.rcMonitor.top)
+                        as f64)
+                        / safe_scale)
+                        .round()
+                        .max(1.0) as u32,
                 };
                 let work_area = DisplayRect {
-                    x: mi.monitorInfo.rcWork.left,
-                    y: mi.monitorInfo.rcWork.top,
-                    width: (mi.monitorInfo.rcWork.right - mi.monitorInfo.rcWork.left) as u32,
-                    height: (mi.monitorInfo.rcWork.bottom - mi.monitorInfo.rcWork.top) as u32,
+                    x: (mi.monitorInfo.rcWork.left as f64 / safe_scale).round() as i32,
+                    y: (mi.monitorInfo.rcWork.top as f64 / safe_scale).round() as i32,
+                    width: (((mi.monitorInfo.rcWork.right - mi.monitorInfo.rcWork.left) as f64)
+                        / safe_scale)
+                        .round()
+                        .max(1.0) as u32,
+                    height: (((mi.monitorInfo.rcWork.bottom - mi.monitorInfo.rcWork.top) as f64)
+                        / safe_scale)
+                        .round()
+                        .max(1.0) as u32,
                 };
                 let name_len = mi
                     .szDevice
@@ -236,7 +273,6 @@ fn get_native_cursor_display() -> Option<DisplayInfo> {
                     .position(|&c| c == 0)
                     .unwrap_or(mi.szDevice.len());
                 let name = String::from_utf16_lossy(&mi.szDevice[..name_len]);
-                let scale_factor = get_monitor_scale_factor(hmonitor);
                 return Some(DisplayInfo {
                     id: if is_primary {
                         "win_primary".to_string()

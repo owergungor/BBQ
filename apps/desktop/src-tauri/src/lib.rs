@@ -79,11 +79,20 @@ async fn set_island_mode(
         }
     };
 
-    if let Ok(active_disp) = state.display_service.get_active_display().await {
+    use bbq_services::SettingsServiceTrait;
+    let settings = state.settings_service.get_settings().unwrap_or_default();
+    if let Ok(target_disp) = state
+        .display_service
+        .get_target_display(settings.target_display_id.as_deref())
+        .await
+    {
         let geo = bbq_core::calculate_island_geometry(
-            &active_disp,
+            &target_disp,
             layout_state,
-            None,
+            Some(bbq_core::WidgetDimensions {
+                preferred_width: Some(settings.island_width),
+                preferred_height: Some(settings.island_height),
+            }),
             bbq_core::IslandAnchor::TopCenter,
         );
         if let Some(window) = app.get_webview_window("main") {
@@ -1361,11 +1370,8 @@ pub fn run() {
             if let Some(window) = app.get_webview_window("main") {
                 let drop_svc_window = state.drop_service.clone();
                 let app_handle_window_drop = handle.clone();
-                window.on_window_event(move |event| {
-                    if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop {
-                        paths, ..
-                    }) = event
-                    {
+                window.on_window_event(move |event| match event {
+                    tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
                         let drop_svc = drop_svc_window.clone();
                         let app_emit = app_handle_window_drop.clone();
                         let paths_str: Vec<String> = paths
@@ -1386,6 +1392,11 @@ pub fn run() {
                             }
                         });
                     }
+                    tauri::WindowEvent::Focused(false) => {
+                        use tauri::Emitter;
+                        let _ = app_handle_window_drop.emit("bbq://window_blur", ());
+                    }
+                    _ => {}
                 });
 
                 use bbq_services::SettingsServiceTrait;

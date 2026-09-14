@@ -95,7 +95,7 @@ export class IslandRuntime {
     interaction: InteractionSource = "none"
   ): Promise<void> {
     const prev = islandStore.getState();
-    if (prev.state === nextState && prev.interaction === interaction) {
+    if (prev.state === nextState) {
       return;
     }
 
@@ -144,8 +144,10 @@ export class IslandRuntime {
 
     recordIslandEvent(`Transition: ${prev.state} -> ${nextState} (${interaction})`);
 
-    // Synchronize window bounds/mode with backend
-    await this.notifyBackendMode(nextMode);
+    // Synchronize window bounds/mode with backend only if not triggered by an incoming backend event
+    if (interaction !== "event") {
+      await this.notifyBackendMode(nextMode);
+    }
   }
 
   public async handleEvent(event: IslandEvent): Promise<void> {
@@ -171,7 +173,10 @@ export class IslandRuntime {
       case "USER_UNHOVER": {
         if (current.state === "Hovering") {
           this.hoverDebounceTimeout = setTimeout(async () => {
-            await this.transitionTo("Idle", "mouse");
+            const freshState = islandStore.getState();
+            if (freshState.state === "Hovering") {
+              await this.transitionTo("Idle", "mouse");
+            }
           }, 150);
         } else if (current.state === "Expanded") {
           // Discrete auto-collapse timeout after 6 seconds of mouse absence

@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef } from "react";
-import { useIslandState } from "../../island/islandState.ts";
+import { useIslandState, islandStore } from "../../island/islandState.ts";
 import { islandRuntime } from "../../island/IslandRuntime.ts";
 import { useMediaState, initializeMediaStore } from "../../state/mediaState.ts";
 import { initializeClipboardStore } from "../../state/clipboardState.ts";
@@ -7,7 +7,13 @@ import { initializeFileStore } from "../../state/fileState.ts";
 import { initializeSystemStore } from "../../state/systemState.ts";
 import { initHotkeyStore } from "../../state/hotkeyState.ts";
 import { setDragOver, inspectDrop } from "../../state/dropState.ts";
-import { subscribeToIslandMode, subscribeToHotkeyTriggered, subscribeToOpenSettings } from "../../ipc/events.ts";
+import {
+  subscribeToIslandMode,
+  subscribeToHotkeyTriggered,
+  subscribeToOpenSettings,
+  subscribeToWindowBlur,
+  subscribeToShowIsland,
+} from "../../ipc/events.ts";
 import { setActiveWidget } from "../../island/islandState.ts";
 import { IslandShell } from "./IslandShell.tsx";
 import { IslandContent } from "./IslandContent.tsx";
@@ -32,6 +38,8 @@ export const Island: React.FC = () => {
     let unlistenHotkey: (() => void) | undefined;
     let unlistenHotkeyTrigger: (() => void) | undefined;
     let unlistenOpenSettings: (() => void) | undefined;
+    let unlistenWindowBlur: (() => void) | undefined;
+    let unlistenShowIsland: (() => void) | undefined;
 
     (async () => {
       await islandRuntime.init();
@@ -58,6 +66,14 @@ export const Island: React.FC = () => {
         setActiveWidget("settings");
         await islandRuntime.transitionTo("Expanded", "event");
       });
+      unlistenWindowBlur = await subscribeToWindowBlur(async () => {
+        if (islandStore.getState().state === "Expanded") {
+          await islandRuntime.handleEvent({ type: "CLICK_OUTSIDE" });
+        }
+      });
+      unlistenShowIsland = await subscribeToShowIsland(async () => {
+        await islandRuntime.transitionTo("Expanded", "event");
+      });
     })();
 
     return () => {
@@ -70,6 +86,8 @@ export const Island: React.FC = () => {
       if (unlistenHotkey) unlistenHotkey();
       if (unlistenHotkeyTrigger) unlistenHotkeyTrigger();
       if (unlistenOpenSettings) unlistenOpenSettings();
+      if (unlistenWindowBlur) unlistenWindowBlur();
+      if (unlistenShowIsland) unlistenShowIsland();
     };
   }, []);
 
@@ -86,13 +104,28 @@ export const Island: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Click outside detection: collapses when expanded
+  // Window blur detection: collapses when expanded and user clicks outside the OS window
+  useEffect(() => {
+    if (state !== "Expanded") return;
+
+    const handleWindowBlur = () => {
+      islandRuntime.handleEvent({ type: "CLICK_OUTSIDE" });
+    };
+
+    window.addEventListener("blur", handleWindowBlur);
+    return () => window.removeEventListener("blur", handleWindowBlur);
+  }, [state]);
+
+  // Click outside detection: collapses when expanded and user clicks transparent margin
   useEffect(() => {
     if (state !== "Expanded") return;
 
     const handleDocumentClick = (e: MouseEvent) => {
       const shell = document.getElementById("bbq-island-shell");
-      if (shell && !shell.contains(e.target as Node)) {
+      if (!shell) return;
+      const path = e.composedPath ? e.composedPath() : [];
+      const isInside = shell.contains(e.target as Node) || path.includes(shell);
+      if (!isInside) {
         islandRuntime.handleEvent({ type: "CLICK_OUTSIDE" });
       }
     };
@@ -101,9 +134,14 @@ export const Island: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleDocumentClick);
   }, [state]);
 
-  const handleToggle = useCallback(async () => {
-    await islandRuntime.handleEvent({ type: "USER_CLICK" });
-  }, []);
+  const handleToggle = useCallback(async (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (state !== "Expanded") {
+      await islandRuntime.handleEvent({ type: "USER_CLICK" });
+    }
+  }, [state]);
 
   const handleShellKeyDown = useCallback(async (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
