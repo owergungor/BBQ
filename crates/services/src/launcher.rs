@@ -66,25 +66,6 @@ impl LauncherService {
     fn default_builtins() -> Vec<LauncherItem> {
         vec![
             LauncherItem {
-                id: "bbq_clipboard".to_string(),
-                title: "Clipboard".to_string(),
-                subtitle: Some("View and search clipboard history".to_string()),
-                icon: Some("📋".to_string()),
-                action: LauncherAction::BbqAction(BbqActionType::OpenClipboard),
-                source: LauncherItemSource::BuiltIn,
-                favorite: false,
-                last_used_at: None,
-                usage_count: 0,
-                keywords: vec![
-                    "clipboard".to_string(),
-                    "copy".to_string(),
-                    "paste".to_string(),
-                    "history".to_string(),
-                    "panoya kopyala".to_string(),
-                    "gecmis".to_string(),
-                ],
-            },
-            LauncherItem {
                 id: "bbq_files".to_string(),
                 title: "Files & Workspace".to_string(),
                 subtitle: Some("Inspect dropped files and temporary workspace".to_string()),
@@ -106,68 +87,6 @@ impl LauncherService {
                 ],
             },
             LauncherItem {
-                id: "bbq_timer".to_string(),
-                title: "Timer & Pomodoro".to_string(),
-                subtitle: Some("Countdown, stopwatch, and work cycles".to_string()),
-                icon: Some("⏱️".to_string()),
-                action: LauncherAction::BbqAction(BbqActionType::OpenTimer),
-                source: LauncherItemSource::BuiltIn,
-                favorite: false,
-                last_used_at: None,
-                usage_count: 0,
-                keywords: vec![
-                    "timer".to_string(),
-                    "countdown".to_string(),
-                    "stopwatch".to_string(),
-                    "pomodoro".to_string(),
-                    "kronometre".to_string(),
-                    "zamanlayici".to_string(),
-                    "geri sayim".to_string(),
-                ],
-            },
-            LauncherItem {
-                id: "bbq_reminders".to_string(),
-                title: "Reminders".to_string(),
-                subtitle: Some("View upcoming alerts and tasks".to_string()),
-                icon: Some("🔔".to_string()),
-                action: LauncherAction::BbqAction(BbqActionType::OpenReminders),
-                source: LauncherItemSource::BuiltIn,
-                favorite: false,
-                last_used_at: None,
-                usage_count: 0,
-                keywords: vec![
-                    "reminder".to_string(),
-                    "reminders".to_string(),
-                    "todo".to_string(),
-                    "tasks".to_string(),
-                    "hatirlatici".to_string(),
-                    "gorevler".to_string(),
-                ],
-            },
-            LauncherItem {
-                id: "bbq_system".to_string(),
-                title: "System Status".to_string(),
-                subtitle: Some("Battery, network, and resource metrics".to_string()),
-                icon: Some("⚙️".to_string()),
-                action: LauncherAction::BbqAction(BbqActionType::OpenSystem),
-                source: LauncherItemSource::BuiltIn,
-                favorite: false,
-                last_used_at: None,
-                usage_count: 0,
-                keywords: vec![
-                    "system".to_string(),
-                    "volume".to_string(),
-                    "sound".to_string(),
-                    "mute".to_string(),
-                    "battery".to_string(),
-                    "network".to_string(),
-                    "sistem".to_string(),
-                    "ses".to_string(),
-                    "pil".to_string(),
-                    "ag".to_string(),
-                ],
-            },
-            LauncherItem {
                 id: "bbq_media".to_string(),
                 title: "Media Player".to_string(),
                 subtitle: Some("Active playback controls and now playing".to_string()),
@@ -186,27 +105,6 @@ impl LauncherService {
                     "medya".to_string(),
                     "muzik".to_string(),
                     "calici".to_string(),
-                ],
-            },
-            LauncherItem {
-                id: "bbq_settings".to_string(),
-                title: "Settings".to_string(),
-                subtitle: Some("Preferences, theme, and Island configuration".to_string()),
-                icon: Some("🔧".to_string()),
-                action: LauncherAction::BbqAction(BbqActionType::OpenSettings),
-                source: LauncherItemSource::BuiltIn,
-                favorite: false,
-                last_used_at: None,
-                usage_count: 0,
-                keywords: vec![
-                    "settings".to_string(),
-                    "preferences".to_string(),
-                    "options".to_string(),
-                    "theme".to_string(),
-                    "ayarlar".to_string(),
-                    "ayar".to_string(),
-                    "tercihler".to_string(),
-                    "secenekler".to_string(),
                 ],
             },
             LauncherItem {
@@ -627,14 +525,19 @@ mod tests {
         service.init().await.unwrap();
 
         let items = service.list_items().await.unwrap();
-        assert!(items.len() >= 9);
-        assert!(items.iter().any(|i| i.id == "bbq_timer"));
-        assert!(items.iter().any(|i| i.id == "bbq_clipboard"));
+        assert!(items.iter().any(|i| i.id == "sys_downloads"));
+        assert!(items.iter().any(|i| i.id == "bbq_files"));
+        // Confirm BBQ widget shortcuts were removed from launcher
+        assert!(!items.iter().any(|i| i.id == "bbq_timer"));
+        assert!(!items.iter().any(|i| i.id == "bbq_clipboard"));
+        assert!(!items.iter().any(|i| i.id == "bbq_reminders"));
+        assert!(!items.iter().any(|i| i.id == "bbq_system"));
+        assert!(!items.iter().any(|i| i.id == "bbq_settings"));
 
         // Search prefix / substring
-        let search_res = service.search_items("time").await.unwrap();
+        let search_res = service.search_items("down").await.unwrap();
         assert_eq!(search_res.len(), 1);
-        assert_eq!(search_res[0].id, "bbq_timer");
+        assert_eq!(search_res[0].id, "sys_downloads");
 
         let search_none = service.search_items("xyz_not_exist").await.unwrap();
         assert_eq!(search_none.len(), 0);
@@ -649,15 +552,15 @@ mod tests {
         assert_eq!(service.list_recent().await.unwrap().len(), 0);
 
         // Launch an item
-        service.launch_item("bbq_timer").await.unwrap();
+        service.launch_item("sys_downloads").await.unwrap();
 
         let recent = service.list_recent().await.unwrap();
         assert_eq!(recent.len(), 1);
-        assert_eq!(recent[0].id, "bbq_timer");
+        assert_eq!(recent[0].id, "sys_downloads");
         assert_eq!(recent[0].usage_count, 1);
 
         // Launch again -> usage_count = 2, still 1 item in recent
-        service.launch_item("bbq_timer").await.unwrap();
+        service.launch_item("sys_downloads").await.unwrap();
         let recent2 = service.list_recent().await.unwrap();
         assert_eq!(recent2.len(), 1);
         assert_eq!(recent2[0].usage_count, 2);
@@ -675,12 +578,12 @@ mod tests {
 
         assert_eq!(service.list_favorites().await.unwrap().len(), 0);
 
-        service.add_favorite("bbq_reminders").await.unwrap();
+        service.add_favorite("sys_downloads").await.unwrap();
         let favs = service.list_favorites().await.unwrap();
         assert_eq!(favs.len(), 1);
-        assert_eq!(favs[0].id, "bbq_reminders");
+        assert_eq!(favs[0].id, "sys_downloads");
 
-        service.remove_favorite("bbq_reminders").await.unwrap();
+        service.remove_favorite("sys_downloads").await.unwrap();
         assert_eq!(service.list_favorites().await.unwrap().len(), 0);
     }
 }

@@ -18,6 +18,7 @@ import { LauncherWidget } from "../widgets/LauncherWidget.tsx";
 import { DropWidget } from "../widgets/DropWidget.tsx";
 import { SettingsWidget } from "../widgets/SettingsWidget.tsx";
 import { useSettingsState, initSettingsState } from "../../state/settingsState.ts";
+import { resolveEffectiveIndicatorOrder } from "../../island/compactOrder.ts";
 
 interface IslandContentProps {
   state: IslandMachineState;
@@ -39,6 +40,7 @@ export const IslandContent: React.FC<IslandContentProps> = ({
   const clipboardCount = useClipboardState((s) => s.entries.length);
   const dropCount = useDropState((s) => s.currentBatch?.count ?? 0);
   const disabledWidgets = useSettingsState((s) => s.settings.disabled_widgets);
+  const compactIndicatorOrder = useSettingsState((s) => s.settings.compact_indicator_order);
 
   useEffect(() => {
     initSettingsState();
@@ -174,7 +176,18 @@ export const IslandContent: React.FC<IslandContentProps> = ({
   }
 
   // Expanded View with Navigation and Isolated Active Widget
-  const activeWidgets = widgetRegistry.getActiveWidgets();
+  const effectiveOrder = resolveEffectiveIndicatorOrder(
+    compactIndicatorOrder,
+    disabledWidgets
+  );
+  const rawActiveWidgets = widgetRegistry.getActiveWidgets();
+  const orderMap = new Map(effectiveOrder.map((id, index) => [id, index]));
+  const activeWidgets = [...rawActiveWidgets].sort((a, b) => {
+    const orderA = orderMap.has(a.id) ? (orderMap.get(a.id) as number) : 999;
+    const orderB = orderMap.has(b.id) ? (orderMap.get(b.id) as number) : 999;
+    return orderA - orderB;
+  });
+
   const currentWidgetId =
     activeWidgetId && activeWidgets.some((w) => w.id === activeWidgetId)
       ? activeWidgetId

@@ -20,6 +20,8 @@ export const IslandNavigation: React.FC<IslandNavigationProps> = ({
   onSelectWidget,
   onCollapse,
 }) => {
+  const lastWheelTimeRef = React.useRef<number>(0);
+
   React.useEffect(() => {
     if (activeWidgetId) {
       const el = document.getElementById(`tab-${activeWidgetId}`);
@@ -29,11 +31,50 @@ export const IslandNavigation: React.FC<IslandNavigationProps> = ({
     }
   }, [activeWidgetId]);
 
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (widgets.length <= 1) return;
+
+    const now = Date.now();
+    // 150ms debounce/throttle between wheel tab switches to handle trackpad momentum
+    if (now - lastWheelTimeRef.current < 150) {
+      return;
+    }
+
+    const delta = e.deltaY || e.deltaX;
+    if (Math.abs(delta) < 15) {
+      return;
+    }
+
+    const currentIndex = widgets.findIndex((w) => w.id === activeWidgetId);
+    if (currentIndex < 0) return;
+
+    if (delta > 0) {
+      // Wheel down: next tab (clamped to boundary for deterministic UX)
+      const nextIndex = Math.min(widgets.length - 1, currentIndex + 1);
+      if (nextIndex !== currentIndex && widgets[nextIndex]) {
+        lastWheelTimeRef.current = now;
+        onSelectWidget(widgets[nextIndex].id);
+      }
+    } else if (delta < 0) {
+      // Wheel up: previous tab (clamped to boundary for deterministic UX)
+      const prevIndex = Math.max(0, currentIndex - 1);
+      if (prevIndex !== currentIndex && widgets[prevIndex]) {
+        lastWheelTimeRef.current = now;
+        onSelectWidget(widgets[prevIndex].id);
+      }
+    }
+  };
+
   return (
     <nav
       className="bbq-island-navigation"
       aria-label="BBQ Widgets Navigation"
       role="tablist"
+      onWheel={handleWheel}
+      onClick={(e) => e.stopPropagation()}
     >
       <div className="bbq-nav-tab-group" role="presentation">
         {widgets.map((widget, index) => {

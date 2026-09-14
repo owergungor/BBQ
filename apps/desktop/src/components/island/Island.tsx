@@ -5,6 +5,7 @@ import { useMediaState, initializeMediaStore } from "../../state/mediaState.ts";
 import { initializeClipboardStore } from "../../state/clipboardState.ts";
 import { initializeFileStore } from "../../state/fileState.ts";
 import { initializeSystemStore } from "../../state/systemState.ts";
+import { initializeTimerStore } from "../../state/timerState.ts";
 import { initHotkeyStore } from "../../state/hotkeyState.ts";
 import { setDragOver, inspectDrop } from "../../state/dropState.ts";
 import {
@@ -35,6 +36,7 @@ export const Island: React.FC = () => {
     let unlistenClipboard: (() => void) | undefined;
     let unlistenFiles: (() => void) | undefined;
     let unlistenSystem: (() => void) | undefined;
+    let unlistenTimer: (() => void) | undefined;
     let unlistenHotkey: (() => void) | undefined;
     let unlistenHotkeyTrigger: (() => void) | undefined;
     let unlistenOpenSettings: (() => void) | undefined;
@@ -58,6 +60,7 @@ export const Island: React.FC = () => {
       unlistenClipboard = await initializeClipboardStore();
       unlistenFiles = await initializeFileStore();
       unlistenSystem = await initializeSystemStore();
+      unlistenTimer = await initializeTimerStore();
       unlistenHotkey = await initHotkeyStore();
       unlistenHotkeyTrigger = await subscribeToHotkeyTriggered(async () => {
         await islandRuntime.handleHotkeyTriggered();
@@ -83,6 +86,7 @@ export const Island: React.FC = () => {
       if (unlistenClipboard) unlistenClipboard();
       if (unlistenFiles) unlistenFiles();
       if (unlistenSystem) unlistenSystem();
+      if (unlistenTimer) unlistenTimer();
       if (unlistenHotkey) unlistenHotkey();
       if (unlistenHotkeyTrigger) unlistenHotkeyTrigger();
       if (unlistenOpenSettings) unlistenOpenSettings();

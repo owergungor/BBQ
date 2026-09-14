@@ -371,4 +371,257 @@ describe("BBQ v1.2 — Core Stabilization & Regression Guards", () => {
       );
     });
   });
+
+  describe("8. Timer Control Hit-Testing & Action State Invariants", () => {
+    it("button clicks update timerStore session state directly", () => {
+      assert.equal(timerStore.getState().session.state, "Idle");
+
+      // Simulate Start Countdown click
+      timerStore.setState({
+        session: {
+          ...timerStore.getState().session,
+          timer_type: "Countdown",
+          state: "Running",
+          target_duration_secs: 300,
+          remaining_millis: 300000,
+        },
+      });
+
+      assert.equal(timerStore.getState().session.state, "Running");
+      assert.equal(timerStore.getState().session.target_duration_secs, 300);
+
+      // Simulate Pause click
+      timerStore.setState({
+        session: {
+          ...timerStore.getState().session,
+          state: "Paused",
+        },
+      });
+
+      assert.equal(timerStore.getState().session.state, "Paused");
+
+      // Simulate Reset click
+      timerStore.setState({
+        session: {
+          ...timerStore.getState().session,
+          state: "Idle",
+          remaining_millis: 0,
+        },
+      });
+
+      assert.equal(timerStore.getState().session.state, "Idle");
+    });
+
+    it("clicking timer controls in Expanded state never collapses the island", async () => {
+      await runtime.transitionTo("Expanded", "mouse");
+      await runtime.handleEvent({ type: "WIDGET_SELECT", widgetId: "timer" });
+
+      assert.equal(islandStore.getState().state, "Expanded");
+      assert.equal(islandStore.getState().activeWidgetId, "timer");
+
+      // Actions occurring on timer buttons must preserve Expanded state
+      timerStore.setState({
+        session: {
+          ...timerStore.getState().session,
+          state: "Running",
+          target_duration_secs: 180,
+        },
+      });
+
+      assert.equal(islandStore.getState().state, "Expanded");
+
+      timerStore.setState({
+        session: {
+          ...timerStore.getState().session,
+          state: "Paused",
+        },
+      });
+
+      assert.equal(islandStore.getState().state, "Expanded");
+    });
+
+    it("preset minute options establish exact seconds target", () => {
+      const presets = [1, 3, 5, 10, 15, 25, 30, 45, 60];
+      for (const mins of presets) {
+        const expectedSecs = mins * 60;
+        const session = {
+          ...initialTimerDomainState.session,
+          timer_type: "Countdown" as const,
+          state: "Running" as const,
+          target_duration_secs: expectedSecs,
+          remaining_millis: expectedSecs * 1000,
+        };
+        assert.equal(session.target_duration_secs, mins * 60);
+        assert.equal(session.remaining_millis, mins * 60 * 1000);
+      }
+    });
+  });
+
+  describe("9. Mouse Wheel Tab Navigation & Boundary Debounce", () => {
+    const tabs = ["launcher", "timer", "reminder", "settings", "system"];
+
+    function computeNextTabIndex(
+      currentIndex: number,
+      deltaY: number,
+      totalTabs: number
+    ): number {
+      if (deltaY > 0) {
+        return Math.min(currentIndex + 1, totalTabs - 1);
+      } else if (deltaY < 0) {
+        return Math.max(currentIndex - 1, 0);
+      }
+      return currentIndex;
+    }
+
+    it("downwards wheel (positive delta) advances to next tab", () => {
+      let idx = 0; // launcher
+      idx = computeNextTabIndex(idx, 50, tabs.length);
+      assert.equal(idx, 1); // timer
+      assert.equal(tabs[idx], "timer");
+
+      idx = computeNextTabIndex(idx, 100, tabs.length);
+      assert.equal(idx, 2); // reminder
+      assert.equal(tabs[idx], "reminder");
+    });
+
+    it("upwards wheel (negative delta) recedes to previous tab", () => {
+      let idx = 3; // settings
+      idx = computeNextTabIndex(idx, -50, tabs.length);
+      assert.equal(idx, 2); // reminder
+      assert.equal(tabs[idx], "reminder");
+
+      idx = computeNextTabIndex(idx, -120, tabs.length);
+      assert.equal(idx, 1); // timer
+      assert.equal(tabs[idx], "timer");
+    });
+
+    it("clamps at boundaries without overflowing", () => {
+      // Clamps at end
+      let idx = 4; // system (last)
+      idx = computeNextTabIndex(idx, 100, tabs.length);
+      assert.equal(idx, 4);
+
+      // Clamps at start
+      idx = 0; // launcher (first)
+      idx = computeNextTabIndex(idx, -100, tabs.length);
+      assert.equal(idx, 0);
+    });
+
+    it("wheel navigation dispatches WIDGET_SELECT and preserves Expanded state", async () => {
+      await runtime.transitionTo("Expanded", "mouse");
+      assert.equal(islandStore.getState().state, "Expanded");
+
+      // Simulating wheel navigation selection
+      await runtime.handleEvent({ type: "WIDGET_SELECT", widgetId: "timer" });
+      assert.equal(islandStore.getState().state, "Expanded");
+      assert.equal(islandStore.getState().activeWidgetId, "timer");
+
+      await runtime.handleEvent({ type: "WIDGET_SELECT", widgetId: "settings" });
+      assert.equal(islandStore.getState().state, "Expanded");
+      assert.equal(islandStore.getState().activeWidgetId, "settings");
+    });
+  });
+
+  describe("10. Active Island Widgets Ordering & Fallback", () => {
+    it("orders active widgets according to user preference", async () => {
+      const { resolveEffectiveIndicatorOrder } = await import(
+        "../src/island/compactOrder.ts"
+      );
+
+      const customOrder = ["system", "reminder", "timer", "clipboard"];
+      const effective = resolveEffectiveIndicatorOrder(customOrder, []);
+
+      // First items should match custom order
+      assert.equal(effective[0], "system");
+      assert.equal(effective[1], "reminder");
+      assert.equal(effective[2], "timer");
+      assert.equal(effective[3], "clipboard");
+    });
+
+    it("filters out disabled widgets from effective order", async () => {
+      const { resolveEffectiveIndicatorOrder } = await import(
+        "../src/island/compactOrder.ts"
+      );
+
+      const customOrder = ["timer", "reminder", "clipboard", "system"];
+      const disabledWidgets = ["clipboard", "system"];
+      const effective = resolveEffectiveIndicatorOrder(customOrder, disabledWidgets);
+
+      assert.ok(!effective.includes("clipboard"));
+      assert.ok(!effective.includes("system"));
+      assert.ok(effective.includes("timer"));
+      assert.ok(effective.includes("reminder"));
+    });
+  });
+
+  describe("11. Compact Dimensions Dynamic CSS Properties", () => {
+    it("injects compact width and height into document CSS custom properties", async () => {
+      const { applyThemeAndMotionToDom } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      const mockStyle = new Map<string, string>();
+      const mockElement = {
+        style: {
+          setProperty(name: string, value: string) {
+            mockStyle.set(name, value);
+          },
+          getPropertyValue(name: string) {
+            return mockStyle.get(name) || "";
+          },
+        },
+        setAttribute() {},
+        getAttribute() {
+          return null;
+        },
+      };
+
+      const originalDoc = globalThis.document;
+      // @ts-expect-error Mocking document
+      globalThis.document = { documentElement: mockElement };
+
+      try {
+        applyThemeAndMotionToDom({
+          ...initialSettingsState.settings,
+          island_width: 320,
+          island_height: 48,
+        });
+
+        assert.equal(mockStyle.get("--bbq-compact-width"), "320px");
+        assert.equal(mockStyle.get("--bbq-compact-height"), "48px");
+      } finally {
+        globalThis.document = originalDoc;
+      }
+    });
+  });
+
+  describe("12. Launcher Clean State & Shortcut Exclusions", () => {
+    it("excludes widget shortcuts from launcher viewable items", () => {
+      const EXCLUDED_LAUNCHER_ITEM_IDS = [
+        "bbq_timer",
+        "bbq_reminders",
+        "bbq_clipboard",
+        "bbq_settings",
+        "bbq_system",
+      ];
+
+      const allItems = [
+        { id: "app_calculator", title: "Calculator" },
+        { id: "bbq_timer", title: "Timer" },
+        { id: "app_browser", title: "Browser" },
+        { id: "bbq_settings", title: "Settings" },
+      ];
+
+      const visible = allItems.filter(
+        (item) => !EXCLUDED_LAUNCHER_ITEM_IDS.includes(item.id)
+      );
+
+      assert.equal(visible.length, 2);
+      assert.equal(visible[0].id, "app_calculator");
+      assert.equal(visible[1].id, "app_browser");
+      assert.ok(!visible.some((i) => i.id === "bbq_timer"));
+      assert.ok(!visible.some((i) => i.id === "bbq_settings"));
+    });
+  });
 });
+

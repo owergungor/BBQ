@@ -224,11 +224,22 @@ impl HotkeyServiceTrait for HotkeyService {
             ));
         }
 
+        if definition.modifiers.is_empty() {
+            return Err(BbqError::Validation(
+                "Hotkey must include at least one modifier key".to_string(),
+            ));
+        }
+
         let old_def = self
             .current_definition
             .lock()
             .map(|g| g.clone())
             .unwrap_or_else(|e| e.into_inner().clone());
+
+        if old_def == definition {
+            return Ok(());
+        }
+
         let _ = self.platform.unregister(&old_def.id).await;
 
         match self.platform.register(&definition).await {
@@ -291,5 +302,147 @@ impl HotkeyServiceTrait for HotkeyService {
             self.stop().await?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::settings::SettingsService;
+    use bbq_platform::MockHotkey;
+    use bbq_storage::DatabaseManager;
+
+    #[tokio::test]
+    async fn test_default_registration() {
+        let platform = Arc::new(MockHotkey::default());
+        let service = HotkeyService::new(platform.clone(), None);
+
+        service.init().await.expect("init must succeed");
+        service.start().await.expect("start must succeed");
+
+        let def = service.get_definition().await.expect("definition");
+        assert_eq!(def.id, "global_command_surface");
+        assert!(platform.is_registered(&def.id).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_custom_registration_and_update() {
+        let platform = Arc::new(MockHotkey::default());
+        let service = HotkeyService::new(platform.clone(), None);
+
+        service.init().await.unwrap();
+        service.start().await.unwrap();
+
+        let new_def = HotkeyDefinition::new(
+            "global_command_surface",
+            "K",
+            vec!["Ctrl".to_string(), "Shift".to_string()],
+            "Ctrl+Shift+K",
+        );
+
+        service
+            .update_definition(new_def.clone())
+            .await
+            .expect("update");
+        let current = service.get_definition().await.unwrap();
+        assert_eq!(current.display_str, "Ctrl+Shift+K");
+        assert!(platform
+            .is_registered("global_command_surface")
+            .await
+            .unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_duplicate_registration_is_noop() {
+        let platform = Arc::new(MockHotkey::default());
+        let service = HotkeyService::new(platform.clone(), None);
+
+        service.init().await.unwrap();
+        service.start().await.unwrap();
+
+        let initial_reg_count = platform.registered_count();
+
+        // Re-updating with exact same definition
+        let def = service.get_definition().await.unwrap();
+        service
+            .update_definition(def)
+            .await
+            .expect("duplicate should succeed as no-op");
+
+        assert_eq!(platform.registered_count(), initial_reg_count);
+    }
+
+    #[tokio::test]
+    async fn test_invalid_hotkey_validation() {
+        let platform = Arc::new(MockHotkey::default());
+        let service = HotkeyService::new(platform.clone(), None);
+
+        service.init().await.unwrap();
+        service.start().await.unwrap();
+
+        // Empty key
+        let empty_key = HotkeyDefinition::new(
+            "global_command_surface",
+            "",
+            vec!["Ctrl".to_string()],
+            "Ctrl+",
+        );
+        assert!(service.update_definition(empty_key).await.is_err());
+
+        // Empty modifiers
+        let no_mods = HotkeyDefinition::new("global_command_surface", "A", vec![], "A");
+        assert!(service.update_definition(no_mods).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_hotkey_conflict_handling() {
+        let platform = Arc::new(MockHotkey::default());
+        platform.simulate_conflict("Ctrl+Alt+P");
+
+        let service = HotkeyService::new(platform.clone(), None);
+        service.init().await.unwrap();
+        service.start().await.unwrap();
+
+        let conflicted = HotkeyDefinition::new(
+            "global_command_surface",
+            "P",
+            vec!["Ctrl".to_string(), "Alt".to_string()],
+            "Ctrl+Alt+P",
+        );
+
+        let res = service.update_definition(conflicted).await;
+        assert!(res.is_err());
+        assert_eq!(service.status().state, ServiceState::Failed);
+    }
+
+    #[tokio::test]
+    async fn test_hotkey_persistence_with_settings() {
+        let db = DatabaseManager::open_in_memory().unwrap();
+        let settings_service = Arc::new(SettingsService::new(db.settings_repository()));
+        let platform = Arc::new(MockHotkey::default());
+
+        let service = HotkeyService::new(platform.clone(), Some(settings_service.clone()));
+        service.init().await.unwrap();
+        service.start().await.unwrap();
+
+        let new_def = HotkeyDefinition::new(
+            "global_command_surface",
+            "Space",
+            vec!["Alt".to_string()],
+            "Alt+Space",
+        );
+
+        service.update_definition(new_def).await.unwrap();
+
+        // Verify settings stored the updated hotkey string
+        let saved_settings = settings_service.get_settings().unwrap();
+        assert_eq!(saved_settings.global_hotkey, "Alt+Space");
+
+        // Simulate app restart: new service instance reads persisted hotkey
+        let restarted_service =
+            HotkeyService::new(platform.clone(), Some(settings_service.clone()));
+        restarted_service.init().await.unwrap();
+        let def = restarted_service.get_definition().await.unwrap();
+        assert_eq!(def.display_str, "Alt+Space");
     }
 }

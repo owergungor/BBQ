@@ -285,38 +285,53 @@ async fn sync_runtime_services_with_settings(
         || prev.map(|p| p.island_height) != Some(current.island_height);
 
     if target_display_changed || dims_changed {
+        if let Ok(mut last) = state.last_geometry.lock() {
+            *last = None;
+        }
         if let Ok(display) = state
             .display_service
             .get_target_display(current.target_display_id.as_deref())
             .await
         {
             let mode = *state.current_mode.lock().unwrap_or_else(|e| e.into_inner());
-            let layout_state = match mode {
+            let (layout_state, dims) = match mode {
                 IslandMode::Expanded | IslandMode::Interacting | IslandMode::Expanding => {
-                    bbq_core::IslandLayoutState::Expanded
+                    (bbq_core::IslandLayoutState::Expanded, None)
                 }
-                _ => bbq_core::IslandLayoutState::Idle,
+                _ => (
+                    bbq_core::IslandLayoutState::Hovering,
+                    Some(bbq_core::WidgetDimensions {
+                        preferred_width: Some(current.island_width),
+                        preferred_height: Some(current.island_height),
+                    }),
+                ),
             };
-            let geo = bbq_core::calculate_island_geometry(
-                &display,
-                layout_state,
-                Some(bbq_core::WidgetDimensions {
-                    preferred_width: Some(current.island_width),
-                    preferred_height: Some(current.island_height),
-                }),
-                bbq_core::IslandAnchor::TopCenter,
-            );
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
-                    width: geo.width as f64,
-                    height: geo.height as f64,
-                }));
-                let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
-                    x: geo.x as f64,
-                    y: geo.y as f64,
-                }));
+
+            if matches!(
+                mode,
+                IslandMode::Idle | IslandMode::Active | IslandMode::Collapsing
+            ) {
+                let geo = bbq_core::calculate_island_geometry(
+                    &display,
+                    layout_state,
+                    dims,
+                    bbq_core::IslandAnchor::TopCenter,
+                );
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                        width: geo.width as f64,
+                        height: geo.height as f64,
+                    }));
+                    let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                        x: geo.x as f64,
+                        y: geo.y as f64,
+                    }));
+                }
+                if let Ok(mut last) = state.last_geometry.lock() {
+                    *last = Some(geo.clone());
+                }
+                let _ = state.window_service.apply_geometry(&geo).await;
             }
-            let _ = state.window_service.apply_geometry(&geo).await;
         }
     }
 }

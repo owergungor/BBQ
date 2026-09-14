@@ -52,6 +52,20 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
       "data-reduced-motion",
       settings.reduced_motion ? "true" : "false"
     );
+    if (document.documentElement.style?.setProperty) {
+      if (settings.island_width) {
+        document.documentElement.style.setProperty(
+          "--bbq-compact-width",
+          `${settings.island_width}px`
+        );
+      }
+      if (settings.island_height) {
+        document.documentElement.style.setProperty(
+          "--bbq-compact-height",
+          `${settings.island_height}px`
+        );
+      }
+    }
   }
 }
 

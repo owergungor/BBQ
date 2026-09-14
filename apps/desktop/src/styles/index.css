@@ -83,6 +83,10 @@
   --bbq-duration-normal: 260ms;
   --bbq-duration-expand: 320ms;
 
+  /* Compact Dimensions */
+  --bbq-compact-width: 240px;
+  --bbq-compact-height: 40px;
+
   /* Backward Compatibility Tokens */
   --bg-island-idle: var(--bbq-bg-idle);
   --bg-island-active: var(--bbq-bg-active);
@@ -314,17 +318,17 @@ html, body {
 /* State Modifiers */
 .bbq-island-shell.state-idle {
   width: 100%;
-  max-width: 240px;
+  max-width: var(--bbq-compact-width, 240px);
   height: 100%;
-  max-height: 40px;
+  max-height: var(--bbq-compact-height, 40px);
   border-radius: 9999px;
 }
 
 .bbq-island-shell.state-hovering {
   width: 100%;
-  max-width: 260px;
+  max-width: calc(var(--bbq-compact-width, 240px) + 20px);
   height: 100%;
-  max-height: 44px;
+  max-height: calc(var(--bbq-compact-height, 40px) + 4px);
   border-radius: 9999px;
   background: var(--bbq-bg-active);
   border-color: var(--bbq-border-glow);
@@ -1219,12 +1223,21 @@ html, body {
   background: rgba(239, 68, 68, 0.12);
 }
 
+.bbq-timer-presets-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .bbq-timer-presets {
   display: flex;
   justify-content: center;
   gap: 4px;
   flex-wrap: wrap;
   flex-shrink: 0;
+  max-width: 360px;
 }
 
 .bbq-timer-preset-btn {
@@ -1237,6 +1250,9 @@ html, body {
   padding: 2px 7px;
   cursor: pointer;
   transition: all 120ms ease;
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
 }
 
 .bbq-timer-preset-btn:hover:not(:disabled) {
@@ -1252,12 +1268,63 @@ html, body {
   font-weight: 600;
 }
 
+.bbq-timer-custom-form {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 1px;
+}
+
+.bbq-timer-custom-input {
+  width: 72px;
+  padding: 2px 6px;
+  font-size: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--bbq-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--bbq-text-primary);
+  outline: none;
+  text-align: center;
+  transition: border-color 150ms ease;
+}
+
+.bbq-timer-custom-input:focus {
+  border-color: var(--bbq-accent);
+}
+
+.bbq-timer-custom-btn {
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--bbq-border-subtle);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--bbq-text-primary);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.bbq-timer-custom-btn:hover:not(:disabled) {
+  background: var(--bbq-accent);
+  color: #fff;
+  border-color: var(--bbq-accent);
+}
+
+.bbq-timer-custom-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .bbq-timer-controls {
   display: flex;
   justify-content: center;
   gap: 8px;
   margin-top: 2px;
   flex-shrink: 0;
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
 }
 
 .bbq-timer-btn {
@@ -1268,6 +1335,9 @@ html, body {
   border: none;
   cursor: pointer;
   transition: all 150ms ease;
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
 }
 
 .bbq-timer-btn-primary {

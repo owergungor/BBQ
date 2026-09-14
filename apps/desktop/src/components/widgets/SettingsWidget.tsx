@@ -9,12 +9,14 @@ import {
   DEFAULT_COMPACT_INDICATOR_ORDER,
   resolveEffectiveIndicatorOrder,
 } from "../../island/compactOrder.ts";
+import { useHotkeyState } from "../../state/hotkeyState.ts";
 import type { ThemePreference } from "@bbq/types";
 
 type SettingsTab = "appearance" | "island" | "hotkey" | "privacy" | "notifications" | "widgets" | "about";
 
 export const SettingsWidget: React.FC = () => {
   const { settings, isLoading } = useSettingsState();
+  const { conflictError } = useHotkeyState();
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -24,6 +26,8 @@ export const SettingsWidget: React.FC = () => {
   const [draftClipboardMax, setDraftClipboardMax] = useState(settings.clipboard_max_entries);
   const [draftRetention, setDraftRetention] = useState(settings.clipboard_retention_days);
   const [draftHotkey, setDraftHotkey] = useState(settings.global_hotkey);
+  const [hotkeyError, setHotkeyError] = useState<string | null>(null);
+  const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
 
   useEffect(() => {
     setDraftWidth(settings.island_width);
@@ -88,15 +92,81 @@ export const SettingsWidget: React.FC = () => {
     }
   };
 
-  const commitHotkey = async () => {
+  const handleSaveHotkey = async () => {
     const trimmed = draftHotkey.trim();
-    if (trimmed && trimmed !== settings.global_hotkey) {
-      const ok = await updateSettingsBatch({ global_hotkey: trimmed });
-      if (ok) {
-        showStatus("Global hotkey updated");
-      } else {
-        setDraftHotkey(settings.global_hotkey);
+    if (!trimmed) {
+      setHotkeyError("Hotkey combination cannot be empty.");
+      return;
+    }
+    const parts = trimmed.split("+").map((s) => s.trim().toLowerCase());
+    const hasMod = parts.some((p) =>
+      ["ctrl", "control", "alt", "option", "shift", "win", "cmd", "meta"].includes(p)
+    );
+    if (!hasMod || parts.length < 2) {
+      setHotkeyError(
+        "Shortcut must include at least one modifier key (Ctrl, Alt, Shift, or Win) plus a key."
+      );
+      return;
+    }
+    setHotkeyError(null);
+    setIsRecordingHotkey(false);
+    if (trimmed === settings.global_hotkey) {
+      return;
+    }
+    const ok = await updateSettingsBatch({ global_hotkey: trimmed });
+    if (ok) {
+      showStatus("Global hotkey updated");
+    } else {
+      setHotkeyError("Failed to register hotkey with the operating system.");
+    }
+  };
+
+  const handleCancelHotkey = () => {
+    setDraftHotkey(settings.global_hotkey);
+    setHotkeyError(null);
+    setIsRecordingHotkey(false);
+  };
+
+  const handleHotkeyKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSaveHotkey();
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      handleCancelHotkey();
+      return;
+    }
+    if (isRecordingHotkey) {
+      e.preventDefault();
+      e.stopPropagation();
+      const modifiers: string[] = [];
+      if (e.ctrlKey) modifiers.push("Ctrl");
+      if (e.altKey) modifiers.push("Alt");
+      if (e.shiftKey) modifiers.push("Shift");
+      if (e.metaKey) modifiers.push("Win");
+
+      let key = e.key;
+      if (["Control", "Alt", "Shift", "Meta"].includes(key)) {
+        if (modifiers.length > 0) {
+          setDraftHotkey(modifiers.join("+") + "+");
+        }
+        return;
       }
+
+      if (key === " ") key = "Space";
+      else if (key.length === 1) key = key.toUpperCase();
+
+      if (modifiers.length === 0) {
+        setHotkeyError("Please hold down a modifier (Ctrl, Alt, Shift, or Win)");
+        return;
+      }
+
+      const combo = [...modifiers, key].join("+");
+      setDraftHotkey(combo);
+      setIsRecordingHotkey(false);
+      setHotkeyError(null);
     }
   };
 
@@ -327,7 +397,13 @@ export const SettingsWidget: React.FC = () => {
                 max={480}
                 step={10}
                 value={draftWidth}
-                onChange={(e) => setDraftWidth(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setDraftWidth(val);
+                  if (typeof document !== "undefined") {
+                    document.documentElement.style.setProperty("--bbq-compact-width", `${val}px`);
+                  }
+                }}
                 onPointerUp={commitWidth}
                 onKeyUp={commitWidth}
                 style={{ width: "100%", cursor: "pointer" }}
@@ -347,7 +423,13 @@ export const SettingsWidget: React.FC = () => {
                 max={54}
                 step={2}
                 value={draftHeight}
-                onChange={(e) => setDraftHeight(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setDraftHeight(val);
+                  if (typeof document !== "undefined") {
+                    document.documentElement.style.setProperty("--bbq-compact-height", `${val}px`);
+                  }
+                }}
                 onPointerUp={commitHeight}
                 onKeyUp={commitHeight}
                 style={{ width: "100%", cursor: "pointer" }}
@@ -399,39 +481,189 @@ export const SettingsWidget: React.FC = () => {
         {activeTab === "hotkey" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div>
-              <label htmlFor="global-hotkey-input" style={{ display: "block", marginBottom: "4px", fontWeight: 500 }}>
-                Global Hotkey
-              </label>
-              <input
-                id="global-hotkey-input"
-                type="text"
-                value={draftHotkey}
-                onChange={(e) => setDraftHotkey(e.target.value)}
-                onBlur={commitHotkey}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitHotkey();
-                }}
-                placeholder="e.g. Ctrl+Space"
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                <label htmlFor="global-hotkey-input" style={{ fontWeight: 500, fontSize: "13px" }}>
+                  Global Shortcut Combination
+                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>Current:</span>
+                  <span
+                    style={{
+                      background: "rgba(255, 255, 255, 0.08)",
+                      border: "1px solid var(--bbq-border)",
+                      borderRadius: "4px",
+                      padding: "1px 6px",
+                      fontSize: "11px",
+                      fontFamily: "monospace",
+                      fontWeight: 600,
+                      color: settings.hotkey_enabled ? "var(--bbq-accent, #60a5fa)" : "var(--bbq-text-muted)",
+                    }}
+                  >
+                    {settings.global_hotkey || "None"}
+                  </span>
+                  {!settings.hotkey_enabled && (
+                    <span style={{ fontSize: "10px", color: "#f59e0b" }}>(Disabled)</span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <input
+                  id="global-hotkey-input"
+                  type="text"
+                  value={
+                    isRecordingHotkey
+                      ? draftHotkey
+                        ? `${draftHotkey}...`
+                        : "Press shortcut keys..."
+                      : draftHotkey
+                  }
+                  onChange={(e) => {
+                    if (!isRecordingHotkey) {
+                      setDraftHotkey(e.target.value);
+                      setHotkeyError(null);
+                    }
+                  }}
+                  onKeyDown={handleHotkeyKeyDown}
+                  placeholder={isRecordingHotkey ? "Press key combination..." : "e.g. Ctrl+Space"}
+                  style={{
+                    flex: 1,
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    border: isRecordingHotkey
+                      ? "1px solid var(--bbq-accent, #60a5fa)"
+                      : "1px solid var(--bbq-border)",
+                    background: isRecordingHotkey
+                      ? "rgba(96, 165, 250, 0.12)"
+                      : "var(--bbq-surface)",
+                    color: "var(--bbq-text)",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                  }}
+                  aria-label="Global hotkey combination"
+                />
+                <button
+                  type="button"
+                  id="record-hotkey-btn"
+                  onClick={() => {
+                    setIsRecordingHotkey(!isRecordingHotkey);
+                    setHotkeyError(null);
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--bbq-border)",
+                    background: isRecordingHotkey
+                      ? "var(--bbq-accent, #3b82f6)"
+                      : "rgba(255, 255, 255, 0.06)",
+                    color: isRecordingHotkey ? "#fff" : "var(--bbq-text)",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {isRecordingHotkey ? "Stop Recording" : "Record Keys"}
+                </button>
+              </div>
+
+              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  id="save-hotkey-btn"
+                  onClick={handleSaveHotkey}
+                  disabled={draftHotkey.trim() === settings.global_hotkey || !draftHotkey.trim()}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "6px",
+                    border: "none",
+                    background:
+                      draftHotkey.trim() === settings.global_hotkey || !draftHotkey.trim()
+                        ? "rgba(255, 255, 255, 0.08)"
+                        : "var(--bbq-accent, #3b82f6)",
+                    color:
+                      draftHotkey.trim() === settings.global_hotkey || !draftHotkey.trim()
+                        ? "var(--bbq-text-muted)"
+                        : "#fff",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    cursor:
+                      draftHotkey.trim() === settings.global_hotkey || !draftHotkey.trim()
+                        ? "default"
+                        : "pointer",
+                  }}
+                >
+                  Save Hotkey
+                </button>
+                <button
+                  type="button"
+                  id="cancel-hotkey-btn"
+                  onClick={handleCancelHotkey}
+                  disabled={draftHotkey === settings.global_hotkey && !isRecordingHotkey}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--bbq-border)",
+                    background: "transparent",
+                    color: "var(--bbq-text)",
+                    fontSize: "12px",
+                    cursor:
+                      draftHotkey === settings.global_hotkey && !isRecordingHotkey
+                        ? "default"
+                        : "pointer",
+                    opacity:
+                      draftHotkey === settings.global_hotkey && !isRecordingHotkey
+                        ? 0.5
+                        : 1,
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {(hotkeyError || conflictError) && (
+                <div
+                  style={{
+                    marginTop: "8px",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    background: "rgba(239, 68, 68, 0.15)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    color: "#f87171",
+                    fontSize: "12px",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  ⚠️ {hotkeyError || conflictError}
+                </div>
+              )}
+
+              <span
                 style={{
-                  width: "100%",
-                  padding: "8px 10px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--bbq-border)",
-                  background: "var(--bbq-surface)",
-                  color: "var(--bbq-text)",
-                  fontSize: "13px",
-                  boxSizing: "border-box",
+                  fontSize: "11px",
+                  color: "var(--bbq-text-muted)",
+                  display: "block",
+                  marginTop: "6px",
                 }}
-                aria-label="Global hotkey combination"
-              />
-              <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "4px" }}>
-                Pressing this shortcut globally brings BBQ to front and focuses the Launcher search.
+              >
+                Pressing this shortcut globally expands BBQ to front and focuses the Launcher search.
               </span>
             </div>
 
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: "12px",
+                paddingTop: "6px",
+                borderTop: "1px solid var(--bbq-border)",
+              }}
+            >
               <div>
-                <label htmlFor="hotkey-enable-toggle" style={{ fontWeight: 500, display: "block" }}>
+                <label
+                  htmlFor="hotkey-enable-toggle"
+                  style={{ fontWeight: 500, display: "block" }}
+                >
                   Hotkey Trigger Enabled
                 </label>
                 <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
@@ -577,53 +809,17 @@ export const SettingsWidget: React.FC = () => {
         )}
 
         {/* WIDGETS */}
+        {/* WIDGETS */}
         {activeTab === "widgets" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {/* Widget Toggles */}
-            <div>
-              <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)", display: "block", marginBottom: "6px" }}>
-                Active Island Widgets:
-              </span>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {allRegisteredWidgets.map((w) => {
-                  const isChecked = !disabledSet.has(w.id);
-                  return (
-                    <div
-                      key={w.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "6px 8px",
-                        borderRadius: "6px",
-                        background: "var(--bbq-surface-elevated)",
-                        border: "1px solid var(--bbq-border)",
-                      }}
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span aria-hidden="true">{w.icon}</span>
-                        <span style={{ fontWeight: 500 }}>{w.title}</span>
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleWidget(w.id)}
-                        style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                        aria-label={`Enable ${w.title} widget`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Compact Indicator Priority */}
+            {/* Active Island Widgets - Reorderable */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                 <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)" }}>
-                  Compact Indicator Priority:
+                  Active Island Widgets (Sıralama):
                 </span>
                 <button
+                  id="reset-widgets-order-btn"
                   type="button"
                   onClick={resetIndicatorOrder}
                   style={{
@@ -635,71 +831,138 @@ export const SettingsWidget: React.FC = () => {
                     textDecoration: "underline",
                     padding: 0,
                   }}
-                  aria-label="Reset indicator priority to defaults"
+                  aria-label="Reset widget order to defaults"
                 >
                   Reset Order
                 </button>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                {currentIndicatorOrder.map((indicatorId, idx) => (
-                  <div
-                    key={indicatorId}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "4px 8px",
-                      borderRadius: "4px",
-                      background: "var(--bbq-surface)",
-                      border: "1px solid var(--bbq-border)",
-                      fontSize: "12px",
-                    }}
-                  >
-                    <span style={{ textTransform: "capitalize", fontWeight: 500 }}>
-                      {idx + 1}. {indicatorId}
-                    </span>
-                    <div style={{ display: "flex", gap: "4px" }}>
-                      <button
-                        type="button"
-                        disabled={idx === 0}
-                        onClick={() => moveIndicator(idx, "up")}
-                        style={{
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          border: "1px solid var(--bbq-border)",
-                          background: "var(--bbq-surface-elevated)",
-                          color: "var(--bbq-text)",
-                          cursor: idx === 0 ? "not-allowed" : "pointer",
-                          opacity: idx === 0 ? 0.4 : 1,
-                          fontSize: "10px",
-                        }}
-                        aria-label={`Move ${indicatorId} up`}
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        disabled={idx === currentIndicatorOrder.length - 1}
-                        onClick={() => moveIndicator(idx, "down")}
-                        style={{
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          border: "1px solid var(--bbq-border)",
-                          background: "var(--bbq-surface-elevated)",
-                          color: "var(--bbq-text)",
-                          cursor: idx === currentIndicatorOrder.length - 1 ? "not-allowed" : "pointer",
-                          opacity: idx === currentIndicatorOrder.length - 1 ? 0.4 : 1,
-                          fontSize: "10px",
-                        }}
-                        aria-label={`Move ${indicatorId} down`}
-                      >
-                        ▼
-                      </button>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {currentIndicatorOrder.map((widgetId, idx) => {
+                  const w = allRegisteredWidgets.find((item) => item.id === widgetId);
+                  const title = w?.title ?? widgetId;
+                  const icon = w?.icon ?? "⚙️";
+
+                  return (
+                    <div
+                      key={widgetId}
+                      id={`widget-order-item-${widgetId}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "6px 8px",
+                        borderRadius: "6px",
+                        background: "var(--bbq-surface-elevated)",
+                        border: "1px solid var(--bbq-border)",
+                      }}
+                    >
+                      <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                        <span style={{ color: "var(--bbq-text-muted)", fontSize: "11px", width: "16px" }}>
+                          {idx + 1}.
+                        </span>
+                        <span aria-hidden="true">{icon}</span>
+                        <span style={{ fontWeight: 500 }}>{title}</span>
+                      </span>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <div style={{ display: "flex", gap: "2px" }}>
+                          <button
+                            id={`widget-move-up-${widgetId}`}
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => moveIndicator(idx, "up")}
+                            style={{
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              border: "1px solid var(--bbq-border)",
+                              background: "var(--bbq-surface)",
+                              color: "var(--bbq-text)",
+                              cursor: idx === 0 ? "not-allowed" : "pointer",
+                              opacity: idx === 0 ? 0.35 : 1,
+                              fontSize: "10px",
+                            }}
+                            aria-label={`Move ${title} up`}
+                          >
+                            ▲
+                          </button>
+                          <button
+                            id={`widget-move-down-${widgetId}`}
+                            type="button"
+                            disabled={idx === currentIndicatorOrder.length - 1}
+                            onClick={() => moveIndicator(idx, "down")}
+                            style={{
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              border: "1px solid var(--bbq-border)",
+                              background: "var(--bbq-surface)",
+                              color: "var(--bbq-text)",
+                              cursor: idx === currentIndicatorOrder.length - 1 ? "not-allowed" : "pointer",
+                              opacity: idx === currentIndicatorOrder.length - 1 ? 0.35 : 1,
+                              fontSize: "10px",
+                            }}
+                            aria-label={`Move ${title} down`}
+                          >
+                            ▼
+                          </button>
+                        </div>
+
+                        <input
+                          id={`widget-toggle-${widgetId}`}
+                          type="checkbox"
+                          checked={true}
+                          onChange={() => toggleWidget(widgetId)}
+                          style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                          aria-label={`Disable ${title} widget`}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
+
+            {/* Disabled Widgets (if any) */}
+            {settings.disabled_widgets.length > 0 && (
+              <div>
+                <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)", display: "block", marginBottom: "6px" }}>
+                  Disabled Widgets:
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  {allRegisteredWidgets
+                    .filter((w) => disabledSet.has(w.id))
+                    .map((w) => (
+                      <div
+                        key={w.id}
+                        id={`disabled-widget-item-${w.id}`}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "6px 8px",
+                          borderRadius: "6px",
+                          background: "rgba(255, 255, 255, 0.02)",
+                          border: "1px dashed var(--bbq-border)",
+                          opacity: 0.7,
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                          <span aria-hidden="true">{w.icon}</span>
+                          <span>{w.title}</span>
+                        </span>
+                        <input
+                          id={`widget-enable-toggle-${w.id}`}
+                          type="checkbox"
+                          checked={false}
+                          onChange={() => toggleWidget(w.id)}
+                          style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                          aria-label={`Enable ${w.title} widget`}
+                        />
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

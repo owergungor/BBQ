@@ -611,9 +611,17 @@ mod tests {
         assert!(caps.open_url);
         assert!(caps.system_actions);
 
-        // 2. Built-in actions
+        // 2. Built-in actions (widget shortcuts removed in v1.2)
         let items = launcher_service.list_items().await.unwrap();
-        assert!(items.len() >= 9, "Should have at least 9 built-in actions");
+        assert!(items.len() >= 4, "Should have built-in actions");
+        assert!(
+            !items.iter().any(|i| i.id == "bbq_timer"
+                || i.id == "bbq_reminders"
+                || i.id == "bbq_clipboard"
+                || i.id == "bbq_settings"
+                || i.id == "bbq_system"),
+            "Widget shortcuts must be removed from launcher"
+        );
 
         // 3. Launch built-in item and verify recent tracking
         let target_item = &items[0];

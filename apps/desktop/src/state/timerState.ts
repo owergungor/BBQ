@@ -60,6 +60,8 @@ export function setTimerError(error: string | null): void {
   timerStore.setState({ error, isLoading: false });
 }
 
+let isSubscribed = false;
+
 /**
  * Initializes timer store with on-demand initial read and event subscription
  */
@@ -69,7 +71,7 @@ export async function initializeTimerStore(): Promise<() => void> {
   try {
     const session = await bbqCommands.timerGetState();
     if (session) {
-      timerStore.setState({ session });
+      timerStore.setState({ session, error: null });
     }
   } catch (err) {
     console.error("Failed to initialize timer state:", err);
@@ -77,9 +79,26 @@ export async function initializeTimerStore(): Promise<() => void> {
     timerStore.setState({ isLoading: false });
   }
 
+  if (isSubscribed) {
+    return () => {};
+  }
+  isSubscribed = true;
+
   const unlisten = await subscribeToTimerChanged((updatedSession) => {
-    timerStore.setState({ session: updatedSession });
+    timerStore.setState({ session: updatedSession, isLoading: false, error: null });
   });
 
-  return unlisten;
+  return () => {
+    isSubscribed = false;
+    unlisten();
+  };
+}
+
+// Auto-subscribe to backend events in browser/Tauri environment
+if (typeof window !== "undefined") {
+  subscribeToTimerChanged((updatedSession) => {
+    timerStore.setState({ session: updatedSession, isLoading: false, error: null });
+  }).catch((err) => {
+    console.error("Failed to auto-subscribe to timer changes:", err);
+  });
 }

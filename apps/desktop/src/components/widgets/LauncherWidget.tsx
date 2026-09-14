@@ -14,6 +14,14 @@ interface LauncherWidgetProps {
   onCollapse?: () => void;
 }
 
+const EXCLUDED_LAUNCHER_ITEM_IDS = new Set([
+  "bbq_clipboard",
+  "bbq_timer",
+  "bbq_reminders",
+  "bbq_system",
+  "bbq_settings",
+]);
+
 export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
   onSelectWidget,
   onCollapse,
@@ -47,7 +55,8 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
 
   // Unified deterministic smart search and empty-query ranking
   const visibleItems = useMemo<LauncherItem[]>(() => {
-    return searchLauncherItems(query, items, favoriteIds, recentIds);
+    const results = searchLauncherItems(query, items, favoriteIds, recentIds);
+    return results.filter((item) => !EXCLUDED_LAUNCHER_ITEM_IDS.has(item.id));
   }, [query, items, favoriteIds, recentIds]);
 
   // Keep selected index within bounds

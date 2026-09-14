@@ -160,26 +160,36 @@ pub fn calculate_island_geometry(
     widget_dims: Option<WidgetDimensions>,
     anchor: IslandAnchor,
 ) -> IslandGeometry {
-    let (target_w, target_h) = match layout_state {
+    let (target_w, target_h, idle_w, idle_h) = match layout_state {
         IslandLayoutState::Idle => {
             let pref = widget_dims.unwrap_or_default();
             let w = pref.preferred_width.unwrap_or(DEFAULT_IDLE_WIDTH);
             let h = pref.preferred_height.unwrap_or(DEFAULT_IDLE_HEIGHT);
-            (w, h)
+            (w, h, w, h)
         }
-        IslandLayoutState::Hovering => (DEFAULT_HOVER_WIDTH, DEFAULT_HOVER_HEIGHT),
-        IslandLayoutState::DraggingOver => (DEFAULT_DROP_WIDTH, DEFAULT_DROP_HEIGHT),
+        IslandLayoutState::Hovering => {
+            let pref = widget_dims.unwrap_or_default();
+            let base_w = pref.preferred_width.unwrap_or(DEFAULT_IDLE_WIDTH);
+            let base_h = pref.preferred_height.unwrap_or(DEFAULT_IDLE_HEIGHT);
+            (base_w + 20, base_h + 4, base_w, base_h)
+        }
+        IslandLayoutState::DraggingOver => (
+            DEFAULT_DROP_WIDTH,
+            DEFAULT_DROP_HEIGHT,
+            DEFAULT_IDLE_WIDTH,
+            DEFAULT_IDLE_HEIGHT,
+        ),
         IslandLayoutState::Expanded => {
             let pref = widget_dims.unwrap_or_default();
             let w = pref.preferred_width.unwrap_or(400);
             let h = pref.preferred_height.unwrap_or(280);
-            (w, h)
+            (w, h, DEFAULT_IDLE_WIDTH, DEFAULT_IDLE_HEIGHT)
         }
         IslandLayoutState::Transitioning => {
             let pref = widget_dims.unwrap_or_default();
             let w = pref.preferred_width.unwrap_or(320);
             let h = pref.preferred_height.unwrap_or(120);
-            (w, h)
+            (w, h, DEFAULT_IDLE_WIDTH, DEFAULT_IDLE_HEIGHT)
         }
     };
 
@@ -201,7 +211,7 @@ pub fn calculate_island_geometry(
     // When hovering, expand symmetrically in all directions (up, down, left, right)
     // around the idle visual center by offsetting Y upward by half of the height delta.
     let y_hover_offset = if layout_state == IslandLayoutState::Hovering {
-        (bounded_h as i32 - DEFAULT_IDLE_HEIGHT as i32) / 2
+        (bounded_h as i32 - idle_h as i32) / 2
     } else {
         0
     };
@@ -215,7 +225,7 @@ pub fn calculate_island_geometry(
         }
         IslandAnchor::TopLeft => {
             let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
-                (bounded_w as i32 - DEFAULT_IDLE_WIDTH as i32) / 2
+                (bounded_w as i32 - idle_w as i32) / 2
             } else {
                 0
             };
@@ -225,7 +235,7 @@ pub fn calculate_island_geometry(
         }
         IslandAnchor::TopRight => {
             let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
-                (bounded_w as i32 - DEFAULT_IDLE_WIDTH as i32) / 2
+                (bounded_w as i32 - idle_w as i32) / 2
             } else {
                 0
             };
@@ -236,7 +246,7 @@ pub fn calculate_island_geometry(
         }
         IslandAnchor::Custom { offset_x, offset_y } => {
             let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
-                (bounded_w as i32 - DEFAULT_IDLE_WIDTH as i32) / 2
+                (bounded_w as i32 - idle_w as i32) / 2
             } else {
                 0
             };

@@ -1572,16 +1572,313 @@ impl WindowsLauncher {
     }
 }
 
-#[derive(Clone, Default)]
-pub struct WindowsHotkey {
-    registered: Arc<std::sync::Mutex<std::collections::HashMap<String, HotkeyDefinition>>>,
+const WM_BBQ_HOTKEY_CMD: u32 = windows::Win32::UI::WindowsAndMessaging::WM_USER + 101;
+
+enum HotkeyWorkerCmd {
+    Register {
+        id: i32,
+        string_id: String,
+        modifiers: u32,
+        vk: u32,
+        resp: std::sync::mpsc::Sender<BbqResult<()>>,
+    },
+    Unregister {
+        id: i32,
+        resp: std::sync::mpsc::Sender<BbqResult<()>>,
+    },
+    Shutdown,
+}
+
+struct WindowsHotkeyWorker {
+    thread_id: u32,
+    tx: std::sync::mpsc::Sender<HotkeyWorkerCmd>,
+}
+
+fn parse_hotkey_to_win32(def: &HotkeyDefinition) -> BbqResult<(u32, u32)> {
+    if def.modifiers.is_empty() {
+        return Err(BbqError::Validation(
+            "Global hotkey must include at least one modifier key (Ctrl, Alt, Shift, or Win)"
+                .to_string(),
+        ));
+    }
+
+    let mut mods = windows::Win32::UI::Input::KeyboardAndMouse::MOD_NOREPEAT.0;
+    for m in &def.modifiers {
+        let m_lower = m.trim().to_lowercase();
+        match m_lower.as_str() {
+            "ctrl" | "control" => {
+                mods |= windows::Win32::UI::Input::KeyboardAndMouse::MOD_CONTROL.0;
+            }
+            "alt" | "option" => {
+                mods |= windows::Win32::UI::Input::KeyboardAndMouse::MOD_ALT.0;
+            }
+            "shift" => {
+                mods |= windows::Win32::UI::Input::KeyboardAndMouse::MOD_SHIFT.0;
+            }
+            "win" | "super" | "cmd" | "command" | "meta" => {
+                mods |= windows::Win32::UI::Input::KeyboardAndMouse::MOD_WIN.0;
+            }
+            _ => {
+                return Err(BbqError::Validation(format!(
+                    "Unsupported hotkey modifier: '{}'",
+                    m
+                )));
+            }
+        }
+    }
+
+    let key_upper = def.key.trim().to_uppercase();
+    let vk = match key_upper.as_str() {
+        "SPACE" => windows::Win32::UI::Input::KeyboardAndMouse::VK_SPACE.0 as u32,
+        "RETURN" | "ENTER" => windows::Win32::UI::Input::KeyboardAndMouse::VK_RETURN.0 as u32,
+        "TAB" => windows::Win32::UI::Input::KeyboardAndMouse::VK_TAB.0 as u32,
+        "ESC" | "ESCAPE" => windows::Win32::UI::Input::KeyboardAndMouse::VK_ESCAPE.0 as u32,
+        "BACKSPACE" => windows::Win32::UI::Input::KeyboardAndMouse::VK_BACK.0 as u32,
+        "LEFT" => windows::Win32::UI::Input::KeyboardAndMouse::VK_LEFT.0 as u32,
+        "UP" => windows::Win32::UI::Input::KeyboardAndMouse::VK_UP.0 as u32,
+        "RIGHT" => windows::Win32::UI::Input::KeyboardAndMouse::VK_RIGHT.0 as u32,
+        "DOWN" => windows::Win32::UI::Input::KeyboardAndMouse::VK_DOWN.0 as u32,
+        "F1" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F1.0 as u32,
+        "F2" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F2.0 as u32,
+        "F3" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F3.0 as u32,
+        "F4" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F4.0 as u32,
+        "F5" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F5.0 as u32,
+        "F6" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F6.0 as u32,
+        "F7" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F7.0 as u32,
+        "F8" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F8.0 as u32,
+        "F9" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F9.0 as u32,
+        "F10" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F10.0 as u32,
+        "F11" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F11.0 as u32,
+        "F12" => windows::Win32::UI::Input::KeyboardAndMouse::VK_F12.0 as u32,
+        other if other.len() == 1 => {
+            let Some(ch) = other.chars().next() else {
+                return Err(BbqError::Validation(format!(
+                    "Unsupported hotkey key: '{}'",
+                    def.key
+                )));
+            };
+            if ch.is_ascii_alphanumeric() {
+                ch as u32
+            } else {
+                match ch {
+                    '`' | '~' => windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_3.0 as u32,
+                    '-' | '_' => windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_MINUS.0 as u32,
+                    '=' | '+' => windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_PLUS.0 as u32,
+                    '[' | '{' => windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_4.0 as u32,
+                    ']' | '}' => windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_6.0 as u32,
+                    ';' | ':' => windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_1.0 as u32,
+                    '\'' | '"' => windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_7.0 as u32,
+                    ',' | '<' => windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_COMMA.0 as u32,
+                    '.' | '>' => {
+                        windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_PERIOD.0 as u32
+                    }
+                    '/' | '?' => windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_2.0 as u32,
+                    '\\' | '|' => windows::Win32::UI::Input::KeyboardAndMouse::VK_OEM_5.0 as u32,
+                    _ => {
+                        return Err(BbqError::Validation(format!(
+                            "Unsupported hotkey key: '{}'",
+                            def.key
+                        )));
+                    }
+                }
+            }
+        }
+        _ => {
+            return Err(BbqError::Validation(format!(
+                "Unsupported hotkey key: '{}'",
+                def.key
+            )));
+        }
+    };
+
+    Ok((mods, vk))
+}
+
+struct WindowsHotkeyInner {
+    worker: std::sync::Mutex<Option<WindowsHotkeyWorker>>,
+    registered: std::sync::Mutex<std::collections::HashMap<String, (i32, HotkeyDefinition)>>,
     subscribers: Arc<std::sync::Mutex<Vec<HotkeyEventSink>>>,
+    next_id: std::sync::atomic::AtomicI32,
+}
+
+impl Drop for WindowsHotkeyInner {
+    fn drop(&mut self) {
+        if let Ok(mut lock) = self.worker.lock() {
+            if let Some(w) = lock.take() {
+                let _ = w.tx.send(HotkeyWorkerCmd::Shutdown);
+                unsafe {
+                    let _ = windows::Win32::UI::WindowsAndMessaging::PostThreadMessageW(
+                        w.thread_id,
+                        WM_BBQ_HOTKEY_CMD,
+                        windows::Win32::Foundation::WPARAM(0),
+                        windows::Win32::Foundation::LPARAM(0),
+                    );
+                }
+            }
+        }
+    }
+}
+
+impl WindowsHotkeyInner {
+    fn ensure_worker(&self) -> BbqResult<WindowsHotkeyWorker> {
+        let mut guard = self
+            .worker
+            .lock()
+            .map_err(|e| BbqError::Platform(e.to_string()))?;
+        if let Some(ref w) = *guard {
+            return Ok(WindowsHotkeyWorker {
+                thread_id: w.thread_id,
+                tx: w.tx.clone(),
+            });
+        }
+
+        let (cmd_tx, cmd_rx) = std::sync::mpsc::channel::<HotkeyWorkerCmd>();
+        let (init_tx, init_rx) = std::sync::mpsc::channel::<u32>();
+        let subscribers_clone = self.subscribers.clone();
+
+        std::thread::Builder::new()
+            .name("bbq-win-hotkey".to_string())
+            .spawn(move || {
+                unsafe {
+                    let mut msg = windows::Win32::UI::WindowsAndMessaging::MSG::default();
+                    let _ = windows::Win32::UI::WindowsAndMessaging::PeekMessageW(
+                        &mut msg,
+                        None,
+                        0,
+                        0,
+                        windows::Win32::UI::WindowsAndMessaging::PM_NOREMOVE,
+                    );
+                }
+                let thread_id = unsafe { windows::Win32::System::Threading::GetCurrentThreadId() };
+                let _ = init_tx.send(thread_id);
+
+                let mut id_map: std::collections::HashMap<i32, String> = std::collections::HashMap::new();
+
+                loop {
+                    while let Ok(cmd) = cmd_rx.try_recv() {
+                        match cmd {
+                            HotkeyWorkerCmd::Register {
+                                id,
+                                string_id,
+                                modifiers,
+                                vk,
+                                resp,
+                            } => {
+                                let res = unsafe {
+                                    windows::Win32::UI::Input::KeyboardAndMouse::RegisterHotKey(
+                                        None,
+                                        id,
+                                        windows::Win32::UI::Input::KeyboardAndMouse::HOT_KEY_MODIFIERS(modifiers),
+                                        vk,
+                                    )
+                                };
+                                match res {
+                                    Ok(_) => {
+                                        id_map.insert(id, string_id);
+                                        let _ = resp.send(Ok(()));
+                                    }
+                                    Err(e) => {
+                                        let _ = resp.send(Err(BbqError::Platform(format!(
+                                            "Hotkey registration failed with OS: {}",
+                                            e
+                                        ))));
+                                    }
+                                }
+                            }
+                            HotkeyWorkerCmd::Unregister { id, resp } => {
+                                id_map.remove(&id);
+                                let res = unsafe {
+                                    windows::Win32::UI::Input::KeyboardAndMouse::UnregisterHotKey(
+                                        None,
+                                        id,
+                                    )
+                                };
+                                let _ = resp.send(res.map_err(|e| BbqError::Platform(e.to_string())));
+                            }
+                            HotkeyWorkerCmd::Shutdown => {
+                                for (id, _) in id_map.drain() {
+                                    unsafe {
+                                        let _ = windows::Win32::UI::Input::KeyboardAndMouse::UnregisterHotKey(
+                                            None,
+                                            id,
+                                        );
+                                    }
+                                }
+                                return;
+                            }
+                        }
+                    }
+
+                    let mut msg = windows::Win32::UI::WindowsAndMessaging::MSG::default();
+                    let ret = unsafe {
+                        windows::Win32::UI::WindowsAndMessaging::GetMessageW(
+                            &mut msg,
+                            None,
+                            0,
+                            0,
+                        )
+                    };
+
+                    if ret.0 <= 0 {
+                        break;
+                    }
+
+                    if msg.message == windows::Win32::UI::WindowsAndMessaging::WM_HOTKEY {
+                        let id = msg.wParam.0 as i32;
+                        if let Some(str_id) = id_map.get(&id) {
+                            let sinks = subscribers_clone
+                                .lock()
+                                .map(|g| g.clone())
+                                .unwrap_or_else(|e| e.into_inner().clone());
+                            for sink in sinks {
+                                sink(str_id.clone());
+                            }
+                        }
+                    }
+                }
+            })
+            .map_err(|e| BbqError::Platform(format!("Failed to spawn hotkey worker thread: {}", e)))?;
+
+        let thread_id = init_rx
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .map_err(|e| BbqError::Platform(format!("Hotkey thread init timeout: {}", e)))?;
+
+        let worker = WindowsHotkeyWorker {
+            thread_id,
+            tx: cmd_tx.clone(),
+        };
+        *guard = Some(WindowsHotkeyWorker {
+            thread_id,
+            tx: cmd_tx,
+        });
+
+        Ok(worker)
+    }
+}
+
+#[derive(Clone)]
+pub struct WindowsHotkey {
+    inner: Arc<WindowsHotkeyInner>,
+}
+
+impl Default for WindowsHotkey {
+    fn default() -> Self {
+        Self {
+            inner: Arc::new(WindowsHotkeyInner {
+                worker: std::sync::Mutex::new(None),
+                registered: std::sync::Mutex::new(std::collections::HashMap::new()),
+                subscribers: Arc::new(std::sync::Mutex::new(Vec::new())),
+                next_id: std::sync::atomic::AtomicI32::new(1),
+            }),
+        }
+    }
 }
 
 impl std::fmt::Debug for WindowsHotkey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let count = self.inner.registered.lock().map(|r| r.len()).unwrap_or(0);
         f.debug_struct("WindowsHotkey")
-            .field("registered", &self.registered)
+            .field("registered_count", &count)
             .finish()
     }
 }
@@ -1589,21 +1886,106 @@ impl std::fmt::Debug for WindowsHotkey {
 #[async_trait]
 impl PlatformHotkey for WindowsHotkey {
     async fn register(&self, hotkey: &HotkeyDefinition) -> BbqResult<()> {
-        if let Ok(mut reg) = self.registered.lock() {
-            reg.insert(hotkey.id.clone(), hotkey.clone());
+        let (modifiers, vk) = parse_hotkey_to_win32(hotkey)?;
+
+        // Check if already registered under same ID with identical parameters
+        {
+            let reg = self
+                .inner
+                .registered
+                .lock()
+                .map_err(|e| BbqError::Platform(e.to_string()))?;
+            if let Some((_id, existing)) = reg.get(&hotkey.id) {
+                if existing == hotkey {
+                    return Ok(());
+                }
+            }
+            // Check duplicate shortcut registered under another ID
+            for (id, (_numeric_id, existing)) in reg.iter() {
+                if id != &hotkey.id && existing.display_str == hotkey.display_str {
+                    return Err(BbqError::Platform(format!(
+                        "Hotkey '{}' is already in use by another action",
+                        hotkey.display_str
+                    )));
+                }
+            }
         }
+
+        // Unregister existing if updating
+        let _ = self.unregister(&hotkey.id).await;
+
+        let numeric_id = self
+            .inner
+            .next_id
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let worker = self.inner.ensure_worker()?;
+
+        let (resp_tx, resp_rx) = std::sync::mpsc::channel();
+        worker
+            .tx
+            .send(HotkeyWorkerCmd::Register {
+                id: numeric_id,
+                string_id: hotkey.id.clone(),
+                modifiers,
+                vk,
+                resp: resp_tx,
+            })
+            .map_err(|e| BbqError::Platform(e.to_string()))?;
+
+        unsafe {
+            let _ = windows::Win32::UI::WindowsAndMessaging::PostThreadMessageW(
+                worker.thread_id,
+                WM_BBQ_HOTKEY_CMD,
+                windows::Win32::Foundation::WPARAM(0),
+                windows::Win32::Foundation::LPARAM(0),
+            );
+        }
+
+        resp_rx
+            .recv_timeout(std::time::Duration::from_millis(1500))
+            .map_err(|e| BbqError::Platform(format!("Hotkey registration timeout: {}", e)))??;
+
+        if let Ok(mut reg) = self.inner.registered.lock() {
+            reg.insert(hotkey.id.clone(), (numeric_id, hotkey.clone()));
+        }
+
         Ok(())
     }
 
     async fn unregister(&self, id: &str) -> BbqResult<()> {
-        if let Ok(mut reg) = self.registered.lock() {
-            reg.remove(id);
+        let numeric_id = {
+            let mut reg = self
+                .inner
+                .registered
+                .lock()
+                .map_err(|e| BbqError::Platform(e.to_string()))?;
+            reg.remove(id).map(|(num, _)| num)
+        };
+
+        if let Some(num) = numeric_id {
+            if let Ok(worker) = self.inner.ensure_worker() {
+                let (resp_tx, resp_rx) = std::sync::mpsc::channel();
+                let _ = worker.tx.send(HotkeyWorkerCmd::Unregister {
+                    id: num,
+                    resp: resp_tx,
+                });
+                unsafe {
+                    let _ = windows::Win32::UI::WindowsAndMessaging::PostThreadMessageW(
+                        worker.thread_id,
+                        WM_BBQ_HOTKEY_CMD,
+                        windows::Win32::Foundation::WPARAM(0),
+                        windows::Win32::Foundation::LPARAM(0),
+                    );
+                }
+                let _ = resp_rx.recv_timeout(std::time::Duration::from_millis(1000));
+            }
         }
+
         Ok(())
     }
 
     async fn is_registered(&self, id: &str) -> BbqResult<bool> {
-        if let Ok(reg) = self.registered.lock() {
+        if let Ok(reg) = self.inner.registered.lock() {
             Ok(reg.contains_key(id))
         } else {
             Ok(false)
@@ -1619,7 +2001,7 @@ impl PlatformHotkey for WindowsHotkey {
     }
 
     async fn subscribe(&self, sink: HotkeyEventSink) -> BbqResult<()> {
-        if let Ok(mut subs) = self.subscribers.lock() {
+        if let Ok(mut subs) = self.inner.subscribers.lock() {
             subs.push(sink);
         }
         Ok(())
