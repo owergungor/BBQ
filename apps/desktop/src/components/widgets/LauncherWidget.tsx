@@ -5,7 +5,6 @@ import {
   refreshLauncher,
   launchAction,
   toggleFavorite,
-  clearRecent,
 } from "../../state/launcherState.ts";
 import { searchLauncherItems } from "../../utils/launcherSearch.ts";
 
@@ -54,8 +53,16 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
   const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
   const recentIds = useMemo(() => new Set(recent.map((r) => r.id)), [recent]);
 
-  // Unified deterministic smart search and empty-query ranking
+  // Unified deterministic smart search: 2x2 Quick Actions on empty query, and ranked search when query present
   const visibleItems = useMemo<LauncherItem[]>(() => {
+    if (!query.trim()) {
+      return items.filter(
+        (item) =>
+          item.source === "built_in" &&
+          item.id !== "bbq_media" &&
+          !EXCLUDED_LAUNCHER_ITEM_IDS.has(item.id)
+      );
+    }
     const results = searchLauncherItems(query, items, favoriteIds, recentIds);
     return results.filter((item) => !EXCLUDED_LAUNCHER_ITEM_IDS.has(item.id));
   }, [query, items, favoriteIds, recentIds]);
@@ -72,7 +79,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
   // Scroll active item into view
   useEffect(() => {
     if (!listRef.current) return;
-    const activeEl = listRef.current.querySelector<HTMLElement>(".bbq-launcher-item.active");
+    const activeEl = listRef.current.querySelector<HTMLElement>(".bbq-launcher-item.active, .bbq-launcher-grid-card.active");
     if (activeEl) {
       activeEl.scrollIntoView({ block: "nearest" });
     }
@@ -124,14 +131,28 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIndex((prev) =>
-        prev < visibleItems.length - 1 ? prev + 1 : 0
-      );
+      if (!query.trim() && visibleItems.length === 4) {
+        setSelectedIndex((prev) => (prev + 2 < 4 ? prev + 2 : prev % 2));
+      } else {
+        setSelectedIndex((prev) =>
+          prev < visibleItems.length - 1 ? prev + 1 : 0
+        );
+      }
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIndex((prev) =>
-        prev > 0 ? prev - 1 : Math.max(0, visibleItems.length - 1)
-      );
+      if (!query.trim() && visibleItems.length === 4) {
+        setSelectedIndex((prev) => (prev - 2 >= 0 ? prev - 2 : prev + 2));
+      } else {
+        setSelectedIndex((prev) =>
+          prev > 0 ? prev - 1 : Math.max(0, visibleItems.length - 1)
+        );
+      }
+    } else if (e.key === "ArrowRight" && !query.trim() && visibleItems.length === 4) {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev % 2 === 0 ? prev + 1 : prev));
+    } else if (e.key === "ArrowLeft" && !query.trim() && visibleItems.length === 4) {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev % 2 === 1 ? prev - 1 : prev));
     } else if (e.key === "Home") {
       e.preventDefault();
       setSelectedIndex(0);
@@ -355,62 +376,20 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
               </button>
             </div>
           </div>
-        ) : query.trim() ? (
+        ) : !query.trim() ? (
+          // Default view: 2x2 Quick Actions grid fitting cleanly into expanded island
+          <div className="bbq-launcher-quick-actions-container">
+            <div className="bbq-launcher-section-header">Quick Actions</div>
+            <div className="bbq-launcher-grid-2x2">
+              {visibleItems.map((item, idx) => renderGridCard(item, idx))}
+            </div>
+          </div>
+        ) : (
           // Flat list for search results
           <div className="bbq-launcher-section">
             <div className="bbq-launcher-section-header">Search Results</div>
             {visibleItems.map((item, idx) => renderItemRow(item, idx))}
           </div>
-        ) : (
-          // Categorized views when not searching
-          <>
-            {favorites.length > 0 && (
-              <div className="bbq-launcher-section">
-                <div className="bbq-launcher-section-header">Favorites</div>
-                {favorites.map((item) => {
-                  const idx = visibleItems.findIndex((v) => v.id === item.id);
-                  return renderItemRow(item, idx >= 0 ? idx : 0);
-                })}
-              </div>
-            )}
-
-            {recent.length > 0 && (
-              <div className="bbq-launcher-section">
-                <div className="bbq-launcher-section-header" style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span>Recent</span>
-                  <button
-                    type="button"
-                    className="bbq-launcher-clear-recent-btn"
-                    onClick={() => clearRecent().catch(console.error)}
-                    title="Clear recent history"
-                  >
-                    Clear
-                  </button>
-                </div>
-                {recent.map((item) => {
-                  const idx = visibleItems.findIndex((v) => v.id === item.id);
-                  return renderItemRow(item, idx >= 0 ? idx : 0);
-                })}
-              </div>
-            )}
-
-            <div className="bbq-launcher-section">
-              <div className="bbq-launcher-section-header">Quick Actions</div>
-              <div className="bbq-launcher-grid-2x2">
-                {items
-                  .filter(
-                    (item) =>
-                      item.source === "built_in" &&
-                      item.id !== "bbq_media" &&
-                      !EXCLUDED_LAUNCHER_ITEM_IDS.has(item.id)
-                  )
-                  .map((item) => {
-                    const idx = visibleItems.findIndex((v) => v.id === item.id);
-                    return renderGridCard(item, idx >= 0 ? idx : 0);
-                  })}
-              </div>
-            </div>
-          </>
         )}
       </div>
 

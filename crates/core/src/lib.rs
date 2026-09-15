@@ -18,9 +18,9 @@ pub mod system;
 pub mod timer;
 
 pub use settings::{
-    validate_setting_entry, BbqSettings, ThemePreference, MAX_CLIPBOARD_MAX_ENTRIES,
-    MAX_CLIPBOARD_RETENTION_DAYS, MAX_DISABLED_WIDGETS, MAX_HOTKEY_LEN, MIN_CLIPBOARD_MAX_ENTRIES,
-    MIN_CLIPBOARD_RETENTION_DAYS,
+    is_valid_hex_color, validate_setting_entry, BbqSettings, ThemePreference,
+    MAX_CLIPBOARD_MAX_ENTRIES, MAX_CLIPBOARD_RETENTION_DAYS, MAX_DISABLED_WIDGETS, MAX_HOTKEY_LEN,
+    MIN_CLIPBOARD_MAX_ENTRIES, MIN_CLIPBOARD_RETENTION_DAYS,
 };
 
 pub use geometry::{

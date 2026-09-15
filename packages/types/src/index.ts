@@ -175,11 +175,21 @@ export interface SystemStatus {
 }
 
 export type ThemePreference = 'system' | 'dark' | 'light';
-export type AccentColor = 'orange' | 'blue' | 'purple' | 'green' | 'red' | 'pink' | 'cyan';
+export type AccentColor =
+  | 'orange'
+  | 'blue'
+  | 'purple'
+  | 'green'
+  | 'red'
+  | 'pink'
+  | 'cyan'
+  | 'custom'
+  | (string & {});
 
 export interface BbqSettings {
   theme: ThemePreference;
   accent_color?: AccentColor;
+  custom_accent_color?: string | null;
   reduced_motion: boolean;
   island_width: number;
   island_height: number;

@@ -60,6 +60,8 @@ pub struct BbqSettings {
     pub theme: ThemePreference,
     #[serde(default = "default_accent_color")]
     pub accent_color: String,
+    #[serde(default)]
+    pub custom_accent_color: Option<String>,
     pub reduced_motion: bool,
     pub island_width: u32,
     pub island_height: u32,
@@ -80,6 +82,15 @@ pub struct BbqSettings {
     pub onboarding_completed: bool,
 }
 
+pub fn is_valid_hex_color(s: &str) -> bool {
+    let s = s.trim();
+    if !s.starts_with('#') {
+        return false;
+    }
+    let hex = &s[1..];
+    (hex.len() == 6 || hex.len() == 3) && hex.chars().all(|c| c.is_ascii_hexdigit())
+}
+
 impl Default for BbqSettings {
     fn default() -> Self {
         #[cfg(target_os = "macos")]
@@ -90,6 +101,7 @@ impl Default for BbqSettings {
         Self {
             theme: ThemePreference::System,
             accent_color: "orange".to_string(),
+            custom_accent_color: None,
             reduced_motion: false,
             island_width: 240,
             island_height: 38,
@@ -117,12 +129,23 @@ impl BbqSettings {
     pub fn validate(&self) -> BbqResult<()> {
         let accent_lower = self.accent_color.trim().to_lowercase();
         match accent_lower.as_str() {
-            "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" => {}
+            "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" | "custom" => {}
             _ => {
+                if !is_valid_hex_color(&accent_lower) {
+                    return Err(BbqError::Validation(format!(
+                        "Invalid accent_color '{}'. Supported: orange, blue, purple, green, red, pink, cyan, custom, or #RRGGBB",
+                        self.accent_color
+                    )));
+                }
+            }
+        }
+
+        if let Some(ref custom) = self.custom_accent_color {
+            if !custom.trim().is_empty() && !is_valid_hex_color(custom) {
                 return Err(BbqError::Validation(format!(
-                    "Invalid accent_color '{}'. Supported: orange, blue, purple, green, red, pink, cyan",
-                    self.accent_color
-                )))
+                    "Invalid custom_accent_color '{}'. Expected format #RRGGBB",
+                    custom
+                )));
             }
         }
 
@@ -198,13 +221,24 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
         "accent_color" => {
             let lower = value.trim().to_lowercase();
             match lower.as_str() {
-                "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" => {}
+                "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" | "custom" => {}
                 _ => {
-                    return Err(BbqError::Validation(format!(
-                        "Invalid accent_color '{}'. Supported: orange, blue, purple, green, red, pink, cyan",
-                        value
-                    )));
+                    if !is_valid_hex_color(&lower) {
+                        return Err(BbqError::Validation(format!(
+                            "Invalid accent_color '{}'. Supported: orange, blue, purple, green, red, pink, cyan, custom, or #RRGGBB",
+                            value
+                        )));
+                    }
                 }
+            }
+        }
+        "custom_accent_color" => {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() && trimmed != "null" && !is_valid_hex_color(trimmed) {
+                return Err(BbqError::Validation(format!(
+                    "Invalid custom_accent_color '{}'. Expected format #RRGGBB",
+                    value
+                )));
             }
         }
         "reduced_motion"

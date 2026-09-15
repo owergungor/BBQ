@@ -95,10 +95,20 @@ impl SettingsServiceTrait for SettingsService {
         if let Ok(Some(ac)) = self.repo.get("accent_color") {
             let trimmed = ac.trim().to_lowercase();
             match trimmed.as_str() {
-                "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" => {
+                "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" | "custom" => {
                     settings.accent_color = trimmed;
                 }
-                _ => {}
+                _ => {
+                    if bbq_core::is_valid_hex_color(&trimmed) {
+                        settings.accent_color = trimmed;
+                    }
+                }
+            }
+        }
+        if let Ok(Some(cac)) = self.repo.get("custom_accent_color") {
+            let trimmed = cac.trim();
+            if !trimmed.is_empty() && trimmed != "null" {
+                settings.custom_accent_color = Some(trimmed.to_string());
             }
         }
         if let Ok(Some(rm)) = self.repo.get("reduced_motion") {
@@ -224,6 +234,10 @@ impl SettingsServiceTrait for SettingsService {
 
         self.repo.set("theme", &settings.theme.to_string())?;
         self.repo.set("accent_color", &settings.accent_color)?;
+        self.repo.set(
+            "custom_accent_color",
+            settings.custom_accent_color.as_deref().unwrap_or(""),
+        )?;
         self.repo.set(
             "reduced_motion",
             if settings.reduced_motion {

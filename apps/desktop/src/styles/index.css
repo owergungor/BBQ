@@ -1459,22 +1459,25 @@ html, body {
 .bbq-launcher-widget {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   height: 100%;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .bbq-launcher-search-container {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 5px 10px;
+  border-radius: 7px;
+  padding: 4px 8px;
   flex-shrink: 0;
+  height: 28px;
+  box-sizing: border-box;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -1486,6 +1489,7 @@ html, body {
 .bbq-launcher-search-icon {
   font-size: 13px;
   color: var(--text-secondary, #94a3b8);
+  flex-shrink: 0;
 }
 
 .bbq-launcher-input {
@@ -1496,6 +1500,9 @@ html, body {
   font-size: 12px;
   color: var(--text-primary, #ffffff);
   font-family: inherit;
+  line-height: 18px;
+  padding: 0;
+  min-width: 0;
 }
 
 .bbq-launcher-input:focus,
@@ -1520,16 +1527,29 @@ html, body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-right: 2px;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.bbq-launcher-quick-actions-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .bbq-launcher-section {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  box-sizing: border-box;
 }
 
 .bbq-launcher-section-header {
@@ -1538,7 +1558,9 @@ html, body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-secondary, #64748b);
-  padding: 2px 4px;
+  padding: 0 2px 2px 2px;
+  line-height: 14px;
+  flex-shrink: 0;
 }
 
 .bbq-launcher-clear-recent-btn {
@@ -1553,25 +1575,29 @@ html, body {
 /* 2x2 Grid Layout for Launcher Quick Actions */
 .bbq-launcher-grid-2x2 {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 6px;
   width: 100%;
+  flex: 1;
+  min-height: 0;
+  max-height: 136px;
   box-sizing: border-box;
-  padding: 2px 0;
 }
 
 .bbq-launcher-grid-card {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--bbq-border, rgba(255, 255, 255, 0.08));
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
-  min-height: 54px;
   box-sizing: border-box;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .bbq-launcher-grid-card:hover,
@@ -1584,7 +1610,8 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  flex-shrink: 0;
 }
 
 .bbq-launcher-grid-card-icon {
@@ -1592,14 +1619,17 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .bbq-launcher-grid-card-body {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .bbq-launcher-grid-card-title {
@@ -1609,6 +1639,7 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 14px;
 }
 
 .bbq-launcher-grid-card-subtitle {
@@ -1617,6 +1648,7 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 12px;
 }
 
 .bbq-launcher-item {

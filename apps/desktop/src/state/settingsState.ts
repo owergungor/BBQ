@@ -1,10 +1,12 @@
 import { createDomainStore } from "./createStore.ts";
-import type { BbqSettings, AccentColor } from "@bbq/types";
+import type { BbqSettings } from "@bbq/types";
 import { bbqCommands } from "../ipc/commands.ts";
 import { subscribeToSettingsChanged } from "../ipc/events.ts";
 
+export type AccentPreset = "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan";
+
 export const ACCENT_PALETTES: Record<
-  AccentColor,
+  AccentPreset,
   { accent: string; hover: string; glow: string; subtle: string }
 > = {
   orange: {
@@ -54,6 +56,7 @@ export const ACCENT_PALETTES: Record<
 export const defaultSettings: BbqSettings = {
   theme: "system",
   accent_color: "orange",
+  custom_accent_color: null,
   reduced_motion: false,
   island_width: 240,
   island_height: 38,
@@ -73,6 +76,36 @@ export const defaultSettings: BbqSettings = {
   first_run_completed: false,
   onboarding_completed: false,
 };
+
+export function deriveCustomPalette(hex: string): {
+  accent: string;
+  hover: string;
+  glow: string;
+  subtle: string;
+} {
+  const clean = hex.trim().replace("#", "");
+  let r = 255, g = 107, b = 53;
+  if (clean.length === 3) {
+    r = parseInt(clean[0] + clean[0], 16) || 255;
+    g = parseInt(clean[1] + clean[1], 16) || 107;
+    b = parseInt(clean[2] + clean[2], 16) || 53;
+  } else if (clean.length === 6) {
+    r = parseInt(clean.slice(0, 2), 16) || 255;
+    g = parseInt(clean.slice(2, 4), 16) || 107;
+    b = parseInt(clean.slice(4, 6), 16) || 53;
+  }
+  const hoverR = Math.min(255, Math.round(r + (255 - r) * 0.15));
+  const hoverG = Math.min(255, Math.round(g + (255 - g) * 0.15));
+  const hoverB = Math.min(255, Math.round(b + (255 - b) * 0.15));
+
+  const hexFormat = `#${clean.length === 6 ? clean : `${clean}${clean}`.slice(0, 6)}`;
+  return {
+    accent: hexFormat,
+    hover: `rgb(${hoverR}, ${hoverG}, ${hoverB})`,
+    glow: `rgba(${r}, ${g}, ${b}, 0.35)`,
+    subtle: `rgba(${r}, ${g}, ${b}, 0.15)`,
+  };
+}
 
 export interface SettingsDomainState {
   settings: BbqSettings;
@@ -102,9 +135,23 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
       settings.reduced_motion ? "true" : "false"
     );
 
-    const accentName = (settings.accent_color || "orange").toLowerCase() as AccentColor;
-    const palette = ACCENT_PALETTES[accentName] || ACCENT_PALETTES.orange;
-    document.documentElement.setAttribute("data-accent", accentName);
+    const accentVal = (settings.accent_color || "orange").trim();
+    const accentLower = accentVal.toLowerCase();
+    let palette: { accent: string; hover: string; glow: string; subtle: string };
+
+    if (accentLower in ACCENT_PALETTES) {
+      palette = ACCENT_PALETTES[accentLower as AccentPreset];
+      document.documentElement.setAttribute("data-accent", accentLower);
+    } else if (accentLower === "custom" && settings.custom_accent_color) {
+      palette = deriveCustomPalette(settings.custom_accent_color);
+      document.documentElement.setAttribute("data-accent", "custom");
+    } else if (accentLower.startsWith("#")) {
+      palette = deriveCustomPalette(accentLower);
+      document.documentElement.setAttribute("data-accent", "custom");
+    } else {
+      palette = ACCENT_PALETTES.orange;
+      document.documentElement.setAttribute("data-accent", "orange");
+    }
 
     if (document.documentElement.style?.setProperty) {
       document.documentElement.style.setProperty("--bbq-accent", palette.accent);

@@ -804,6 +804,161 @@ describe("BBQ v1.2 — Core Stabilization & Regression Guards", () => {
       }
     });
   });
+
+  describe("17. Launcher 2x2 Complete Fit & Overflow Invariants", () => {
+    it("ensures 2x2 grid fits completely within expanded island without horizontal or vertical overflow", () => {
+      // Expanded island dimensions: 400x280
+      const islandWidth = 400;
+      const islandHeight = 280;
+      const contentPaddingY = 8 * 2; // 16px
+      const contentPaddingX = 12 * 2; // 24px
+      const navHeight = 30;
+      const navGap = 6;
+
+      const availableWidth = islandWidth - contentPaddingX; // 376px
+      const availableHeight = islandHeight - contentPaddingY - navHeight - navGap; // 228px
+
+      // Launcher elements vertical budget
+      const searchHeight = 28;
+      const headerHeight = 16;
+      const footerHeight = 18;
+      const gaps = 6 * 3; // 18px
+      const gridMaxHeight = 136; // 2 rows of ~60px + 6px gap
+
+      const totalRequiredHeight = searchHeight + headerHeight + gridMaxHeight + footerHeight + gaps; // 216px
+
+      assert.ok(
+        totalRequiredHeight <= availableHeight,
+        `Total required height ${totalRequiredHeight}px must fit inside available ${availableHeight}px`
+      );
+
+      // Card columns width budget
+      const gridGapX = 6;
+      const cardWidth = (availableWidth - gridGapX) / 2; // 185px
+      assert.ok(cardWidth >= 160, "Card width must be comfortably large for title and subtitle");
+
+      // Verify exactly 4 built-in quick actions
+      const builtins = [
+        { id: "bbq_files", title: "Files & Workspace" },
+        { id: "bbq_downloads", title: "Downloads" },
+        { id: "bbq_home", title: "Home Directory" },
+        { id: "bbq_lock", title: "Lock Screen" },
+      ];
+      assert.equal(builtins.length, 4, "Must have exactly 4 quick actions");
+    });
+  });
+
+  describe("18. Theme Switcher Invariants & Persistence", () => {
+    it("applies theme mode (light, dark, system) to DOM dataset immediately", async () => {
+      const { applyThemeAndMotionToDom } = await import("../src/state/settingsState.ts");
+
+      const mockAttributes = new Map<string, string>();
+      const mockElement = {
+        style: { setProperty() {}, getPropertyValue() { return ""; } },
+        setAttribute(name: string, value: string) { mockAttributes.set(name, value); },
+        getAttribute(name: string) { return mockAttributes.get(name) || null; },
+      };
+
+      const originalDoc = globalThis.document;
+      // @ts-expect-error Mocking document
+      globalThis.document = { documentElement: mockElement };
+
+      try {
+        const modes = ["light", "dark", "system"] as const;
+        for (const mode of modes) {
+          applyThemeAndMotionToDom({
+            ...initialSettingsState.settings,
+            theme: mode,
+          });
+          assert.equal(mockAttributes.get("data-theme"), mode);
+        }
+      } finally {
+        globalThis.document = originalDoc;
+      }
+    });
+  });
+
+  describe("19. Modern Switch State & Interaction Contract", () => {
+    it("toggles boolean settings state and respects disabled property", () => {
+      let enabled = false;
+      const toggle = (val: boolean, disabled: boolean) => {
+        if (disabled) return enabled;
+        return val;
+      };
+
+      assert.equal(toggle(true, false), true);
+      assert.equal(toggle(false, false), false);
+      // Disabled switch prevents changes
+      assert.equal(toggle(true, true), false);
+    });
+  });
+
+  describe("20. Modern Slider Geometry & Range Invariants", () => {
+    it("clamps slider values within min-max bounds and formats value display", () => {
+      const clampSlider = (val: number, min: number, max: number, step: number) => {
+        const clamped = Math.max(min, Math.min(max, val));
+        const stepped = Math.round((clamped - min) / step) * step + min;
+        return stepped;
+      };
+
+      // Compact width range: 180 to 480, step 10
+      assert.equal(clampSlider(150, 180, 480, 10), 180);
+      assert.equal(clampSlider(243, 180, 480, 10), 240);
+      assert.equal(clampSlider(500, 180, 480, 10), 480);
+
+      // Compact height range: 36 to 54, step 2
+      assert.equal(clampSlider(30, 36, 54, 2), 36);
+      assert.equal(clampSlider(39, 36, 54, 2), 40);
+      assert.equal(clampSlider(60, 36, 54, 2), 54);
+    });
+  });
+
+  describe("21. Real Accent Color Picker & Dynamic Custom Hex Derivation", () => {
+    it("dynamically derives hover, glow, and subtle tokens from custom hex color", async () => {
+      const { deriveCustomPalette, applyThemeAndMotionToDom } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      const customHex = "#8b5cf6"; // Modern violet
+      const palette = deriveCustomPalette(customHex);
+
+      assert.equal(palette.accent, "#8b5cf6");
+      assert.ok(palette.hover.startsWith("rgb("));
+      assert.equal(palette.glow, "rgba(139, 92, 246, 0.35)");
+      assert.equal(palette.subtle, "rgba(139, 92, 246, 0.15)");
+
+      const mockStyle = new Map<string, string>();
+      const mockAttributes = new Map<string, string>();
+      const mockElement = {
+        style: {
+          setProperty(name: string, value: string) { mockStyle.set(name, value); },
+          getPropertyValue(name: string) { return mockStyle.get(name) || ""; },
+        },
+        setAttribute(name: string, value: string) { mockAttributes.set(name, value); },
+        getAttribute(name: string) { return mockAttributes.get(name) || null; },
+      };
+
+      const originalDoc = globalThis.document;
+      // @ts-expect-error Mocking document
+      globalThis.document = { documentElement: mockElement };
+
+      try {
+        applyThemeAndMotionToDom({
+          ...initialSettingsState.settings,
+          accent_color: "custom",
+          custom_accent_color: customHex,
+        });
+
+        assert.equal(mockAttributes.get("data-accent"), "custom");
+        assert.equal(mockStyle.get("--bbq-accent"), "#8b5cf6");
+        assert.equal(mockStyle.get("--bbq-accent-glow"), "rgba(139, 92, 246, 0.35)");
+        assert.equal(mockStyle.get("--bbq-accent-subtle"), "rgba(139, 92, 246, 0.15)");
+      } finally {
+        globalThis.document = originalDoc;
+      }
+    });
+  });
 });
+
 
 

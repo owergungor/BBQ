@@ -11,16 +11,12 @@ import {
 } from "../../island/compactOrder.ts";
 import { useHotkeyState } from "../../state/hotkeyState.ts";
 import type { ThemePreference, AccentColor } from "@bbq/types";
-
-const ACCENT_COLOR_OPTIONS: { id: AccentColor; label: string; preview: string }[] = [
-  { id: "orange", label: "Orange", preview: "#f97316" },
-  { id: "blue", label: "Blue", preview: "#3b82f6" },
-  { id: "purple", label: "Purple", preview: "#a855f7" },
-  { id: "green", label: "Green", preview: "#22c55e" },
-  { id: "red", label: "Red", preview: "#ef4444" },
-  { id: "pink", label: "Pink", preview: "#ec4899" },
-  { id: "cyan", label: "Cyan", preview: "#06b6d4" },
-];
+import {
+  ThemeSwitcher,
+  Switch,
+  Slider,
+  AccentColorPicker,
+} from "../common/SettingsControls.tsx";
 
 type SettingsTab = "appearance" | "island" | "hotkey" | "privacy" | "notifications" | "widgets" | "about";
 
@@ -72,6 +68,14 @@ export const SettingsWidget: React.FC = () => {
   const handleAccentColorChange = async (accentColor: AccentColor) => {
     await updateSettingsBatch({ accent_color: accentColor });
     showStatus(`Accent color set to ${accentColor}`);
+  };
+
+  const handleCustomAccentChange = async (hex: string) => {
+    await updateSettingsBatch({
+      accent_color: "custom",
+      custom_accent_color: hex,
+    });
+    showStatus(`Custom accent set to ${hex}`);
   };
 
   const handleToggle = async (key: keyof typeof settings, value: boolean) => {
@@ -358,229 +362,96 @@ export const SettingsWidget: React.FC = () => {
       >
         {/* APPEARANCE */}
         {activeTab === "appearance" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div>
-              <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                Theme Mode
-              </label>
-              <div style={{ display: "flex", gap: "8px" }} role="radiogroup" aria-label="Theme selection">
-                {(["system", "dark", "light"] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    role="radio"
-                    aria-checked={settings.theme === t}
-                    onClick={() => handleThemeChange(t)}
-                    style={{
-                      padding: "6px 14px",
-                      borderRadius: "6px",
-                      border: "1px solid var(--bbq-border)",
-                      background:
-                        settings.theme === t ? "var(--bbq-accent)" : "var(--bbq-surface-elevated)",
-                      color: settings.theme === t ? "#ffffff" : "var(--bbq-text)",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                      textTransform: "capitalize",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
-                Accent Color
-              </label>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  flexWrap: "wrap",
-                }}
-                role="radiogroup"
-                aria-label="Accent color selection"
-              >
-                {ACCENT_COLOR_OPTIONS.map((opt) => {
-                  const isSelected = (settings.accent_color || "orange") === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      id={`accent-color-${opt.id}`}
-                      type="button"
-                      role="radio"
-                      aria-checked={isSelected}
-                      onClick={() => handleAccentColorChange(opt.id)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        padding: "6px 12px",
-                        borderRadius: "6px",
-                        border: isSelected
-                          ? "2px solid var(--bbq-accent)"
-                          : "1px solid var(--bbq-border)",
-                        background: isSelected
-                          ? "var(--bbq-accent-subtle)"
-                          : "var(--bbq-surface-elevated)",
-                        color: "var(--bbq-text)",
-                        cursor: "pointer",
-                        fontSize: "12px",
-                        fontWeight: isSelected ? 600 : 400,
-                        transition: "all 120ms ease",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: "12px",
-                          height: "12px",
-                          borderRadius: "50%",
-                          background: opt.preview,
-                          display: "inline-block",
-                          boxShadow: isSelected ? `0 0 6px ${opt.preview}` : "none",
-                        }}
-                      />
-                      <span>{opt.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <label htmlFor="reduced-motion-toggle" style={{ fontWeight: 500, display: "block" }}>
-                  Reduced Motion
+                <label style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}>
+                  Theme Mode
                 </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  Disables non-essential scale transitions and floating animations for accessibility.
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
+                  Select interface color scheme or match operating system.
                 </span>
               </div>
-              <input
-                id="reduced-motion-toggle"
-                type="checkbox"
-                checked={settings.reduced_motion}
-                onChange={(e) => handleToggle("reduced_motion", e.target.checked)}
-                style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                aria-label="Reduced Motion"
-              />
+              <ThemeSwitcher theme={settings.theme} onChange={handleThemeChange} />
             </div>
 
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-              <div>
-                <label htmlFor="start-at-login-toggle" style={{ fontWeight: 500, display: "block" }}>
-                  Launch at Login
-                </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  Start BBQ automatically on system startup.
-                </span>
-              </div>
-              <input
-                id="start-at-login-toggle"
-                type="checkbox"
-                checked={settings.start_at_login}
-                onChange={(e) => handleToggle("start_at_login", e.target.checked)}
-                style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                aria-label="Launch at Login"
-              />
-            </div>
+            <AccentColorPicker
+              currentAccent={(settings.accent_color || "orange") as AccentColor}
+              customAccentColor={settings.custom_accent_color || null}
+              onChangePreset={handleAccentColorChange}
+              onChangeCustom={handleCustomAccentChange}
+            />
+
+            <Switch
+              id="reduced-motion-toggle"
+              checked={settings.reduced_motion}
+              onChange={(checked) => handleToggle("reduced_motion", checked)}
+              label="Reduced Motion"
+              description="Disables non-essential scale transitions and floating animations for accessibility."
+            />
+
+            <Switch
+              id="start-at-login-toggle"
+              checked={settings.start_at_login}
+              onChange={(checked) => handleToggle("start_at_login", checked)}
+              label="Launch at Login"
+              description="Start BBQ automatically on system startup."
+            />
           </div>
         )}
 
         {/* ISLAND */}
         {activeTab === "island" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                <label htmlFor="island-width-slider" style={{ fontWeight: 500 }}>Compact Width</label>
-                <span style={{ color: "var(--bbq-text-muted)" }}>{draftWidth}px</span>
-              </div>
-              <input
-                id="island-width-slider"
-                type="range"
-                min={180}
-                max={480}
-                step={10}
-                value={draftWidth}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setDraftWidth(val);
-                  if (typeof document !== "undefined") {
-                    document.documentElement.style.setProperty("--bbq-compact-width", `${val}px`);
-                  }
-                }}
-                onPointerUp={commitWidth}
-                onKeyUp={commitWidth}
-                style={{ width: "100%", cursor: "pointer" }}
-                aria-label="Island compact width in pixels"
-              />
-            </div>
+            <Slider
+              id="island-width-slider"
+              label="Compact Width"
+              value={draftWidth}
+              min={180}
+              max={480}
+              step={10}
+              valueDisplay={`${draftWidth}px`}
+              onChange={(val) => {
+                setDraftWidth(val);
+                if (typeof document !== "undefined") {
+                  document.documentElement.style.setProperty("--bbq-compact-width", `${val}px`);
+                }
+              }}
+              onCommit={commitWidth}
+            />
 
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                <label htmlFor="island-height-slider" style={{ fontWeight: 500 }}>Compact Height</label>
-                <span style={{ color: "var(--bbq-text-muted)" }}>{draftHeight}px</span>
-              </div>
-              <input
-                id="island-height-slider"
-                type="range"
-                min={36}
-                max={54}
-                step={2}
-                value={draftHeight}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setDraftHeight(val);
-                  if (typeof document !== "undefined") {
-                    document.documentElement.style.setProperty("--bbq-compact-height", `${val}px`);
-                  }
-                }}
-                onPointerUp={commitHeight}
-                onKeyUp={commitHeight}
-                style={{ width: "100%", cursor: "pointer" }}
-                aria-label="Island compact height in pixels"
-              />
-            </div>
+            <Slider
+              id="island-height-slider"
+              label="Compact Height"
+              value={draftHeight}
+              min={36}
+              max={54}
+              step={2}
+              valueDisplay={`${draftHeight}px`}
+              onChange={(val) => {
+                setDraftHeight(val);
+                if (typeof document !== "undefined") {
+                  document.documentElement.style.setProperty("--bbq-compact-height", `${val}px`);
+                }
+              }}
+              onCommit={commitHeight}
+            />
 
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-              <div>
-                <label htmlFor="auto-expand-toggle" style={{ fontWeight: 500, display: "block" }}>
-                  Auto-Expand on Incoming Event
-                </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  Expand the island when timers fire, media changes, or drop events occur.
-                </span>
-              </div>
-              <input
-                id="auto-expand-toggle"
-                type="checkbox"
-                checked={settings.auto_expand_on_event}
-                onChange={(e) => handleToggle("auto_expand_on_event", e.target.checked)}
-                style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                aria-label="Auto expand island on event"
-              />
-            </div>
+            <Switch
+              id="auto-expand-toggle"
+              checked={settings.auto_expand_on_event}
+              onChange={(checked) => handleToggle("auto_expand_on_event", checked)}
+              label="Auto-Expand on Incoming Event"
+              description="Expand the island when timers fire, media changes, or drop events occur."
+            />
 
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-              <div>
-                <label htmlFor="start-login-toggle" style={{ fontWeight: 500, display: "block" }}>
-                  Start at Login
-                </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  Launch BBQ automatically in background when system boots.
-                </span>
-              </div>
-              <input
-                id="start-login-toggle"
-                type="checkbox"
-                checked={settings.start_at_login}
-                onChange={(e) => handleToggle("start_at_login", e.target.checked)}
-                style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                aria-label="Start at system login"
-              />
-            </div>
+            <Switch
+              id="start-login-toggle"
+              checked={settings.start_at_login}
+              onChange={(checked) => handleToggle("start_at_login", checked)}
+              label="Start at Login"
+              description="Launch BBQ automatically in background when system boots."
+            />
           </div>
         )}
 
@@ -764,34 +635,13 @@ export const SettingsWidget: React.FC = () => {
               </span>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                gap: "12px",
-                paddingTop: "6px",
-                borderTop: "1px solid var(--bbq-border)",
-              }}
-            >
-              <div>
-                <label
-                  htmlFor="hotkey-enable-toggle"
-                  style={{ fontWeight: 500, display: "block" }}
-                >
-                  Hotkey Trigger Enabled
-                </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  Toggle whether the global shortcut is actively registered with the OS.
-                </span>
-              </div>
-              <input
+            <div style={{ paddingTop: "6px", borderTop: "1px solid var(--bbq-border)" }}>
+              <Switch
                 id="hotkey-enable-toggle"
-                type="checkbox"
                 checked={settings.hotkey_enabled}
-                onChange={(e) => handleToggle("hotkey_enabled", e.target.checked)}
-                style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                aria-label="Enable global hotkey"
+                onChange={(checked) => handleToggle("hotkey_enabled", checked)}
+                label="Hotkey Trigger Enabled"
+                description="Toggle whether the global shortcut is actively registered with the OS."
               />
             </div>
           </div>
@@ -800,126 +650,66 @@ export const SettingsWidget: React.FC = () => {
         {/* PRIVACY */}
         {activeTab === "privacy" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-              <div>
-                <label htmlFor="clipboard-history-toggle" style={{ fontWeight: 500, display: "block" }}>
-                  Clipboard History
-                </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  Stores copied text clips in local SQLite. Disabling immediately purges all stored items.
-                </span>
-              </div>
-              <input
-                id="clipboard-history-toggle"
-                type="checkbox"
-                checked={settings.clipboard_history_enabled}
-                onChange={(e) => handleToggle("clipboard_history_enabled", e.target.checked)}
-                style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                aria-label="Enable clipboard history"
-              />
-            </div>
+            <Switch
+              id="clipboard-history-toggle"
+              checked={settings.clipboard_history_enabled}
+              onChange={(checked) => handleToggle("clipboard_history_enabled", checked)}
+              label="Clipboard History"
+              description="Stores copied text clips in local SQLite. Disabling immediately purges all stored items."
+            />
 
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                <label htmlFor="clipboard-max-slider" style={{ fontWeight: 500 }}>Max Entries</label>
-                <span style={{ color: "var(--bbq-text-muted)" }}>{draftClipboardMax} items</span>
-              </div>
-              <input
-                id="clipboard-max-slider"
-                type="range"
-                min={10}
-                max={100}
-                step={10}
-                value={draftClipboardMax}
-                onChange={(e) => setDraftClipboardMax(Number(e.target.value))}
-                onPointerUp={commitClipboardMax}
-                onKeyUp={commitClipboardMax}
-                style={{ width: "100%", cursor: "pointer" }}
-                aria-label="Maximum clipboard history entries"
-              />
-            </div>
+            <Slider
+              id="clipboard-max-slider"
+              label="Max Entries"
+              value={draftClipboardMax}
+              min={10}
+              max={100}
+              step={10}
+              valueDisplay={`${draftClipboardMax} items`}
+              onChange={(val) => setDraftClipboardMax(val)}
+              onCommit={commitClipboardMax}
+            />
 
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                <label htmlFor="clipboard-retention-slider" style={{ fontWeight: 500 }}>Retention Period</label>
-                <span style={{ color: "var(--bbq-text-muted)" }}>{draftRetention} days</span>
-              </div>
-              <input
-                id="clipboard-retention-slider"
-                type="range"
-                min={1}
-                max={90}
-                step={1}
-                value={draftRetention}
-                onChange={(e) => setDraftRetention(Number(e.target.value))}
-                onPointerUp={commitRetention}
-                onKeyUp={commitRetention}
-                style={{ width: "100%", cursor: "pointer" }}
-                aria-label="Clipboard history retention days"
-              />
-            </div>
+            <Slider
+              id="clipboard-retention-slider"
+              label="Retention Period"
+              value={draftRetention}
+              min={1}
+              max={90}
+              step={1}
+              valueDisplay={`${draftRetention} days`}
+              onChange={(val) => setDraftRetention(val)}
+              onCommit={commitRetention}
+            />
           </div>
         )}
 
         {/* NOTIFICATIONS */}
         {activeTab === "notifications" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-              <div>
-                <label htmlFor="notifications-enable-toggle" style={{ fontWeight: 500, display: "block" }}>
-                  Desktop Notifications
-                </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  Receive OS desktop banner alerts for timer completions and reminders.
-                </span>
-              </div>
-              <input
-                id="notifications-enable-toggle"
-                type="checkbox"
-                checked={settings.notifications_enabled}
-                onChange={(e) => handleToggle("notifications_enabled", e.target.checked)}
-                style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                aria-label="Enable system notifications"
-              />
-            </div>
+            <Switch
+              id="notifications-enable-toggle"
+              checked={settings.notifications_enabled}
+              onChange={(checked) => handleToggle("notifications_enabled", checked)}
+              label="Desktop Notifications"
+              description="Receive OS desktop banner alerts for timer completions and reminders."
+            />
 
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-              <div>
-                <label htmlFor="timer-sound-toggle" style={{ fontWeight: 500, display: "block" }}>
-                  Timer Sound
-                </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  Play an auditory chime when timers and Pomodoro phases expire.
-                </span>
-              </div>
-              <input
-                id="timer-sound-toggle"
-                type="checkbox"
-                checked={settings.timer_sound_enabled}
-                onChange={(e) => handleToggle("timer_sound_enabled", e.target.checked)}
-                style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                aria-label="Enable timer sound"
-              />
-            </div>
+            <Switch
+              id="timer-sound-toggle"
+              checked={settings.timer_sound_enabled}
+              onChange={(checked) => handleToggle("timer_sound_enabled", checked)}
+              label="Timer Sound"
+              description="Play an auditory chime when timers and Pomodoro phases expire."
+            />
 
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-              <div>
-                <label htmlFor="reminder-sound-toggle" style={{ fontWeight: 500, display: "block" }}>
-                  Reminder Sound
-                </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  Play an auditory notification when a scheduled reminder is due.
-                </span>
-              </div>
-              <input
-                id="reminder-sound-toggle"
-                type="checkbox"
-                checked={settings.reminder_sound_enabled}
-                onChange={(e) => handleToggle("reminder_sound_enabled", e.target.checked)}
-                style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                aria-label="Enable reminder sound"
-              />
-            </div>
+            <Switch
+              id="reminder-sound-toggle"
+              checked={settings.reminder_sound_enabled}
+              onChange={(checked) => handleToggle("reminder_sound_enabled", checked)}
+              label="Reminder Sound"
+              description="Play an auditory notification when a scheduled reminder is due."
+            />
           </div>
         )}
 

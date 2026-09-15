@@ -1,0 +1,605 @@
+import React, { useState, useRef, useEffect } from "react";
+import type { ThemePreference, AccentColor } from "@bbq/types";
+
+/* ==========================================================================
+   1. Theme Switcher (Inspired by 21st.dev / theme-switcher-1)
+   ========================================================================== */
+interface ThemeSwitcherProps {
+  theme: ThemePreference;
+  onChange: (theme: ThemePreference) => void;
+}
+
+export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ theme, onChange }) => {
+  const options: { id: ThemePreference; label: string; icon: string }[] = [
+    { id: "light", label: "Light", icon: "☀️" },
+    { id: "dark", label: "Dark", icon: "🌙" },
+    { id: "system", label: "System", icon: "💻" },
+  ];
+
+  return (
+    <div
+      className="bbq-theme-switcher"
+      role="radiogroup"
+      aria-label="Theme mode"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "3px",
+        borderRadius: "10px",
+        background: "rgba(255, 255, 255, 0.05)",
+        border: "1px solid var(--bbq-border)",
+        position: "relative",
+        gap: "2px",
+      }}
+    >
+      {options.map((opt) => {
+        const isSelected = theme === opt.id;
+        return (
+          <button
+            key={opt.id}
+            id={`theme-btn-${opt.id}`}
+            type="button"
+            role="radio"
+            aria-checked={isSelected}
+            onClick={() => onChange(opt.id)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "5px 12px",
+              borderRadius: "7px",
+              border: "none",
+              background: isSelected ? "var(--bbq-accent)" : "transparent",
+              color: isSelected ? "#ffffff" : "var(--bbq-text-muted)",
+              cursor: "pointer",
+              fontSize: "11px",
+              fontWeight: isSelected ? 600 : 500,
+              transition: "all 180ms cubic-bezier(0.16, 1, 0.3, 1)",
+              boxShadow: isSelected ? "0 1px 4px rgba(0, 0, 0, 0.25)" : "none",
+            }}
+          >
+            <span style={{ fontSize: "12px" }} aria-hidden="true">
+              {opt.icon}
+            </span>
+            <span>{opt.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+/* ==========================================================================
+   2. Modern Switch (Inspired by 21st.dev HeroUI Switch)
+   ========================================================================== */
+interface SwitchProps {
+  id: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  description?: string;
+  disabled?: boolean;
+  ariaLabel?: string;
+}
+
+export const Switch: React.FC<SwitchProps> = ({
+  id,
+  checked,
+  onChange,
+  label,
+  description,
+  disabled = false,
+  ariaLabel,
+}) => {
+  return (
+    <div
+      className={`bbq-switch-row ${disabled ? "disabled" : ""}`}
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: "12px",
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <label
+          htmlFor={id}
+          style={{
+            fontWeight: 500,
+            display: "block",
+            fontSize: "12px",
+            color: "var(--bbq-text)",
+            cursor: disabled ? "not-allowed" : "pointer",
+          }}
+        >
+          {label}
+        </label>
+        {description && (
+          <span
+            style={{
+              fontSize: "11px",
+              color: "var(--bbq-text-muted)",
+              display: "block",
+              marginTop: "2px",
+              lineHeight: 1.35,
+            }}
+          >
+            {description}
+          </span>
+        )}
+      </div>
+
+      <button
+        type="button"
+        role="switch"
+        id={id}
+        aria-checked={checked}
+        aria-label={ariaLabel || label}
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
+        onKeyDown={(e) => {
+          if (!disabled && (e.key === " " || e.key === "Enter")) {
+            e.preventDefault();
+            onChange(!checked);
+          }
+        }}
+        style={{
+          width: "38px",
+          height: "22px",
+          borderRadius: "9999px",
+          background: checked ? "var(--bbq-accent)" : "rgba(255, 255, 255, 0.15)",
+          border: `1px solid ${checked ? "var(--bbq-accent)" : "rgba(255, 255, 255, 0.1)"}`,
+          padding: "2px",
+          display: "flex",
+          alignItems: "center",
+          cursor: disabled ? "not-allowed" : "pointer",
+          transition: "background 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms ease",
+          position: "relative",
+          flexShrink: 0,
+          outline: "none",
+        }}
+      >
+        {/* Hidden native checkbox for test automation & accessibility fallback */}
+        <input
+          id={`${id}-checkbox`}
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => !disabled && onChange(e.target.checked)}
+          tabIndex={-1}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            opacity: 0,
+            pointerEvents: "none",
+            width: "1px",
+            height: "1px",
+          }}
+        />
+        <div
+          className="bbq-switch-thumb"
+          style={{
+            width: "16px",
+            height: "16px",
+            borderRadius: "50%",
+            background: "#ffffff",
+            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.35)",
+            transform: checked ? "translateX(16px)" : "translateX(0px)",
+            transition: "transform 180ms cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
+        />
+      </button>
+    </div>
+  );
+};
+
+/* ==========================================================================
+   3. Modern Slider (Inspired by 21st.dev HeroUI Slider)
+   ========================================================================== */
+interface SliderProps {
+  id: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  valueDisplay?: string;
+  onChange: (val: number) => void;
+  onCommit?: (val: number) => void;
+  disabled?: boolean;
+  ariaLabel?: string;
+}
+
+export const Slider: React.FC<SliderProps> = ({
+  id,
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  valueDisplay,
+  onChange,
+  onCommit,
+  disabled = false,
+  ariaLabel,
+}) => {
+  const percentage = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+
+  return (
+    <div
+      className="bbq-slider-container"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "6px",
+        width: "100%",
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <label
+          htmlFor={id}
+          style={{
+            fontWeight: 500,
+            fontSize: "12px",
+            color: "var(--bbq-text)",
+            cursor: disabled ? "not-allowed" : "pointer",
+          }}
+        >
+          {label}
+        </label>
+        <span
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            color: "var(--bbq-text-muted)",
+            background: "rgba(255, 255, 255, 0.06)",
+            padding: "1px 6px",
+            borderRadius: "4px",
+            border: "1px solid var(--bbq-border-subtle)",
+          }}
+        >
+          {valueDisplay || value}
+        </span>
+      </div>
+
+      <div
+        className="bbq-slider-track-wrapper"
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "20px",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        {/* Custom Track */}
+        <div
+          className="bbq-slider-track"
+          style={{
+            position: "relative",
+            width: "100%",
+            height: "5px",
+            borderRadius: "9999px",
+            background: "rgba(255, 255, 255, 0.12)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Custom Fill */}
+          <div
+            className="bbq-slider-fill"
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: `${percentage}%`,
+              background: "var(--bbq-accent)",
+              borderRadius: "9999px",
+            }}
+          />
+        </div>
+
+        {/* Custom Thumb */}
+        <div
+          className="bbq-slider-thumb"
+          style={{
+            position: "absolute",
+            left: `${percentage}%`,
+            top: "50%",
+            width: "14px",
+            height: "14px",
+            borderRadius: "50%",
+            background: "#ffffff",
+            border: "2px solid var(--bbq-accent)",
+            transform: "translate(-50%, -50%)",
+            boxShadow: "0 1px 4px rgba(0, 0, 0, 0.45)",
+            pointerEvents: "none",
+            transition: "transform 100ms ease",
+          }}
+        />
+
+        {/* Interactive native input overlay for keyboard, drag, and tests */}
+        <input
+          id={id}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(Number(e.target.value))}
+          onPointerUp={() => onCommit && onCommit(value)}
+          onKeyUp={() => onCommit && onCommit(value)}
+          aria-label={ariaLabel || label}
+          aria-valuenow={value}
+          aria-valuemin={min}
+          aria-valuemax={max}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            opacity: 0,
+            cursor: disabled ? "not-allowed" : "pointer",
+            margin: 0,
+            padding: 0,
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+/* ==========================================================================
+   4. Accent Color Picker (7 Presets + Custom Color Picker)
+   ========================================================================== */
+export const ACCENT_PRESETS: { id: AccentColor; label: string; preview: string }[] = [
+  { id: "orange", label: "Orange", preview: "#ff6b35" },
+  { id: "blue", label: "Blue", preview: "#3b82f6" },
+  { id: "purple", label: "Purple", preview: "#a855f7" },
+  { id: "green", label: "Green", preview: "#10b981" },
+  { id: "red", label: "Red", preview: "#ef4444" },
+  { id: "pink", label: "Pink", preview: "#ec4899" },
+  { id: "cyan", label: "Cyan", preview: "#06b6d4" },
+];
+
+interface AccentColorPickerProps {
+  currentAccent: AccentColor;
+  customAccentColor: string | null;
+  onChangePreset: (color: AccentColor) => void;
+  onChangeCustom: (hex: string) => void;
+}
+
+export const AccentColorPicker: React.FC<AccentColorPickerProps> = ({
+  currentAccent,
+  customAccentColor,
+  onChangePreset,
+  onChangeCustom,
+}) => {
+  const isCustomActive =
+    currentAccent === "custom" ||
+    (typeof currentAccent === "string" && currentAccent.startsWith("#"));
+
+  const [isCustomOpen, setIsCustomOpen] = useState(isCustomActive);
+  const [customHexInput, setCustomHexInput] = useState(customAccentColor || "#ff6b35");
+  const colorInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (customAccentColor) {
+      setCustomHexInput(customAccentColor);
+    }
+  }, [customAccentColor]);
+
+  const handleHexChange = (val: string) => {
+    setCustomHexInput(val);
+    const clean = val.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(clean) || /^#[0-9a-fA-F]{3}$/.test(clean)) {
+      onChangeCustom(clean);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <label style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)" }}>
+          Accent Color
+        </label>
+        <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+          {isCustomActive ? `Custom (${customHexInput})` : currentAccent}
+        </span>
+      </div>
+
+      {/* Swatches Row: 7 Presets + 1 Custom Button */}
+      <div
+        role="radiogroup"
+        aria-label="Accent color presets"
+        style={{
+          display: "flex",
+          gap: "6px",
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        {ACCENT_PRESETS.map((preset) => {
+          const isSelected = !isCustomActive && currentAccent === preset.id;
+          return (
+            <button
+              key={preset.id}
+              id={`accent-color-${preset.id}`}
+              type="button"
+              role="radio"
+              aria-checked={isSelected}
+              onClick={() => {
+                onChangePreset(preset.id);
+                setIsCustomOpen(false);
+              }}
+              title={preset.label}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                border: isSelected
+                  ? "2px solid var(--bbq-accent)"
+                  : "1px solid var(--bbq-border)",
+                background: isSelected
+                  ? "var(--bbq-accent-subtle)"
+                  : "var(--bbq-surface-elevated)",
+                color: "var(--bbq-text)",
+                cursor: "pointer",
+                fontSize: "11px",
+                fontWeight: isSelected ? 600 : 400,
+                transition: "all 120ms ease",
+              }}
+            >
+              <span
+                style={{
+                  width: "12px",
+                  height: "12px",
+                  borderRadius: "50%",
+                  background: preset.preview,
+                  display: "inline-block",
+                  boxShadow: isSelected ? `0 0 6px ${preset.preview}` : "none",
+                }}
+              />
+              <span>{preset.label}</span>
+            </button>
+          );
+        })}
+
+        {/* Custom Color Button */}
+        <button
+          id="accent-color-custom"
+          type="button"
+          role="radio"
+          aria-checked={isCustomActive}
+          onClick={() => {
+            setIsCustomOpen(true);
+            onChangeCustom(customHexInput);
+          }}
+          title="Custom Accent Color"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "5px",
+            padding: "4px 8px",
+            borderRadius: "6px",
+            border: isCustomActive
+              ? "2px solid var(--bbq-accent)"
+              : "1px solid var(--bbq-border)",
+            background: isCustomActive
+              ? "var(--bbq-accent-subtle)"
+              : "var(--bbq-surface-elevated)",
+            color: "var(--bbq-text)",
+            cursor: "pointer",
+            fontSize: "11px",
+            fontWeight: isCustomActive ? 600 : 400,
+            transition: "all 120ms ease",
+          }}
+        >
+          <span
+            style={{
+              width: "12px",
+              height: "12px",
+              borderRadius: "50%",
+              background: isCustomActive
+                ? customHexInput
+                : "linear-gradient(135deg, #ff007a, #7928ca, #0070f3)",
+              display: "inline-block",
+              boxShadow: isCustomActive ? `0 0 6px ${customHexInput}` : "none",
+            }}
+          />
+          <span>Custom</span>
+        </button>
+      </div>
+
+      {/* Expandable Custom Color Picker Panel */}
+      {isCustomOpen && (
+        <div
+          id="bbq-custom-color-panel"
+          style={{
+            marginTop: "4px",
+            padding: "8px 10px",
+            borderRadius: "8px",
+            background: "rgba(255, 255, 255, 0.04)",
+            border: "1px solid var(--bbq-border)",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          {/* Native Color Input Trigger with Custom Circle Swatch */}
+          <div
+            style={{
+              position: "relative",
+              width: "28px",
+              height: "28px",
+              borderRadius: "6px",
+              overflow: "hidden",
+              border: "1px solid var(--bbq-border)",
+              flexShrink: 0,
+              cursor: "pointer",
+            }}
+            onClick={() => colorInputRef.current?.click()}
+          >
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                background: customHexInput,
+              }}
+            />
+            <input
+              ref={colorInputRef}
+              id="custom-color-native-input"
+              type="color"
+              value={
+                customHexInput.startsWith("#") && customHexInput.length === 7
+                  ? customHexInput
+                  : "#ff6b35"
+              }
+              onChange={(e) => handleHexChange(e.target.value)}
+              style={{
+                position: "absolute",
+                inset: 0,
+                opacity: 0,
+                cursor: "pointer",
+                width: "100%",
+                height: "100%",
+              }}
+              aria-label="Pick custom color"
+            />
+          </div>
+
+          {/* Hex Input Field */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1 }}>
+            <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>HEX:</span>
+            <input
+              id="custom-color-hex-input"
+              type="text"
+              value={customHexInput}
+              placeholder="#RRGGBB"
+              maxLength={7}
+              onChange={(e) => handleHexChange(e.target.value)}
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid var(--bbq-border)",
+                borderRadius: "5px",
+                padding: "3px 8px",
+                color: "var(--bbq-text)",
+                fontSize: "11px",
+                fontFamily: "monospace",
+                width: "80px",
+                outline: "none",
+              }}
+              aria-label="Custom color hex code"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
