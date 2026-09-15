@@ -777,18 +777,23 @@ describe("BBQ v1.2 — Core Stabilization & Regression Guards", () => {
 
       try {
         const supportedAccents = [
-          "orange",
           "blue",
-          "purple",
-          "green",
           "red",
+          "green",
+          "orange",
+          "yellow",
           "pink",
+          "purple",
+          "indigo",
+          "teal",
+          "mint",
           "cyan",
         ] as const;
 
         for (const accent of supportedAccents) {
           applyThemeAndMotionToDom({
             ...initialSettingsState.settings,
+            theme: "dark",
             accent_color: accent,
           });
 
@@ -953,6 +958,149 @@ describe("BBQ v1.2 — Core Stabilization & Regression Guards", () => {
         assert.equal(mockStyle.get("--bbq-accent"), "#8b5cf6");
         assert.equal(mockStyle.get("--bbq-accent-glow"), "rgba(139, 92, 246, 0.35)");
         assert.equal(mockStyle.get("--bbq-accent-subtle"), "rgba(139, 92, 246, 0.15)");
+      } finally {
+        globalThis.document = originalDoc;
+      }
+    });
+  });
+
+  describe("22. System Accent Palette Light / Dark Mapping & Default Blue", () => {
+    it("guarantees default accent color is blue", async () => {
+      const { defaultSettings } = await import("../src/state/settingsState.ts");
+      assert.equal(defaultSettings.accent_color, "blue");
+    });
+
+    it("verifies all 11 system accent colors map to exact Light and Dark system hex values", async () => {
+      const { SYSTEM_ACCENT_COLORS, getAccentPalette } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      const expected: Record<string, { light: string; dark: string }> = {
+        blue: { light: "#007AFF", dark: "#0A84FF" },
+        red: { light: "#FF3B30", dark: "#FF453A" },
+        green: { light: "#34C759", dark: "#30D158" },
+        orange: { light: "#FF9500", dark: "#FF9F0A" },
+        yellow: { light: "#FFCC00", dark: "#FFD60A" },
+        pink: { light: "#FF2D55", dark: "#FF375F" },
+        purple: { light: "#5856D6", dark: "#BF5AF2" },
+        indigo: { light: "#5856D6", dark: "#5E5CE6" },
+        teal: { light: "#30B0C7", dark: "#40C8E0" },
+        mint: { light: "#00C7BE", dark: "#63E6E2" },
+        cyan: { light: "#32ADE6", dark: "#64D2FF" },
+      };
+
+      for (const [key, spec] of Object.entries(expected)) {
+        // Verify constant definitions
+        // @ts-expect-error Dynamic key lookup
+        const def = SYSTEM_ACCENT_COLORS[key];
+        assert.ok(def, `Color ${key} must exist in SYSTEM_ACCENT_COLORS`);
+        assert.equal(def.light, spec.light, `${key} light must equal ${spec.light}`);
+        assert.equal(def.dark, spec.dark, `${key} dark must equal ${spec.dark}`);
+
+        // Verify token generator in dark theme
+        const darkPalette = getAccentPalette(key, "dark");
+        assert.equal(darkPalette.accent, spec.dark);
+        assert.ok(darkPalette.glow.includes("0.35"));
+        assert.ok(darkPalette.subtle.includes("0.15"));
+
+        // Verify token generator in light theme
+        const lightPalette = getAccentPalette(key, "light");
+        assert.equal(lightPalette.accent, spec.light);
+        assert.ok(lightPalette.glow.includes("0.35"));
+        assert.ok(lightPalette.subtle.includes("0.15"));
+      }
+    });
+
+    it("dynamically applies light vs dark system accent tokens when theme switches", async () => {
+      const { applyThemeAndMotionToDom } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      const mockStyle = new Map<string, string>();
+      const mockAttributes = new Map<string, string>();
+      const mockElement = {
+        style: {
+          setProperty(name: string, value: string) { mockStyle.set(name, value); },
+          getPropertyValue(name: string) { return mockStyle.get(name) || ""; },
+        },
+        setAttribute(name: string, value: string) { mockAttributes.set(name, value); },
+        getAttribute(name: string) { return mockAttributes.get(name) || null; },
+      };
+
+      const originalDoc = globalThis.document;
+      // @ts-expect-error Mocking document
+      globalThis.document = { documentElement: mockElement };
+
+      try {
+        // Dark theme with Blue
+        applyThemeAndMotionToDom({
+          ...initialSettingsState.settings,
+          theme: "dark",
+          accent_color: "blue",
+        });
+        assert.equal(mockAttributes.get("data-theme"), "dark");
+        assert.equal(mockAttributes.get("data-accent"), "blue");
+        assert.equal(mockStyle.get("--bbq-accent"), "#0A84FF");
+
+        // Light theme with Blue
+        applyThemeAndMotionToDom({
+          ...initialSettingsState.settings,
+          theme: "light",
+          accent_color: "blue",
+        });
+        assert.equal(mockAttributes.get("data-theme"), "light");
+        assert.equal(mockAttributes.get("data-accent"), "blue");
+        assert.equal(mockStyle.get("--bbq-accent"), "#007AFF");
+
+        // Dark theme with Red
+        applyThemeAndMotionToDom({
+          ...initialSettingsState.settings,
+          theme: "dark",
+          accent_color: "red",
+        });
+        assert.equal(mockStyle.get("--bbq-accent"), "#FF453A");
+
+        // Light theme with Red
+        applyThemeAndMotionToDom({
+          ...initialSettingsState.settings,
+          theme: "light",
+          accent_color: "red",
+        });
+        assert.equal(mockStyle.get("--bbq-accent"), "#FF3B30");
+      } finally {
+        globalThis.document = originalDoc;
+      }
+    });
+
+    it("preserves previously stored non-default accents without forcing blue migration", async () => {
+      const { applyThemeAndMotionToDom } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      const mockAttributes = new Map<string, string>();
+      const mockStyle = new Map<string, string>();
+      const mockElement = {
+        style: {
+          setProperty(name: string, value: string) { mockStyle.set(name, value); },
+          getPropertyValue(name: string) { return mockStyle.get(name) || ""; },
+        },
+        setAttribute(name: string, value: string) { mockAttributes.set(name, value); },
+        getAttribute(name: string) { return mockAttributes.get(name) || null; },
+      };
+
+      const originalDoc = globalThis.document;
+      // @ts-expect-error Mocking document
+      globalThis.document = { documentElement: mockElement };
+
+      try {
+        // Existing user with orange
+        applyThemeAndMotionToDom({
+          ...initialSettingsState.settings,
+          theme: "dark",
+          accent_color: "orange",
+        });
+        assert.equal(mockAttributes.get("data-accent"), "orange");
+        assert.equal(mockStyle.get("--bbq-accent"), "#FF9F0A");
       } finally {
         globalThis.document = originalDoc;
       }

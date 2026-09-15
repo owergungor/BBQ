@@ -353,21 +353,31 @@ export const Slider: React.FC<SliderProps> = ({
 };
 
 /* ==========================================================================
-   4. Accent Color Picker (7 Presets + Custom Color Picker)
+   4. Accent Color Picker (11 Presets + Custom Color Picker)
    ========================================================================== */
-export const ACCENT_PRESETS: { id: AccentColor; label: string; preview: string }[] = [
-  { id: "orange", label: "Orange", preview: "#ff6b35" },
-  { id: "blue", label: "Blue", preview: "#3b82f6" },
-  { id: "purple", label: "Purple", preview: "#a855f7" },
-  { id: "green", label: "Green", preview: "#10b981" },
-  { id: "red", label: "Red", preview: "#ef4444" },
-  { id: "pink", label: "Pink", preview: "#ec4899" },
-  { id: "cyan", label: "Cyan", preview: "#06b6d4" },
+export const ACCENT_PRESETS: {
+  id: AccentColor;
+  label: string;
+  light: string;
+  dark: string;
+}[] = [
+  { id: "blue", label: "Blue", light: "#007AFF", dark: "#0A84FF" },
+  { id: "red", label: "Red", light: "#FF3B30", dark: "#FF453A" },
+  { id: "green", label: "Green", light: "#34C759", dark: "#30D158" },
+  { id: "orange", label: "Orange", light: "#FF9500", dark: "#FF9F0A" },
+  { id: "yellow", label: "Yellow", light: "#FFCC00", dark: "#FFD60A" },
+  { id: "pink", label: "Pink", light: "#FF2D55", dark: "#FF375F" },
+  { id: "purple", label: "Purple", light: "#5856D6", dark: "#BF5AF2" },
+  { id: "indigo", label: "Indigo", light: "#5856D6", dark: "#5E5CE6" },
+  { id: "teal", label: "Teal", light: "#30B0C7", dark: "#40C8E0" },
+  { id: "mint", label: "Mint", light: "#00C7BE", dark: "#63E6E2" },
+  { id: "cyan", label: "Cyan", light: "#32ADE6", dark: "#64D2FF" },
 ];
 
 interface AccentColorPickerProps {
   currentAccent: AccentColor;
   customAccentColor: string | null;
+  theme?: ThemePreference;
   onChangePreset: (color: AccentColor) => void;
   onChangeCustom: (hex: string) => void;
 }
@@ -375,15 +385,24 @@ interface AccentColorPickerProps {
 export const AccentColorPicker: React.FC<AccentColorPickerProps> = ({
   currentAccent,
   customAccentColor,
+  theme = "system",
   onChangePreset,
   onChangeCustom,
 }) => {
+  const isLight =
+    theme === "light" ||
+    (theme === "system" &&
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-color-scheme: light)").matches);
+
   const isCustomActive =
     currentAccent === "custom" ||
     (typeof currentAccent === "string" && currentAccent.startsWith("#"));
 
+  const defaultCustomColor = isLight ? "#007AFF" : "#0A84FF";
   const [isCustomOpen, setIsCustomOpen] = useState(isCustomActive);
-  const [customHexInput, setCustomHexInput] = useState(customAccentColor || "#ff6b35");
+  const [customHexInput, setCustomHexInput] = useState(customAccentColor || defaultCustomColor);
   const colorInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -411,7 +430,7 @@ export const AccentColorPicker: React.FC<AccentColorPickerProps> = ({
         </span>
       </div>
 
-      {/* Swatches Row: 7 Presets + 1 Custom Button */}
+      {/* Swatches Row: 11 Presets + 1 Custom Button */}
       <div
         role="radiogroup"
         aria-label="Accent color presets"
@@ -424,6 +443,7 @@ export const AccentColorPicker: React.FC<AccentColorPickerProps> = ({
       >
         {ACCENT_PRESETS.map((preset) => {
           const isSelected = !isCustomActive && currentAccent === preset.id;
+          const previewColor = isLight ? preset.light : preset.dark;
           return (
             <button
               key={preset.id}
@@ -460,9 +480,9 @@ export const AccentColorPicker: React.FC<AccentColorPickerProps> = ({
                   width: "12px",
                   height: "12px",
                   borderRadius: "50%",
-                  background: preset.preview,
+                  background: previewColor,
                   display: "inline-block",
-                  boxShadow: isSelected ? `0 0 6px ${preset.preview}` : "none",
+                  boxShadow: isSelected ? `0 0 6px ${previewColor}` : "none",
                 }}
               />
               <span>{preset.label}</span>
@@ -559,7 +579,7 @@ export const AccentColorPicker: React.FC<AccentColorPickerProps> = ({
               value={
                 customHexInput.startsWith("#") && customHexInput.length === 7
                   ? customHexInput
-                  : "#ff6b35"
+                  : defaultCustomColor
               }
               onChange={(e) => handleHexChange(e.target.value)}
               style={{

@@ -51,7 +51,7 @@ impl std::str::FromStr for ThemePreference {
 }
 
 fn default_accent_color() -> String {
-    "orange".to_string()
+    "blue".to_string()
 }
 
 /// Strongly typed, persistent user preferences for BBQ
@@ -100,7 +100,7 @@ impl Default for BbqSettings {
 
         Self {
             theme: ThemePreference::System,
-            accent_color: "orange".to_string(),
+            accent_color: "blue".to_string(),
             custom_accent_color: None,
             reduced_motion: false,
             island_width: 240,
@@ -129,11 +129,12 @@ impl BbqSettings {
     pub fn validate(&self) -> BbqResult<()> {
         let accent_lower = self.accent_color.trim().to_lowercase();
         match accent_lower.as_str() {
-            "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" | "custom" => {}
+            "blue" | "red" | "green" | "orange" | "yellow" | "pink" | "purple" | "indigo"
+            | "teal" | "mint" | "cyan" | "custom" => {}
             _ => {
                 if !is_valid_hex_color(&accent_lower) {
                     return Err(BbqError::Validation(format!(
-                        "Invalid accent_color '{}'. Supported: orange, blue, purple, green, red, pink, cyan, custom, or #RRGGBB",
+                        "Invalid accent_color '{}'. Supported: blue, red, green, orange, yellow, pink, purple, indigo, teal, mint, cyan, custom, or #RRGGBB",
                         self.accent_color
                     )));
                 }
@@ -221,11 +222,12 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
         "accent_color" => {
             let lower = value.trim().to_lowercase();
             match lower.as_str() {
-                "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" | "custom" => {}
+                "blue" | "red" | "green" | "orange" | "yellow" | "pink" | "purple" | "indigo"
+                | "teal" | "mint" | "cyan" | "custom" => {}
                 _ => {
                     if !is_valid_hex_color(&lower) {
                         return Err(BbqError::Validation(format!(
-                            "Invalid accent_color '{}'. Supported: orange, blue, purple, green, red, pink, cyan, custom, or #RRGGBB",
+                            "Invalid accent_color '{}'. Supported: blue, red, green, orange, yellow, pink, purple, indigo, teal, mint, cyan, custom, or #RRGGBB",
                             value
                         )));
                     }
@@ -403,6 +405,27 @@ mod tests {
         assert!(validate_setting_entry("disabled_widgets", "[\"notes\", \"network\"]").is_ok());
         assert!(validate_setting_entry("disabled_widgets", "not_json").is_err());
 
+        // Accent color tests
+        let valid_accents = [
+            "blue", "red", "green", "orange", "yellow", "pink", "purple", "indigo", "teal", "mint",
+            "cyan", "custom", "#007AFF", "#0A84FF", "#123",
+        ];
+        for accent in valid_accents {
+            assert!(
+                validate_setting_entry("accent_color", accent).is_ok(),
+                "Expected '{}' to be valid",
+                accent
+            );
+        }
+        assert!(validate_setting_entry("accent_color", "invalid_color").is_err());
+        assert!(validate_setting_entry("accent_color", "123456").is_err());
+
         assert!(validate_setting_entry("unknown_key", "value").is_err());
+    }
+
+    #[test]
+    fn test_settings_default_accent_is_blue() {
+        let settings = BbqSettings::default();
+        assert_eq!(settings.accent_color, "blue");
     }
 }

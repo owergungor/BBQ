@@ -376,8 +376,9 @@ export const SettingsWidget: React.FC = () => {
             </div>
 
             <AccentColorPicker
-              currentAccent={(settings.accent_color || "orange") as AccentColor}
+              currentAccent={(settings.accent_color || "blue") as AccentColor}
               customAccentColor={settings.custom_accent_color || null}
+              theme={settings.theme}
               onChangePreset={handleAccentColorChange}
               onChangeCustom={handleCustomAccentChange}
             />

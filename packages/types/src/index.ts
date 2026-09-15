@@ -175,14 +175,21 @@ export interface SystemStatus {
 }
 
 export type ThemePreference = 'system' | 'dark' | 'light';
-export type AccentColor =
-  | 'orange'
+export type AccentPreset =
   | 'blue'
-  | 'purple'
-  | 'green'
   | 'red'
+  | 'green'
+  | 'orange'
+  | 'yellow'
   | 'pink'
-  | 'cyan'
+  | 'purple'
+  | 'indigo'
+  | 'teal'
+  | 'mint'
+  | 'cyan';
+
+export type AccentColor =
+  | AccentPreset
   | 'custom'
   | (string & {});
 

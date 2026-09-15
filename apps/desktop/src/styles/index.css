@@ -19,10 +19,10 @@
   --bbq-text-muted: #6e6e73;
   --bbq-text: var(--bbq-text-primary);
 
-  --bbq-accent: #ff6b35;
-  --bbq-accent-hover: #ff7d4d;
-  --bbq-accent-glow: rgba(255, 107, 53, 0.35);
-  --bbq-accent-subtle: rgba(255, 107, 53, 0.15);
+  --bbq-accent: #0A84FF;
+  --bbq-accent-hover: rgb(47, 150, 255);
+  --bbq-accent-glow: rgba(10, 132, 255, 0.35);
+  --bbq-accent-subtle: rgba(10, 132, 255, 0.15);
 
   --bbq-danger: #ef4444;
   --bbq-danger-bg: rgba(239, 68, 68, 0.15);
@@ -131,6 +131,15 @@
   --bbq-warning-bg: rgba(245, 158, 11, 0.1);
   --bbq-success-bg: rgba(16, 185, 129, 0.1);
   --bbq-info-bg: rgba(59, 130, 246, 0.1);
+
+  --bbq-accent: #007AFF;
+  --bbq-accent-hover: rgb(0, 107, 224);
+  --bbq-accent-glow: rgba(0, 122, 255, 0.35);
+  --bbq-accent-subtle: rgba(0, 122, 255, 0.15);
+  --accent: #007AFF;
+  --accent-hover: rgb(0, 107, 224);
+  --accent-glow: rgba(0, 122, 255, 0.35);
+  --accent-subtle: rgba(0, 122, 255, 0.15);
 }
 
 /* System Theme (Light OS Scheme) */
@@ -163,92 +172,275 @@
     --bbq-warning-bg: rgba(245, 158, 11, 0.1);
     --bbq-success-bg: rgba(16, 185, 129, 0.1);
     --bbq-info-bg: rgba(59, 130, 246, 0.1);
+
+    --bbq-accent: #007AFF;
+    --bbq-accent-hover: rgb(0, 107, 224);
+    --bbq-accent-glow: rgba(0, 122, 255, 0.35);
+    --bbq-accent-subtle: rgba(0, 122, 255, 0.15);
+    --accent: #007AFF;
+    --accent-hover: rgb(0, 107, 224);
+    --accent-glow: rgba(0, 122, 255, 0.35);
+    --accent-subtle: rgba(0, 122, 255, 0.15);
   }
 }
 
-/* Accent Color Themes */
-:root[data-accent="orange"],
-[data-accent="orange"] {
-  --bbq-accent: #ff6b35;
-  --bbq-accent-hover: #ff7d4d;
-  --bbq-accent-glow: rgba(255, 107, 53, 0.35);
-  --bbq-accent-subtle: rgba(255, 107, 53, 0.15);
-  --accent: #ff6b35;
-  --accent-hover: #ff7d4d;
-  --accent-glow: rgba(255, 107, 53, 0.35);
-  --accent-subtle: rgba(255, 107, 53, 0.15);
-}
-
+/* ==========================================================================
+   System Accent Color Themes — Dark Mode (Default)
+   ========================================================================== */
 :root[data-accent="blue"],
 [data-accent="blue"] {
-  --bbq-accent: #3b82f6;
-  --bbq-accent-hover: #60a5fa;
-  --bbq-accent-glow: rgba(59, 130, 246, 0.35);
-  --bbq-accent-subtle: rgba(59, 130, 246, 0.15);
-  --accent: #3b82f6;
-  --accent-hover: #60a5fa;
-  --accent-glow: rgba(59, 130, 246, 0.35);
-  --accent-subtle: rgba(59, 130, 246, 0.15);
-}
-
-:root[data-accent="purple"],
-[data-accent="purple"] {
-  --bbq-accent: #a855f7;
-  --bbq-accent-hover: #c084fc;
-  --bbq-accent-glow: rgba(168, 85, 247, 0.35);
-  --bbq-accent-subtle: rgba(168, 85, 247, 0.15);
-  --accent: #a855f7;
-  --accent-hover: #c084fc;
-  --accent-glow: rgba(168, 85, 247, 0.35);
-  --accent-subtle: rgba(168, 85, 247, 0.15);
-}
-
-:root[data-accent="green"],
-[data-accent="green"] {
-  --bbq-accent: #10b981;
-  --bbq-accent-hover: #34d399;
-  --bbq-accent-glow: rgba(16, 185, 129, 0.35);
-  --bbq-accent-subtle: rgba(16, 185, 129, 0.15);
-  --accent: #10b981;
-  --accent-hover: #34d399;
-  --accent-glow: rgba(16, 185, 129, 0.35);
-  --accent-subtle: rgba(16, 185, 129, 0.15);
+  --bbq-accent: #0A84FF;
+  --bbq-accent-hover: rgb(47, 150, 255);
+  --bbq-accent-glow: rgba(10, 132, 255, 0.35);
+  --bbq-accent-subtle: rgba(10, 132, 255, 0.15);
+  --accent: #0A84FF;
+  --accent-hover: rgb(47, 150, 255);
+  --accent-glow: rgba(10, 132, 255, 0.35);
+  --accent-subtle: rgba(10, 132, 255, 0.15);
 }
 
 :root[data-accent="red"],
 [data-accent="red"] {
-  --bbq-accent: #ef4444;
-  --bbq-accent-hover: #f87171;
-  --bbq-accent-glow: rgba(239, 68, 68, 0.35);
-  --bbq-accent-subtle: rgba(239, 68, 68, 0.15);
-  --accent: #ef4444;
-  --accent-hover: #f87171;
-  --accent-glow: rgba(239, 68, 68, 0.35);
-  --accent-subtle: rgba(239, 68, 68, 0.15);
+  --bbq-accent: #FF453A;
+  --bbq-accent-hover: rgb(255, 97, 88);
+  --bbq-accent-glow: rgba(255, 69, 58, 0.35);
+  --bbq-accent-subtle: rgba(255, 69, 58, 0.15);
+  --accent: #FF453A;
+  --accent-hover: rgb(255, 97, 88);
+  --accent-glow: rgba(255, 69, 58, 0.35);
+  --accent-subtle: rgba(255, 69, 58, 0.15);
+}
+
+:root[data-accent="green"],
+[data-accent="green"] {
+  --bbq-accent: #30D158;
+  --bbq-accent-hover: rgb(79, 216, 113);
+  --bbq-accent-glow: rgba(48, 209, 88, 0.35);
+  --bbq-accent-subtle: rgba(48, 209, 88, 0.15);
+  --accent: #30D158;
+  --accent-hover: rgb(79, 216, 113);
+  --accent-glow: rgba(48, 209, 88, 0.35);
+  --accent-subtle: rgba(48, 209, 88, 0.15);
+}
+
+:root[data-accent="orange"],
+[data-accent="orange"] {
+  --bbq-accent: #FF9F0A;
+  --bbq-accent-hover: rgb(255, 173, 47);
+  --bbq-accent-glow: rgba(255, 159, 10, 0.35);
+  --bbq-accent-subtle: rgba(255, 159, 10, 0.15);
+  --accent: #FF9F0A;
+  --accent-hover: rgb(255, 173, 47);
+  --accent-glow: rgba(255, 159, 10, 0.35);
+  --accent-subtle: rgba(255, 159, 10, 0.15);
+}
+
+:root[data-accent="yellow"],
+[data-accent="yellow"] {
+  --bbq-accent: #FFD60A;
+  --bbq-accent-hover: rgb(255, 220, 47);
+  --bbq-accent-glow: rgba(255, 214, 10, 0.35);
+  --bbq-accent-subtle: rgba(255, 214, 10, 0.15);
+  --accent: #FFD60A;
+  --accent-hover: rgb(255, 220, 47);
+  --accent-glow: rgba(255, 214, 10, 0.35);
+  --accent-subtle: rgba(255, 214, 10, 0.15);
 }
 
 :root[data-accent="pink"],
 [data-accent="pink"] {
-  --bbq-accent: #ec4899;
-  --bbq-accent-hover: #f472b6;
-  --bbq-accent-glow: rgba(236, 72, 153, 0.35);
-  --bbq-accent-subtle: rgba(236, 72, 153, 0.15);
-  --accent: #ec4899;
-  --accent-hover: #f472b6;
-  --accent-glow: rgba(236, 72, 153, 0.35);
-  --accent-subtle: rgba(236, 72, 153, 0.15);
+  --bbq-accent: #FF375F;
+  --bbq-accent-hover: rgb(255, 85, 119);
+  --bbq-accent-glow: rgba(255, 55, 95, 0.35);
+  --bbq-accent-subtle: rgba(255, 55, 95, 0.15);
+  --accent: #FF375F;
+  --accent-hover: rgb(255, 85, 119);
+  --accent-glow: rgba(255, 55, 95, 0.35);
+  --accent-subtle: rgba(255, 55, 95, 0.15);
+}
+
+:root[data-accent="purple"],
+[data-accent="purple"] {
+  --bbq-accent: #BF5AF2;
+  --bbq-accent-hover: rgb(201, 115, 244);
+  --bbq-accent-glow: rgba(191, 90, 242, 0.35);
+  --bbq-accent-subtle: rgba(191, 90, 242, 0.15);
+  --accent: #BF5AF2;
+  --accent-hover: rgb(201, 115, 244);
+  --accent-glow: rgba(191, 90, 242, 0.35);
+  --accent-subtle: rgba(191, 90, 242, 0.15);
+}
+
+:root[data-accent="indigo"],
+[data-accent="indigo"] {
+  --bbq-accent: #5E5CE6;
+  --bbq-accent-hover: rgb(118, 116, 234);
+  --bbq-accent-glow: rgba(94, 92, 230, 0.35);
+  --bbq-accent-subtle: rgba(94, 92, 230, 0.15);
+  --accent: #5E5CE6;
+  --accent-hover: rgb(118, 116, 234);
+  --accent-glow: rgba(94, 92, 230, 0.35);
+  --accent-subtle: rgba(94, 92, 230, 0.15);
+}
+
+:root[data-accent="teal"],
+[data-accent="teal"] {
+  --bbq-accent: #40C8E0;
+  --bbq-accent-hover: rgb(93, 208, 229);
+  --bbq-accent-glow: rgba(64, 200, 224, 0.35);
+  --bbq-accent-subtle: rgba(64, 200, 224, 0.15);
+  --accent: #40C8E0;
+  --accent-hover: rgb(93, 208, 229);
+  --accent-glow: rgba(64, 200, 224, 0.35);
+  --accent-subtle: rgba(64, 200, 224, 0.15);
+}
+
+:root[data-accent="mint"],
+[data-accent="mint"] {
+  --bbq-accent: #63E6E2;
+  --bbq-accent-hover: rgb(122, 234, 230);
+  --bbq-accent-glow: rgba(99, 230, 226, 0.35);
+  --bbq-accent-subtle: rgba(99, 230, 226, 0.15);
+  --accent: #63E6E2;
+  --accent-hover: rgb(122, 234, 230);
+  --accent-glow: rgba(99, 230, 226, 0.35);
+  --accent-subtle: rgba(99, 230, 226, 0.15);
 }
 
 :root[data-accent="cyan"],
 [data-accent="cyan"] {
-  --bbq-accent: #06b6d4;
-  --bbq-accent-hover: #22d3ee;
-  --bbq-accent-glow: rgba(6, 182, 212, 0.35);
-  --bbq-accent-subtle: rgba(6, 182, 212, 0.15);
-  --accent: #06b6d4;
-  --accent-hover: #22d3ee;
-  --accent-glow: rgba(6, 182, 212, 0.35);
-  --accent-subtle: rgba(6, 182, 212, 0.15);
+  --bbq-accent: #64D2FF;
+  --bbq-accent-hover: rgb(123, 217, 255);
+  --bbq-accent-glow: rgba(100, 210, 255, 0.35);
+  --bbq-accent-subtle: rgba(100, 210, 255, 0.15);
+  --accent: #64D2FF;
+  --accent-hover: rgb(123, 217, 255);
+  --accent-glow: rgba(100, 210, 255, 0.35);
+  --accent-subtle: rgba(100, 210, 255, 0.15);
+}
+
+/* ==========================================================================
+   System Accent Color Themes — Light Mode Overrides
+   ========================================================================== */
+[data-theme="light"][data-accent="blue"] {
+  --bbq-accent: #007AFF;
+  --bbq-accent-hover: rgb(0, 107, 224);
+  --bbq-accent-glow: rgba(0, 122, 255, 0.35);
+  --bbq-accent-subtle: rgba(0, 122, 255, 0.15);
+  --accent: #007AFF;
+  --accent-hover: rgb(0, 107, 224);
+  --accent-glow: rgba(0, 122, 255, 0.35);
+  --accent-subtle: rgba(0, 122, 255, 0.15);
+}
+
+[data-theme="light"][data-accent="red"] {
+  --bbq-accent: #FF3B30;
+  --bbq-accent-hover: rgb(224, 52, 42);
+  --bbq-accent-glow: rgba(255, 59, 48, 0.35);
+  --bbq-accent-subtle: rgba(255, 59, 48, 0.15);
+  --accent: #FF3B30;
+  --accent-hover: rgb(224, 52, 42);
+  --accent-glow: rgba(255, 59, 48, 0.35);
+  --accent-subtle: rgba(255, 59, 48, 0.15);
+}
+
+[data-theme="light"][data-accent="green"] {
+  --bbq-accent: #34C759;
+  --bbq-accent-hover: rgb(46, 175, 78);
+  --bbq-accent-glow: rgba(52, 199, 89, 0.35);
+  --bbq-accent-subtle: rgba(52, 199, 89, 0.15);
+  --accent: #34C759;
+  --accent-hover: rgb(46, 175, 78);
+  --accent-glow: rgba(52, 199, 89, 0.35);
+  --accent-subtle: rgba(52, 199, 89, 0.15);
+}
+
+[data-theme="light"][data-accent="orange"] {
+  --bbq-accent: #FF9500;
+  --bbq-accent-hover: rgb(224, 131, 0);
+  --bbq-accent-glow: rgba(255, 149, 0, 0.35);
+  --bbq-accent-subtle: rgba(255, 149, 0, 0.15);
+  --accent: #FF9500;
+  --accent-hover: rgb(224, 131, 0);
+  --accent-glow: rgba(255, 149, 0, 0.35);
+  --accent-subtle: rgba(255, 149, 0, 0.15);
+}
+
+[data-theme="light"][data-accent="yellow"] {
+  --bbq-accent: #FFCC00;
+  --bbq-accent-hover: rgb(224, 180, 0);
+  --bbq-accent-glow: rgba(255, 204, 0, 0.35);
+  --bbq-accent-subtle: rgba(255, 204, 0, 0.15);
+  --accent: #FFCC00;
+  --accent-hover: rgb(224, 180, 0);
+  --accent-glow: rgba(255, 204, 0, 0.35);
+  --accent-subtle: rgba(255, 204, 0, 0.15);
+}
+
+[data-theme="light"][data-accent="pink"] {
+  --bbq-accent: #FF2D55;
+  --bbq-accent-hover: rgb(224, 40, 75);
+  --bbq-accent-glow: rgba(255, 45, 85, 0.35);
+  --bbq-accent-subtle: rgba(255, 45, 85, 0.15);
+  --accent: #FF2D55;
+  --accent-hover: rgb(224, 40, 75);
+  --accent-glow: rgba(255, 45, 85, 0.35);
+  --accent-subtle: rgba(255, 45, 85, 0.15);
+}
+
+[data-theme="light"][data-accent="purple"] {
+  --bbq-accent: #5856D6;
+  --bbq-accent-hover: rgb(77, 76, 188);
+  --bbq-accent-glow: rgba(88, 86, 214, 0.35);
+  --bbq-accent-subtle: rgba(88, 86, 214, 0.15);
+  --accent: #5856D6;
+  --accent-hover: rgb(77, 76, 188);
+  --accent-glow: rgba(88, 86, 214, 0.35);
+  --accent-subtle: rgba(88, 86, 214, 0.15);
+}
+
+[data-theme="light"][data-accent="indigo"] {
+  --bbq-accent: #5856D6;
+  --bbq-accent-hover: rgb(77, 76, 188);
+  --bbq-accent-glow: rgba(88, 86, 214, 0.35);
+  --bbq-accent-subtle: rgba(88, 86, 214, 0.15);
+  --accent: #5856D6;
+  --accent-hover: rgb(77, 76, 188);
+  --accent-glow: rgba(88, 86, 214, 0.35);
+  --accent-subtle: rgba(88, 86, 214, 0.15);
+}
+
+[data-theme="light"][data-accent="teal"] {
+  --bbq-accent: #30B0C7;
+  --bbq-accent-hover: rgb(42, 155, 175);
+  --bbq-accent-glow: rgba(48, 176, 199, 0.35);
+  --bbq-accent-subtle: rgba(48, 176, 199, 0.15);
+  --accent: #30B0C7;
+  --accent-hover: rgb(42, 155, 175);
+  --accent-glow: rgba(48, 176, 199, 0.35);
+  --accent-subtle: rgba(48, 176, 199, 0.15);
+}
+
+[data-theme="light"][data-accent="mint"] {
+  --bbq-accent: #00C7BE;
+  --bbq-accent-hover: rgb(0, 175, 167);
+  --bbq-accent-glow: rgba(0, 199, 190, 0.35);
+  --bbq-accent-subtle: rgba(0, 199, 190, 0.15);
+  --accent: #00C7BE;
+  --accent-hover: rgb(0, 175, 167);
+  --accent-glow: rgba(0, 199, 190, 0.35);
+  --accent-subtle: rgba(0, 199, 190, 0.15);
+}
+
+[data-theme="light"][data-accent="cyan"] {
+  --bbq-accent: #32ADE6;
+  --bbq-accent-hover: rgb(44, 152, 202);
+  --bbq-accent-glow: rgba(50, 173, 230, 0.35);
+  --bbq-accent-subtle: rgba(50, 173, 230, 0.15);
+  --accent: #32ADE6;
+  --accent-hover: rgb(44, 152, 202);
+  --accent-glow: rgba(50, 173, 230, 0.35);
+  --accent-subtle: rgba(50, 173, 230, 0.15);
 }
 
 /* Reduced Motion Accessibility */

@@ -3,59 +3,96 @@ import type { BbqSettings } from "@bbq/types";
 import { bbqCommands } from "../ipc/commands.ts";
 import { subscribeToSettingsChanged } from "../ipc/events.ts";
 
-export type AccentPreset = "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan";
+export type AccentPreset =
+  | "blue"
+  | "red"
+  | "green"
+  | "orange"
+  | "yellow"
+  | "pink"
+  | "purple"
+  | "indigo"
+  | "teal"
+  | "mint"
+  | "cyan";
 
-export const ACCENT_PALETTES: Record<
-  AccentPreset,
-  { accent: string; hover: string; glow: string; subtle: string }
-> = {
-  orange: {
-    accent: "#ff6b35",
-    hover: "#ff7d4d",
-    glow: "rgba(255, 107, 53, 0.35)",
-    subtle: "rgba(255, 107, 53, 0.15)",
-  },
-  blue: {
-    accent: "#3b82f6",
-    hover: "#60a5fa",
-    glow: "rgba(59, 130, 246, 0.35)",
-    subtle: "rgba(59, 130, 246, 0.15)",
-  },
-  purple: {
-    accent: "#a855f7",
-    hover: "#c084fc",
-    glow: "rgba(168, 85, 247, 0.35)",
-    subtle: "rgba(168, 85, 247, 0.15)",
-  },
-  green: {
-    accent: "#10b981",
-    hover: "#34d399",
-    glow: "rgba(16, 185, 129, 0.35)",
-    subtle: "rgba(16, 185, 129, 0.15)",
-  },
-  red: {
-    accent: "#ef4444",
-    hover: "#f87171",
-    glow: "rgba(239, 68, 68, 0.35)",
-    subtle: "rgba(239, 68, 68, 0.15)",
-  },
-  pink: {
-    accent: "#ec4899",
-    hover: "#f472b6",
-    glow: "rgba(236, 72, 153, 0.35)",
-    subtle: "rgba(236, 72, 153, 0.15)",
-  },
-  cyan: {
-    accent: "#06b6d4",
-    hover: "#22d3ee",
-    glow: "rgba(6, 182, 212, 0.35)",
-    subtle: "rgba(6, 182, 212, 0.15)",
-  },
+export interface SystemAccentColorDef {
+  light: string;
+  dark: string;
+  label: string;
+}
+
+export const SYSTEM_ACCENT_COLORS: Record<AccentPreset, SystemAccentColorDef> = {
+  blue: { light: "#007AFF", dark: "#0A84FF", label: "Blue" },
+  red: { light: "#FF3B30", dark: "#FF453A", label: "Red" },
+  green: { light: "#34C759", dark: "#30D158", label: "Green" },
+  orange: { light: "#FF9500", dark: "#FF9F0A", label: "Orange" },
+  yellow: { light: "#FFCC00", dark: "#FFD60A", label: "Yellow" },
+  pink: { light: "#FF2D55", dark: "#FF375F", label: "Pink" },
+  purple: { light: "#5856D6", dark: "#BF5AF2", label: "Purple" },
+  indigo: { light: "#5856D6", dark: "#5E5CE6", label: "Indigo" },
+  teal: { light: "#30B0C7", dark: "#40C8E0", label: "Teal" },
+  mint: { light: "#00C7BE", dark: "#63E6E2", label: "Mint" },
+  cyan: { light: "#32ADE6", dark: "#64D2FF", label: "Cyan" },
 };
+
+export interface AccentTokenPalette {
+  accent: string;
+  hover: string;
+  glow: string;
+  subtle: string;
+}
+
+export function computeAccentTokens(hex: string, isLight = false): AccentTokenPalette {
+  const clean = hex.trim().replace("#", "");
+  let r = 10;
+  let g = 132;
+  let b = 255;
+  if (clean.length === 3) {
+    r = parseInt(clean[0] + clean[0], 16) || 0;
+    g = parseInt(clean[1] + clean[1], 16) || 0;
+    b = parseInt(clean[2] + clean[2], 16) || 0;
+  } else if (clean.length === 6) {
+    r = parseInt(clean.slice(0, 2), 16) || 0;
+    g = parseInt(clean.slice(2, 4), 16) || 0;
+    b = parseInt(clean.slice(4, 6), 16) || 0;
+  }
+
+  let hover: string;
+  if (isLight) {
+    const hr = Math.max(0, Math.round(r * 0.88));
+    const hg = Math.max(0, Math.round(g * 0.88));
+    const hb = Math.max(0, Math.round(b * 0.88));
+    hover = `rgb(${hr}, ${hg}, ${hb})`;
+  } else {
+    const hr = Math.min(255, Math.round(r + (255 - r) * 0.15));
+    const hg = Math.min(255, Math.round(g + (255 - g) * 0.15));
+    const hb = Math.min(255, Math.round(b + (255 - b) * 0.15));
+    hover = `rgb(${hr}, ${hg}, ${hb})`;
+  }
+
+  const hexFormat = `#${clean.length === 6 ? clean : `${clean}${clean}`.slice(0, 6)}`;
+  return {
+    accent: hexFormat,
+    hover,
+    glow: `rgba(${r}, ${g}, ${b}, 0.35)`,
+    subtle: `rgba(${r}, ${g}, ${b}, 0.15)`,
+  };
+}
+
+export const deriveCustomPalette = (hex: string, isLight = false): AccentTokenPalette =>
+  computeAccentTokens(hex, isLight);
+
+export const ACCENT_PALETTES: Record<AccentPreset, AccentTokenPalette> = Object.fromEntries(
+  Object.keys(SYSTEM_ACCENT_COLORS).map((key) => {
+    const preset = key as AccentPreset;
+    return [preset, computeAccentTokens(SYSTEM_ACCENT_COLORS[preset].dark, false)];
+  })
+) as Record<AccentPreset, AccentTokenPalette>;
 
 export const defaultSettings: BbqSettings = {
   theme: "system",
-  accent_color: "orange",
+  accent_color: "blue",
   custom_accent_color: null,
   reduced_motion: false,
   island_width: 240,
@@ -77,34 +114,38 @@ export const defaultSettings: BbqSettings = {
   onboarding_completed: false,
 };
 
-export function deriveCustomPalette(hex: string): {
-  accent: string;
-  hover: string;
-  glow: string;
-  subtle: string;
-} {
-  const clean = hex.trim().replace("#", "");
-  let r = 255, g = 107, b = 53;
-  if (clean.length === 3) {
-    r = parseInt(clean[0] + clean[0], 16) || 255;
-    g = parseInt(clean[1] + clean[1], 16) || 107;
-    b = parseInt(clean[2] + clean[2], 16) || 53;
-  } else if (clean.length === 6) {
-    r = parseInt(clean.slice(0, 2), 16) || 255;
-    g = parseInt(clean.slice(2, 4), 16) || 107;
-    b = parseInt(clean.slice(4, 6), 16) || 53;
+export function isEffectiveLight(theme: BbqSettings["theme"]): boolean {
+  if (theme === "light") return true;
+  if (theme === "dark") return false;
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    return window.matchMedia("(prefers-color-scheme: light)").matches;
   }
-  const hoverR = Math.min(255, Math.round(r + (255 - r) * 0.15));
-  const hoverG = Math.min(255, Math.round(g + (255 - g) * 0.15));
-  const hoverB = Math.min(255, Math.round(b + (255 - b) * 0.15));
+  return false;
+}
 
-  const hexFormat = `#${clean.length === 6 ? clean : `${clean}${clean}`.slice(0, 6)}`;
-  return {
-    accent: hexFormat,
-    hover: `rgb(${hoverR}, ${hoverG}, ${hoverB})`,
-    glow: `rgba(${r}, ${g}, ${b}, 0.35)`,
-    subtle: `rgba(${r}, ${g}, ${b}, 0.15)`,
-  };
+export function getAccentPalette(
+  accent: string,
+  theme: BbqSettings["theme"],
+  customHex?: string | null
+): AccentTokenPalette {
+  const isLight = isEffectiveLight(theme);
+  const clean = (accent || "blue").trim().toLowerCase();
+
+  if (clean in SYSTEM_ACCENT_COLORS) {
+    const def = SYSTEM_ACCENT_COLORS[clean as AccentPreset];
+    const hex = isLight ? def.light : def.dark;
+    return computeAccentTokens(hex, isLight);
+  }
+
+  if (clean === "custom" || clean.startsWith("#")) {
+    const hex = clean.startsWith("#") ? clean : customHex || "#0A84FF";
+    return computeAccentTokens(hex, isLight);
+  }
+
+  // Fallback to blue
+  const blueDef = SYSTEM_ACCENT_COLORS.blue;
+  const hex = isLight ? blueDef.light : blueDef.dark;
+  return computeAccentTokens(hex, isLight);
 }
 
 export interface SettingsDomainState {
@@ -135,23 +176,23 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
       settings.reduced_motion ? "true" : "false"
     );
 
-    const accentVal = (settings.accent_color || "orange").trim();
+    const accentVal = (settings.accent_color || "blue").trim();
     const accentLower = accentVal.toLowerCase();
-    let palette: { accent: string; hover: string; glow: string; subtle: string };
 
-    if (accentLower in ACCENT_PALETTES) {
-      palette = ACCENT_PALETTES[accentLower as AccentPreset];
-      document.documentElement.setAttribute("data-accent", accentLower);
-    } else if (accentLower === "custom" && settings.custom_accent_color) {
-      palette = deriveCustomPalette(settings.custom_accent_color);
-      document.documentElement.setAttribute("data-accent", "custom");
-    } else if (accentLower.startsWith("#")) {
-      palette = deriveCustomPalette(accentLower);
-      document.documentElement.setAttribute("data-accent", "custom");
-    } else {
-      palette = ACCENT_PALETTES.orange;
-      document.documentElement.setAttribute("data-accent", "orange");
+    let effectiveAccent = "blue";
+    if (accentLower in SYSTEM_ACCENT_COLORS) {
+      effectiveAccent = accentLower;
+    } else if (accentLower === "custom" || accentLower.startsWith("#")) {
+      effectiveAccent = "custom";
     }
+
+    document.documentElement.setAttribute("data-accent", effectiveAccent);
+
+    const palette = getAccentPalette(
+      settings.accent_color || "blue",
+      settings.theme,
+      settings.custom_accent_color
+    );
 
     if (document.documentElement.style?.setProperty) {
       document.documentElement.style.setProperty("--bbq-accent", palette.accent);

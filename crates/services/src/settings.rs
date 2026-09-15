@@ -95,7 +95,8 @@ impl SettingsServiceTrait for SettingsService {
         if let Ok(Some(ac)) = self.repo.get("accent_color") {
             let trimmed = ac.trim().to_lowercase();
             match trimmed.as_str() {
-                "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" | "custom" => {
+                "blue" | "red" | "green" | "orange" | "yellow" | "pink" | "purple" | "indigo"
+                | "teal" | "mint" | "cyan" | "custom" => {
                     settings.accent_color = trimmed;
                 }
                 _ => {
