@@ -235,10 +235,12 @@ impl SettingsServiceTrait for SettingsService {
 
         self.repo.set("theme", &settings.theme.to_string())?;
         self.repo.set("accent_color", &settings.accent_color)?;
-        self.repo.set(
-            "custom_accent_color",
-            settings.custom_accent_color.as_deref().unwrap_or(""),
-        )?;
+        if let Some(ref custom) = settings.custom_accent_color {
+            let trimmed = custom.trim();
+            if !trimmed.is_empty() && trimmed != "null" {
+                self.repo.set("custom_accent_color", trimmed)?;
+            }
+        }
         self.repo.set(
             "reduced_motion",
             if settings.reduced_motion {

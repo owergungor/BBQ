@@ -306,3 +306,50 @@ fn test_persistence_defensive_reading_and_hardening() {
         .expect("get_settings on malformed int");
     assert_eq!(loaded_num.island_width, 240); // default
 }
+
+#[test]
+fn test_accent_persistence_and_custom_hex_retention() {
+    let db = DatabaseManager::open_in_memory().expect("in-memory db");
+    let service = SettingsService::new(db.settings_repository());
+
+    // Default accent is blue, onboarding_completed is false
+    let initial = service.get_settings().expect("get_settings");
+    assert_eq!(initial.accent_color, "blue");
+    assert_eq!(initial.custom_accent_color, None);
+    assert!(!initial.onboarding_completed);
+
+    // Update to custom #00D4FF and mark onboarding complete
+    let mut s1 = initial.clone();
+    s1.accent_color = "custom".to_string();
+    s1.custom_accent_color = Some("#00D4FF".to_string());
+    s1.onboarding_completed = true;
+    service.update_settings(&s1).expect("update to custom");
+
+    let loaded1 = service.get_settings().expect("get_settings");
+    assert_eq!(loaded1.accent_color, "custom");
+    assert_eq!(loaded1.custom_accent_color.as_deref(), Some("#00D4FF"));
+    assert!(loaded1.onboarding_completed);
+
+    // Switch to preset purple with None as custom_accent_color
+    let mut s2 = loaded1.clone();
+    s2.accent_color = "purple".to_string();
+    s2.custom_accent_color = None;
+    service.update_settings(&s2).expect("update to purple");
+
+    let loaded2 = service.get_settings().expect("get_settings");
+    assert_eq!(loaded2.accent_color, "purple");
+    // Stored custom color must NOT be erased by preset switch
+    assert_eq!(loaded2.custom_accent_color.as_deref(), Some("#00D4FF"));
+    assert!(loaded2.onboarding_completed);
+
+    // Switch back to custom without re-specifying hex
+    let mut s3 = loaded2.clone();
+    s3.accent_color = "custom".to_string();
+    s3.custom_accent_color = None;
+    service.update_settings(&s3).expect("update back to custom");
+
+    let loaded3 = service.get_settings().expect("get_settings");
+    assert_eq!(loaded3.accent_color, "custom");
+    assert_eq!(loaded3.custom_accent_color.as_deref(), Some("#00D4FF"));
+    assert!(loaded3.onboarding_completed);
+}

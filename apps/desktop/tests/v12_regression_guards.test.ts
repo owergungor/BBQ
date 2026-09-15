@@ -1106,6 +1106,268 @@ describe("BBQ v1.2 — Core Stabilization & Regression Guards", () => {
       }
     });
   });
+
+  describe("23. Accent Color Persistence & Startup Welcome Regression Guards", () => {
+    let mockBackendDb: Record<string, any>;
+
+    beforeEach(async () => {
+      const { defaultSettings, LOCAL_STORAGE_SETTINGS_KEY } = await import(
+        "../src/state/settingsState.ts"
+      );
+      const { bbqCommands } = await import("../src/ipc/commands.ts");
+
+      // In-memory mock SQLite backend
+      mockBackendDb = { ...defaultSettings };
+
+      bbqCommands.getSettings = async () => ({ ...mockBackendDb } as any);
+      bbqCommands.updateSettings = async (patch: any) => {
+        mockBackendDb = { ...mockBackendDb, ...patch };
+        if (typeof globalThis.localStorage !== "undefined") {
+          globalThis.localStorage.setItem(
+            LOCAL_STORAGE_SETTINGS_KEY,
+            JSON.stringify(mockBackendDb)
+          );
+        }
+        return true;
+      };
+
+      // In-memory localStorage mock if running in bare Node without window
+      if (!globalThis.localStorage) {
+        const store = new Map<string, string>();
+        // @ts-expect-error Mocking localStorage
+        globalThis.localStorage = {
+          getItem: (key: string) => store.get(key) ?? null,
+          setItem: (key: string, value: string) => {
+            store.set(key, value);
+          },
+          removeItem: (key: string) => {
+            store.delete(key);
+          },
+          clear: () => store.clear(),
+          key: (i: number) => Array.from(store.keys())[i] ?? null,
+          get length() {
+            return store.size;
+          },
+        };
+      }
+      globalThis.localStorage.clear();
+    });
+
+    it("Scenario A: default settings -> accent = blue", async () => {
+      const { defaultSettings } = await import("../src/state/settingsState.ts");
+      assert.equal(defaultSettings.accent_color, "blue");
+      assert.equal(defaultSettings.custom_accent_color, null);
+    });
+
+    it("Scenario B: select red -> save -> reload settings -> accent = red", async () => {
+      const { updateSettingsBatch, initSettingsState, settingsStore } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      await updateSettingsBatch({ accent_color: "red" });
+      assert.equal(mockBackendDb.accent_color, "red");
+
+      // Simulate restart by clearing store and re-initializing from backend
+      settingsStore.setState((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, accent_color: "blue" },
+        isLoaded: false,
+      }));
+      await initSettingsState(true);
+
+      assert.equal(settingsStore.getState().settings.accent_color, "red");
+    });
+
+    it("Scenario C: select custom #00D4FF -> save -> reload settings -> accent = custom & custom hex = #00D4FF", async () => {
+      const { updateSettingsBatch, initSettingsState, settingsStore } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      await updateSettingsBatch({
+        accent_color: "custom",
+        custom_accent_color: "#00D4FF",
+      });
+      assert.equal(mockBackendDb.accent_color, "custom");
+      assert.equal(mockBackendDb.custom_accent_color, "#00D4FF");
+
+      // Simulate restart
+      settingsStore.setState((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, accent_color: "blue", custom_accent_color: null },
+        isLoaded: false,
+      }));
+      await initSettingsState(true);
+
+      const state = settingsStore.getState().settings;
+      assert.equal(state.accent_color, "custom");
+      assert.equal(state.custom_accent_color, "#00D4FF");
+    });
+
+    it("Scenario D: select purple -> save -> reload -> purple remains and custom hex is preserved", async () => {
+      const { updateSettingsBatch, initSettingsState, settingsStore } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      // User first had custom color
+      await updateSettingsBatch({
+        accent_color: "custom",
+        custom_accent_color: "#00D4FF",
+      });
+
+      // User switches to purple preset (custom_accent_color not passed or null)
+      await updateSettingsBatch({ accent_color: "purple" });
+      assert.equal(mockBackendDb.accent_color, "purple");
+      assert.equal(mockBackendDb.custom_accent_color, "#00D4FF");
+
+      // Restart
+      await initSettingsState(true);
+      const state = settingsStore.getState().settings;
+      assert.equal(state.accent_color, "purple");
+      assert.equal(state.custom_accent_color, "#00D4FF");
+    });
+
+    it("Scenario E: completed onboarding -> save accent -> reload -> onboarding_completed remains true", async () => {
+      const { updateSettingsBatch, initSettingsState, settingsStore } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      // User completes onboarding
+      await updateSettingsBatch({ onboarding_completed: true, first_run_completed: true });
+      assert.equal(mockBackendDb.onboarding_completed, true);
+
+      // User subsequently changes accent color
+      await updateSettingsBatch({ accent_color: "green" });
+
+      // Restart
+      settingsStore.setState((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, onboarding_completed: false },
+        isLoaded: false,
+      }));
+      await initSettingsState(true);
+
+      const state = settingsStore.getState().settings;
+      assert.equal(state.onboarding_completed, true, "Onboarding must remain completed after restart");
+      assert.equal(state.accent_color, "green", "Accent color green must be preserved");
+    });
+
+    it("Scenario F: update accent -> unrelated settings remain unchanged", async () => {
+      const { updateSettingsBatch, settingsStore } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      // Set custom width and hotkey
+      await updateSettingsBatch({
+        island_width: 320,
+        island_height: 44,
+        global_hotkey: "Ctrl+Shift+B",
+        theme: "dark",
+      });
+
+      // Update only accent color
+      await updateSettingsBatch({ accent_color: "teal" });
+
+      const state = settingsStore.getState().settings;
+      assert.equal(state.accent_color, "teal");
+      assert.equal(state.island_width, 320, "island_width must not be reset");
+      assert.equal(state.island_height, 44, "island_height must not be reset");
+      assert.equal(state.global_hotkey, "Ctrl+Shift+B", "global_hotkey must not be reset");
+      assert.equal(state.theme, "dark", "theme must not be reset");
+    });
+
+    it("Scenario G: reload settings -> applyThemeAndMotionToDom -> correct data-accent/token values", async () => {
+      const { applyThemeAndMotionToDom } = await import("../src/state/settingsState.ts");
+
+      const mockStyle = new Map<string, string>();
+      const mockAttributes = new Map<string, string>();
+      const mockElement = {
+        style: {
+          setProperty(name: string, value: string) { mockStyle.set(name, value); },
+          getPropertyValue(name: string) { return mockStyle.get(name) || ""; },
+        },
+        setAttribute(name: string, value: string) { mockAttributes.set(name, value); },
+        getAttribute(name: string) { return mockAttributes.get(name) || null; },
+      };
+
+      const originalDoc = globalThis.document;
+      // @ts-expect-error Mocking document
+      globalThis.document = { documentElement: mockElement };
+
+      try {
+        applyThemeAndMotionToDom({
+          ...initialSettingsState.settings,
+          theme: "dark",
+          accent_color: "mint",
+        });
+
+        assert.equal(mockAttributes.get("data-accent"), "mint");
+        assert.equal(mockStyle.get("--bbq-accent"), "#63E6E2");
+        assert.ok(mockStyle.get("--bbq-accent-glow")?.includes("0.35"));
+      } finally {
+        globalThis.document = originalDoc;
+      }
+    });
+
+    it("Scenario H: theme + accent combinations (Dark + Blue -> #0A84FF, Light + Blue -> #007AFF)", async () => {
+      const { getAccentPalette } = await import("../src/state/settingsState.ts");
+
+      const darkBlue = getAccentPalette("blue", "dark");
+      assert.equal(darkBlue.accent, "#0A84FF");
+
+      const lightBlue = getAccentPalette("blue", "light");
+      assert.equal(lightBlue.accent, "#007AFF");
+    });
+
+    it("Scenario I: restart persistence: settings written -> backend reload -> frontend initialization -> same settings", async () => {
+      const { updateSettingsBatch, initSettingsState, settingsStore, LOCAL_STORAGE_SETTINGS_KEY } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      // Write full user configuration
+      await updateSettingsBatch({
+        accent_color: "custom",
+        custom_accent_color: "#00D4FF",
+        theme: "dark",
+        island_width: 300,
+        island_height: 42,
+        global_hotkey: "Ctrl+Alt+Space",
+        onboarding_completed: true,
+        first_run_completed: true,
+      });
+
+      // Verify localStorage was written synchronously
+      const localStr = globalThis.localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
+      assert.ok(localStr, "localStorage must contain saved settings");
+      const localParsed = JSON.parse(localStr);
+      assert.equal(localParsed.accent_color, "custom");
+      assert.equal(localParsed.custom_accent_color, "#00D4FF");
+      assert.equal(localParsed.onboarding_completed, true);
+
+      // Verify backend mock has same settings
+      assert.equal(mockBackendDb.accent_color, "custom");
+      assert.equal(mockBackendDb.custom_accent_color, "#00D4FF");
+      assert.equal(mockBackendDb.onboarding_completed, true);
+
+      // Re-initialize frontend settings state from scratch
+      settingsStore.setState((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, accent_color: "blue", onboarding_completed: false },
+        isLoaded: false,
+      }));
+
+      await initSettingsState(true);
+
+      const finalState = settingsStore.getState();
+      assert.equal(finalState.isLoaded, true);
+      assert.equal(finalState.settings.accent_color, "custom");
+      assert.equal(finalState.settings.custom_accent_color, "#00D4FF");
+      assert.equal(finalState.settings.theme, "dark");
+      assert.equal(finalState.settings.island_width, 300);
+      assert.equal(finalState.settings.island_height, 42);
+      assert.equal(finalState.settings.global_hotkey, "Ctrl+Alt+Space");
+      assert.equal(finalState.settings.onboarding_completed, true);
+    });
+  });
 });
 
 

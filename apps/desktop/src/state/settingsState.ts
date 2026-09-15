@@ -148,15 +148,49 @@ export function getAccentPalette(
   return computeAccentTokens(hex, isLight);
 }
 
+export const LOCAL_STORAGE_SETTINGS_KEY = "bbq_settings";
+
+function getLocalStorage(): Storage | null {
+  if (typeof window !== "undefined" && window.localStorage) {
+    return window.localStorage;
+  }
+  if (typeof globalThis !== "undefined" && (globalThis as any).localStorage) {
+    return (globalThis as any).localStorage;
+  }
+  return null;
+}
+
+function loadCachedSettings(): BbqSettings | null {
+  const storage = getLocalStorage();
+  if (storage) {
+    try {
+      const raw = storage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") {
+          return { ...defaultSettings, ...parsed };
+        }
+      }
+    } catch {
+      // Ignore parse failure
+    }
+  }
+  return null;
+}
+
+const cachedSettings = loadCachedSettings();
+
 export interface SettingsDomainState {
   settings: BbqSettings;
   isLoading: boolean;
+  isLoaded: boolean;
   error: string | null;
 }
 
 export const initialSettingsState: SettingsDomainState = {
-  settings: defaultSettings,
-  isLoading: false,
+  settings: cachedSettings || defaultSettings,
+  isLoading: cachedSettings === null,
+  isLoaded: cachedSettings !== null,
   error: null,
 };
 
@@ -220,38 +254,115 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
   }
 }
 
-let isInitialized = false;
+// Immediate token injection at module load time to guarantee zero flash
+if (typeof document !== "undefined" && document.documentElement) {
+  applyThemeAndMotionToDom(initialSettingsState.settings);
+}
 
-export async function initSettingsState(): Promise<void> {
-  if (isInitialized) return;
-  isInitialized = true;
+let initPromise: Promise<void> | null = null;
 
-  try {
-    settingsStore.setState({ isLoading: true, error: null });
-    const loaded = await bbqCommands.getSettings();
-    if (loaded) {
-      settingsStore.setState({ settings: loaded, isLoading: false });
-      applyThemeAndMotionToDom(loaded);
-    } else {
-      settingsStore.setState({ isLoading: false });
+export function initSettingsState(force = false): Promise<void> {
+  if (initPromise && !force) return initPromise;
+
+  initPromise = (async () => {
+    try {
+      settingsStore.setState({ isLoading: true, error: null });
+      const loaded = await bbqCommands.getSettings();
+      if (loaded) {
+        const current = settingsStore.getState().settings;
+        const merged: BbqSettings = {
+          ...defaultSettings,
+          ...loaded,
+          custom_accent_color:
+            loaded.custom_accent_color || current.custom_accent_color || null,
+        };
+
+        settingsStore.setState({
+          settings: merged,
+          isLoading: false,
+          isLoaded: true,
+        });
+
+        applyThemeAndMotionToDom(merged);
+
+        const storage = getLocalStorage();
+        if (storage) {
+          try {
+            storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(merged));
+          } catch {
+            // Ignore storage failure
+          }
+        }
+      } else {
+        settingsStore.setState({ isLoading: false, isLoaded: true });
+      }
+    } catch (err) {
+      settingsStore.setState({
+        isLoading: false,
+        isLoaded: true,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
-  } catch (err) {
-    settingsStore.setState({
-      isLoading: false,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
 
-  // Subscribe to reactive updates from backend
-  await subscribeToSettingsChanged((updatedSettings) => {
-    settingsStore.setState({ settings: updatedSettings });
-    applyThemeAndMotionToDom(updatedSettings);
-  });
+    // Subscribe to reactive updates from backend
+    try {
+      await subscribeToSettingsChanged((updatedSettings) => {
+        const current = settingsStore.getState().settings;
+        const merged: BbqSettings = {
+          ...defaultSettings,
+          ...updatedSettings,
+          custom_accent_color:
+            updatedSettings.custom_accent_color || current.custom_accent_color || null,
+        };
+        settingsStore.setState({ settings: merged });
+        applyThemeAndMotionToDom(merged);
+        const storage = getLocalStorage();
+        if (storage) {
+          try {
+            storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(merged));
+          } catch {
+            // Ignore
+          }
+        }
+      });
+    } catch {
+      // Safe outside Tauri runtime
+    }
+  })();
+
+  return initPromise;
+}
+
+// Auto-trigger initialization on module import if running in browser
+if (typeof window !== "undefined") {
+  initSettingsState();
 }
 
 export async function updateSetting(key: string, value: string): Promise<boolean> {
+  if (initPromise) {
+    try {
+      await initPromise;
+    } catch {
+      // Continue
+    }
+  }
+
   try {
     const success = await bbqCommands.updateSetting(key, value);
+    if (success && key === "accent_color") {
+      const current = settingsStore.getState().settings;
+      const nextSettings = { ...current, accent_color: value };
+      settingsStore.setState({ settings: nextSettings });
+      applyThemeAndMotionToDom(nextSettings);
+      const storage = getLocalStorage();
+      if (storage) {
+        try {
+          storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(nextSettings));
+        } catch {
+          // Ignore
+        }
+      }
+    }
     return success;
   } catch (err) {
     settingsStore.setState({
@@ -262,10 +373,35 @@ export async function updateSetting(key: string, value: string): Promise<boolean
 }
 
 export async function updateSettingsBatch(patch: Partial<BbqSettings>): Promise<boolean> {
+  // Ensure we wait for any initial backend fetch to avoid overwriting stored settings with defaults!
+  if (initPromise) {
+    try {
+      await initPromise;
+    } catch {
+      // Continue
+    }
+  }
+
   const current = settingsStore.getState().settings;
   const nextSettings: BbqSettings = { ...current, ...patch };
+
+  // Preserve existing custom color if switching to a preset so user doesn't lose their custom hex
+  if (patch.accent_color && patch.accent_color !== "custom" && !patch.custom_accent_color) {
+    nextSettings.custom_accent_color = current.custom_accent_color;
+  }
+
   settingsStore.setState({ settings: nextSettings });
   applyThemeAndMotionToDom(nextSettings);
+
+  const storage = getLocalStorage();
+  if (storage) {
+    try {
+      storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(nextSettings));
+    } catch {
+      // Ignore
+    }
+  }
+
   try {
     const success = await bbqCommands.updateSettings(nextSettings);
     return success;
@@ -283,6 +419,14 @@ export async function resetSettingsToDefaults(): Promise<boolean> {
     if (defaults) {
       settingsStore.setState({ settings: defaults });
       applyThemeAndMotionToDom(defaults);
+      const storage = getLocalStorage();
+      if (storage) {
+        try {
+          storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(defaults));
+        } catch {
+          // Ignore
+        }
+      }
       return true;
     }
     return false;
