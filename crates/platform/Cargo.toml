@@ -16,7 +16,6 @@ tracing = { workspace = true }
 windows = { version = "0.61", features = [
     "Media_Control",
     "Foundation",
-    "Storage_Streams",
     "System_Power",
     "Networking_Connectivity",
     "Win32_Foundation",

@@ -1254,11 +1254,48 @@ impl PlatformFile for WindowsFile {
     }
 
     async fn open(&self, path: &str) -> BbqResult<()> {
-        std::process::Command::new("rundll32.exe")
-            .args(["url.dll,FileProtocolHandler", path])
-            .spawn()
-            .map_err(|e| BbqError::Platform(format!("Failed to spawn open command: {}", e)))?;
-        Ok(())
+        #[cfg(windows)]
+        {
+            use std::os::windows::ffi::OsStrExt;
+            use windows::core::PCWSTR;
+            use windows::Win32::UI::Shell::ShellExecuteW;
+            use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+
+            let wide_path: Vec<u16> = std::ffi::OsStr::new(path)
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect();
+            let wide_op: Vec<u16> = std::ffi::OsStr::new("open")
+                .encode_wide()
+                .chain(std::iter::once(0))
+                .collect();
+
+            let res = unsafe {
+                ShellExecuteW(
+                    None,
+                    PCWSTR(wide_op.as_ptr()),
+                    PCWSTR(wide_path.as_ptr()),
+                    PCWSTR::null(),
+                    PCWSTR::null(),
+                    SW_SHOWNORMAL,
+                )
+            };
+
+            if (res.0 as isize) <= 32 {
+                return Err(BbqError::Platform(format!(
+                    "ShellExecuteW failed to open file '{}' (code: {})",
+                    path, res.0 as isize
+                )));
+            }
+            Ok(())
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = path;
+            Err(BbqError::Platform(
+                "WindowsFileOperations not supported on non-windows".to_string(),
+            ))
+        }
     }
 
     async fn reveal(&self, path: &str) -> BbqResult<()> {
