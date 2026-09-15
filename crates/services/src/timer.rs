@@ -25,6 +25,7 @@ pub trait TimerServiceTrait: Service {
     async fn resume(&self) -> BbqResult<TimerSession>;
     async fn reset(&self) -> BbqResult<TimerSession>;
     async fn cancel(&self) -> BbqResult<TimerSession>;
+    async fn set_mode(&self, mode: TimerMode, duration_ms: Option<u64>) -> BbqResult<TimerSession>;
     async fn subscribe_events(&self, sink: EventSink) -> BbqResult<()>;
 }
 
@@ -645,6 +646,51 @@ impl TimerServiceTrait for TimerService {
         Ok(snapshot)
     }
 
+    async fn set_mode(&self, mode: TimerMode, duration_ms: Option<u64>) -> BbqResult<TimerSession> {
+        let mut guard = self.inner.write().await;
+        self.cancel_active_wake_up(&mut guard);
+
+        guard.accumulated_stopwatch_ms = 0;
+
+        let (duration, phase) = match mode {
+            TimerMode::Countdown => (duration_ms.unwrap_or(5 * 60 * 1000), None),
+            TimerMode::Stopwatch => (0, None),
+            TimerMode::Pomodoro => (POMODORO_WORK_MS, Some(PomodoroPhase::Work)),
+        };
+
+        if mode == TimerMode::Pomodoro {
+            guard.pomodoro_work_count = 1;
+        }
+
+        guard.session = TimerSession {
+            id: self.next_session_id(),
+            mode,
+            state: TimerState::Idle,
+            started_at: None,
+            paused_at: None,
+            target_at: None,
+            duration_ms: if mode == TimerMode::Stopwatch {
+                None
+            } else {
+                Some(duration)
+            },
+            remaining_ms: Some(duration),
+            pomodoro_phase: phase,
+            completed_cycles: guard.session.completed_cycles,
+        };
+
+        let snapshot = guard.session.clone();
+        drop(guard);
+
+        self.dispatch_events(vec![
+            BbqEvent::TimerReset(snapshot.clone()),
+            BbqEvent::TimerChanged(snapshot.clone()),
+        ])
+        .await;
+
+        Ok(snapshot)
+    }
+
     async fn subscribe_events(&self, sink: EventSink) -> BbqResult<()> {
         let mut sinks = self.event_sinks.write().await;
         sinks.push(sink);
@@ -886,5 +932,50 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err_too_large, BbqError::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn test_mode_switching_remains_idle_and_never_auto_starts() {
+        let (service, _) = create_mock_timer_service(1000);
+
+        // Start a countdown running
+        let running_session = service
+            .start_countdown(60_000)
+            .await
+            .expect("Start countdown");
+        assert_eq!(running_session.state, TimerState::Running);
+        assert_eq!(running_session.mode, TimerMode::Countdown);
+
+        // Switch to Stopwatch via set_mode
+        let stopwatch_session = service
+            .set_mode(TimerMode::Stopwatch, None)
+            .await
+            .expect("Switch to stopwatch");
+        assert_eq!(stopwatch_session.mode, TimerMode::Stopwatch);
+        assert_eq!(stopwatch_session.state, TimerState::Idle);
+        assert_eq!(stopwatch_session.started_at, None);
+        assert_eq!(stopwatch_session.remaining_ms, Some(0));
+
+        // Switch to Pomodoro via set_mode
+        let pomodoro_session = service
+            .set_mode(TimerMode::Pomodoro, None)
+            .await
+            .expect("Switch to pomodoro");
+        assert_eq!(pomodoro_session.mode, TimerMode::Pomodoro);
+        assert_eq!(pomodoro_session.state, TimerState::Idle);
+        assert_eq!(pomodoro_session.started_at, None);
+        assert_eq!(pomodoro_session.pomodoro_phase, Some(PomodoroPhase::Work));
+        assert_eq!(pomodoro_session.remaining_ms, Some(POMODORO_WORK_MS));
+
+        // Switch back to Countdown via set_mode with custom duration
+        let countdown_session = service
+            .set_mode(TimerMode::Countdown, Some(120_000))
+            .await
+            .expect("Switch to countdown");
+        assert_eq!(countdown_session.mode, TimerMode::Countdown);
+        assert_eq!(countdown_session.state, TimerState::Idle);
+        assert_eq!(countdown_session.started_at, None);
+        assert_eq!(countdown_session.duration_ms, Some(120_000));
+        assert_eq!(countdown_session.remaining_ms, Some(120_000));
     }
 }

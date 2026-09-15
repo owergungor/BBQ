@@ -94,20 +94,31 @@ export const TimerWidget: React.FC = () => {
     };
   }, [session.state, session.started_at, session.target_at, getDisplayMs]);
 
-  // Handlers for mode switching
+  // Handlers for mode switching - always opens in Idle/Paused state without auto-starting
   const handleSelectMode = useCallback(async (mode: TimerMode, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (mode === session.mode) return;
-    let res: TimerSession | null = null;
-    if (mode === "Countdown") {
-      res = await bbqCommands.timerStartCountdown(selectedDurationMs);
-    } else if (mode === "Stopwatch") {
-      res = await bbqCommands.timerStartStopwatch();
-    } else if (mode === "Pomodoro") {
-      res = await bbqCommands.timerStartPomodoro();
+    const res = await bbqCommands.timerSetMode(mode, selectedDurationMs);
+    if (res) {
+      setTimerSession(res);
+    } else {
+      // Fallback for browser / simulated test environment
+      const duration =
+        mode === "Stopwatch" ? null : mode === "Pomodoro" ? 25 * 60 * 1000 : selectedDurationMs;
+      setTimerSession({
+        id: `timer_${Date.now()}`,
+        mode,
+        state: "Idle",
+        started_at: null,
+        paused_at: null,
+        target_at: null,
+        duration_ms: duration,
+        remaining_ms: mode === "Stopwatch" ? 0 : duration,
+        pomodoro_phase: mode === "Pomodoro" ? "Work" : null,
+        completed_cycles: session.completed_cycles,
+      });
     }
-    if (res) setTimerSession(res);
-  }, [session.mode, selectedDurationMs]);
+  }, [session.mode, session.completed_cycles, selectedDurationMs]);
 
   // Controls
   const handleStart = useCallback(async (e?: React.MouseEvent) => {

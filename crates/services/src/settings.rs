@@ -92,6 +92,15 @@ impl SettingsServiceTrait for SettingsService {
                 settings.theme = theme;
             }
         }
+        if let Ok(Some(ac)) = self.repo.get("accent_color") {
+            let trimmed = ac.trim().to_lowercase();
+            match trimmed.as_str() {
+                "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" => {
+                    settings.accent_color = trimmed;
+                }
+                _ => {}
+            }
+        }
         if let Ok(Some(rm)) = self.repo.get("reduced_motion") {
             settings.reduced_motion = rm == "true";
         }
@@ -214,6 +223,7 @@ impl SettingsServiceTrait for SettingsService {
         }
 
         self.repo.set("theme", &settings.theme.to_string())?;
+        self.repo.set("accent_color", &settings.accent_color)?;
         self.repo.set(
             "reduced_motion",
             if settings.reduced_motion {

@@ -50,10 +50,16 @@ impl std::str::FromStr for ThemePreference {
     }
 }
 
+fn default_accent_color() -> String {
+    "orange".to_string()
+}
+
 /// Strongly typed, persistent user preferences for BBQ
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BbqSettings {
     pub theme: ThemePreference,
+    #[serde(default = "default_accent_color")]
+    pub accent_color: String,
     pub reduced_motion: bool,
     pub island_width: u32,
     pub island_height: u32,
@@ -83,6 +89,7 @@ impl Default for BbqSettings {
 
         Self {
             theme: ThemePreference::System,
+            accent_color: "orange".to_string(),
             reduced_motion: false,
             island_width: 240,
             island_height: 38,
@@ -108,6 +115,17 @@ impl Default for BbqSettings {
 impl BbqSettings {
     /// Validates all fields against domain boundary limits
     pub fn validate(&self) -> BbqResult<()> {
+        let accent_lower = self.accent_color.trim().to_lowercase();
+        match accent_lower.as_str() {
+            "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" => {}
+            _ => {
+                return Err(BbqError::Validation(format!(
+                    "Invalid accent_color '{}'. Supported: orange, blue, purple, green, red, pink, cyan",
+                    self.accent_color
+                )))
+            }
+        }
+
         if !(MIN_ISLAND_WIDTH..=MAX_ISLAND_WIDTH).contains(&self.island_width) {
             return Err(BbqError::Validation(format!(
                 "island_width {} out of bounds [{}, {}]",
@@ -176,6 +194,18 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
     match key {
         "theme" => {
             let _: ThemePreference = value.parse()?;
+        }
+        "accent_color" => {
+            let lower = value.trim().to_lowercase();
+            match lower.as_str() {
+                "orange" | "blue" | "purple" | "green" | "red" | "pink" | "cyan" => {}
+                _ => {
+                    return Err(BbqError::Validation(format!(
+                        "Invalid accent_color '{}'. Supported: orange, blue, purple, green, red, pink, cyan",
+                        value
+                    )));
+                }
+            }
         }
         "reduced_motion"
         | "auto_expand_on_event"

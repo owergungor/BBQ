@@ -314,3 +314,76 @@ describe("Bounded Display Scheduling & Cleanup", () => {
     assert.equal(timeoutId, null);
   });
 });
+
+describe("Timer Mode Switching & Idle Guarantee", () => {
+  it("initializes switched mode in Idle state without auto-running", () => {
+    // Mode switch to countdown
+    const countdownSession: TimerSession = {
+      id: "timer-cd",
+      mode: "Countdown",
+      state: "Idle",
+      started_at: null,
+      paused_at: null,
+      target_at: null,
+      duration_ms: 300000,
+      remaining_ms: 300000,
+      pomodoro_phase: null,
+      completed_cycles: 0,
+    };
+    setTimerSession(countdownSession);
+    assert.equal(timerStore.getState().session.state, "Idle");
+    assert.equal(timerStore.getState().session.mode, "Countdown");
+
+    // Mode switch to stopwatch
+    const stopwatchSession: TimerSession = {
+      id: "timer-sw",
+      mode: "Stopwatch",
+      state: "Idle",
+      started_at: null,
+      paused_at: null,
+      target_at: null,
+      duration_ms: null,
+      remaining_ms: null,
+      pomodoro_phase: null,
+      completed_cycles: 0,
+    };
+    setTimerSession(stopwatchSession);
+    assert.equal(timerStore.getState().session.state, "Idle");
+    assert.equal(timerStore.getState().session.mode, "Stopwatch");
+
+    // Mode switch to pomodoro
+    const pomodoroSession: TimerSession = {
+      id: "timer-pm",
+      mode: "Pomodoro",
+      state: "Idle",
+      started_at: null,
+      paused_at: null,
+      target_at: null,
+      duration_ms: 25 * 60 * 1000,
+      remaining_ms: 25 * 60 * 1000,
+      pomodoro_phase: "Work",
+      completed_cycles: 0,
+    };
+    setTimerSession(pomodoroSession);
+    assert.equal(timerStore.getState().session.state, "Idle");
+    assert.equal(timerStore.getState().session.mode, "Pomodoro");
+  });
+
+  it("only transitions to Running when explicitly started", () => {
+    const startedSession: TimerSession = {
+      id: "timer-started",
+      mode: "Countdown",
+      state: "Running",
+      started_at: Date.now(),
+      paused_at: null,
+      target_at: Date.now() + 300000,
+      duration_ms: 300000,
+      remaining_ms: 300000,
+      pomodoro_phase: null,
+      completed_cycles: 0,
+    };
+    setTimerSession(startedSession);
+    assert.equal(timerStore.getState().session.state, "Running");
+  });
+});
+

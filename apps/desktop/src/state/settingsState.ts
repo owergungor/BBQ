@@ -1,10 +1,59 @@
 import { createDomainStore } from "./createStore.ts";
-import type { BbqSettings } from "@bbq/types";
+import type { BbqSettings, AccentColor } from "@bbq/types";
 import { bbqCommands } from "../ipc/commands.ts";
 import { subscribeToSettingsChanged } from "../ipc/events.ts";
 
+export const ACCENT_PALETTES: Record<
+  AccentColor,
+  { accent: string; hover: string; glow: string; subtle: string }
+> = {
+  orange: {
+    accent: "#ff6b35",
+    hover: "#ff7d4d",
+    glow: "rgba(255, 107, 53, 0.35)",
+    subtle: "rgba(255, 107, 53, 0.15)",
+  },
+  blue: {
+    accent: "#3b82f6",
+    hover: "#60a5fa",
+    glow: "rgba(59, 130, 246, 0.35)",
+    subtle: "rgba(59, 130, 246, 0.15)",
+  },
+  purple: {
+    accent: "#a855f7",
+    hover: "#c084fc",
+    glow: "rgba(168, 85, 247, 0.35)",
+    subtle: "rgba(168, 85, 247, 0.15)",
+  },
+  green: {
+    accent: "#10b981",
+    hover: "#34d399",
+    glow: "rgba(16, 185, 129, 0.35)",
+    subtle: "rgba(16, 185, 129, 0.15)",
+  },
+  red: {
+    accent: "#ef4444",
+    hover: "#f87171",
+    glow: "rgba(239, 68, 68, 0.35)",
+    subtle: "rgba(239, 68, 68, 0.15)",
+  },
+  pink: {
+    accent: "#ec4899",
+    hover: "#f472b6",
+    glow: "rgba(236, 72, 153, 0.35)",
+    subtle: "rgba(236, 72, 153, 0.15)",
+  },
+  cyan: {
+    accent: "#06b6d4",
+    hover: "#22d3ee",
+    glow: "rgba(6, 182, 212, 0.35)",
+    subtle: "rgba(6, 182, 212, 0.15)",
+  },
+};
+
 export const defaultSettings: BbqSettings = {
   theme: "system",
+  accent_color: "orange",
   reduced_motion: false,
   island_width: 240,
   island_height: 38,
@@ -42,7 +91,7 @@ export const settingsStore = createDomainStore<SettingsDomainState>(initialSetti
 export const useSettingsState = settingsStore.useStore;
 
 /**
- * Directly injects theme and reduced-motion dataset attributes on document.documentElement
+ * Directly injects theme, accent color, and reduced-motion dataset attributes on document.documentElement
  * ensuring zero-JS CSS variable theming and hardware-accelerated transitions.
  */
 export function applyThemeAndMotionToDom(settings: BbqSettings): void {
@@ -52,7 +101,21 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
       "data-reduced-motion",
       settings.reduced_motion ? "true" : "false"
     );
+
+    const accentName = (settings.accent_color || "orange").toLowerCase() as AccentColor;
+    const palette = ACCENT_PALETTES[accentName] || ACCENT_PALETTES.orange;
+    document.documentElement.setAttribute("data-accent", accentName);
+
     if (document.documentElement.style?.setProperty) {
+      document.documentElement.style.setProperty("--bbq-accent", palette.accent);
+      document.documentElement.style.setProperty("--bbq-accent-hover", palette.hover);
+      document.documentElement.style.setProperty("--bbq-accent-glow", palette.glow);
+      document.documentElement.style.setProperty("--bbq-accent-subtle", palette.subtle);
+      document.documentElement.style.setProperty("--accent", palette.accent);
+      document.documentElement.style.setProperty("--accent-glow", palette.glow);
+      document.documentElement.style.setProperty("--accent-hover", palette.hover);
+      document.documentElement.style.setProperty("--accent-subtle", palette.subtle);
+
       if (settings.island_width) {
         document.documentElement.style.setProperty(
           "--bbq-compact-width",

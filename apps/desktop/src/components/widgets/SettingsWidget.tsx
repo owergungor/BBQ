@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   useSettingsState,
   updateSettingsBatch,
@@ -10,7 +10,17 @@ import {
   resolveEffectiveIndicatorOrder,
 } from "../../island/compactOrder.ts";
 import { useHotkeyState } from "../../state/hotkeyState.ts";
-import type { ThemePreference } from "@bbq/types";
+import type { ThemePreference, AccentColor } from "@bbq/types";
+
+const ACCENT_COLOR_OPTIONS: { id: AccentColor; label: string; preview: string }[] = [
+  { id: "orange", label: "Orange", preview: "#f97316" },
+  { id: "blue", label: "Blue", preview: "#3b82f6" },
+  { id: "purple", label: "Purple", preview: "#a855f7" },
+  { id: "green", label: "Green", preview: "#22c55e" },
+  { id: "red", label: "Red", preview: "#ef4444" },
+  { id: "pink", label: "Pink", preview: "#ec4899" },
+  { id: "cyan", label: "Cyan", preview: "#06b6d4" },
+];
 
 type SettingsTab = "appearance" | "island" | "hotkey" | "privacy" | "notifications" | "widgets" | "about";
 
@@ -57,6 +67,11 @@ export const SettingsWidget: React.FC = () => {
   const handleThemeChange = async (theme: ThemePreference) => {
     await updateSettingsBatch({ theme });
     showStatus(`Theme set to ${theme}`);
+  };
+
+  const handleAccentColorChange = async (accentColor: AccentColor) => {
+    await updateSettingsBatch({ accent_color: accentColor });
+    showStatus(`Accent color set to ${accentColor}`);
   };
 
   const handleToggle = async (key: keyof typeof settings, value: boolean) => {
@@ -121,13 +136,76 @@ export const SettingsWidget: React.FC = () => {
     }
   };
 
+  const hotkeyInputRef = useRef<HTMLInputElement>(null);
+
   const handleCancelHotkey = () => {
     setDraftHotkey(settings.global_hotkey);
     setHotkeyError(null);
     setIsRecordingHotkey(false);
   };
 
+  useEffect(() => {
+    if (!isRecordingHotkey) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.key === "Escape") {
+        setIsRecordingHotkey(false);
+        setDraftHotkey(settings.global_hotkey);
+        setHotkeyError(null);
+        return;
+      }
+
+      const modifiers: string[] = [];
+      if (e.ctrlKey) modifiers.push("Ctrl");
+      if (e.altKey) modifiers.push("Alt");
+      if (e.shiftKey) modifiers.push("Shift");
+      if (e.metaKey) modifiers.push("Win");
+
+      const isModifierOnly = ["Control", "Alt", "Shift", "Meta"].includes(e.key);
+      if (isModifierOnly) {
+        if (modifiers.length > 0) {
+          setDraftHotkey(modifiers.join("+") + "+");
+        }
+        return;
+      }
+
+      let key = e.key;
+      if (e.code === "Space" || key === " " || key.toLowerCase() === "space") {
+        key = "Space";
+      } else if (e.code.startsWith("Key") && e.code.length === 4) {
+        key = e.code.slice(3).toUpperCase();
+      } else if (e.code.startsWith("Digit") && e.code.length === 6) {
+        key = e.code.slice(5);
+      } else if (/^F\d{1,2}$/i.test(key)) {
+        key = key.toUpperCase();
+      } else if (key.length === 1) {
+        key = key.toUpperCase();
+      }
+
+      if (modifiers.length === 0) {
+        setHotkeyError("Shortcut must include at least one modifier key (Ctrl, Alt, Shift, or Win)");
+        return;
+      }
+
+      const combo = [...modifiers, key].join("+");
+      setDraftHotkey(combo);
+      setIsRecordingHotkey(false);
+      setHotkeyError(null);
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown, true);
+    };
+  }, [isRecordingHotkey, settings.global_hotkey]);
+
   const handleHotkeyKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isRecordingHotkey) {
+      return;
+    }
     if (e.key === "Enter") {
       e.preventDefault();
       handleSaveHotkey();
@@ -137,36 +215,6 @@ export const SettingsWidget: React.FC = () => {
       e.preventDefault();
       handleCancelHotkey();
       return;
-    }
-    if (isRecordingHotkey) {
-      e.preventDefault();
-      e.stopPropagation();
-      const modifiers: string[] = [];
-      if (e.ctrlKey) modifiers.push("Ctrl");
-      if (e.altKey) modifiers.push("Alt");
-      if (e.shiftKey) modifiers.push("Shift");
-      if (e.metaKey) modifiers.push("Win");
-
-      let key = e.key;
-      if (["Control", "Alt", "Shift", "Meta"].includes(key)) {
-        if (modifiers.length > 0) {
-          setDraftHotkey(modifiers.join("+") + "+");
-        }
-        return;
-      }
-
-      if (key === " ") key = "Space";
-      else if (key.length === 1) key = key.toUpperCase();
-
-      if (modifiers.length === 0) {
-        setHotkeyError("Please hold down a modifier (Ctrl, Alt, Shift, or Win)");
-        return;
-      }
-
-      const combo = [...modifiers, key].join("+");
-      setDraftHotkey(combo);
-      setIsRecordingHotkey(false);
-      setHotkeyError(null);
     }
   };
 
@@ -342,6 +390,65 @@ export const SettingsWidget: React.FC = () => {
               </div>
             </div>
 
+            <div>
+              <label style={{ display: "block", marginBottom: "6px", fontWeight: 500 }}>
+                Accent Color
+              </label>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                }}
+                role="radiogroup"
+                aria-label="Accent color selection"
+              >
+                {ACCENT_COLOR_OPTIONS.map((opt) => {
+                  const isSelected = (settings.accent_color || "orange") === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      id={`accent-color-${opt.id}`}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => handleAccentColorChange(opt.id)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "6px 12px",
+                        borderRadius: "6px",
+                        border: isSelected
+                          ? "2px solid var(--bbq-accent)"
+                          : "1px solid var(--bbq-border)",
+                        background: isSelected
+                          ? "var(--bbq-accent-subtle)"
+                          : "var(--bbq-surface-elevated)",
+                        color: "var(--bbq-text)",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        fontWeight: isSelected ? 600 : 400,
+                        transition: "all 120ms ease",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "12px",
+                          height: "12px",
+                          borderRadius: "50%",
+                          background: opt.preview,
+                          display: "inline-block",
+                          boxShadow: isSelected ? `0 0 6px ${opt.preview}` : "none",
+                        }}
+                      />
+                      <span>{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
               <div>
                 <label htmlFor="reduced-motion-toggle" style={{ fontWeight: 500, display: "block" }}>
@@ -509,13 +616,14 @@ export const SettingsWidget: React.FC = () => {
 
               <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                 <input
+                  ref={hotkeyInputRef}
                   id="global-hotkey-input"
                   type="text"
                   value={
                     isRecordingHotkey
                       ? draftHotkey
                         ? `${draftHotkey}...`
-                        : "Press shortcut keys..."
+                        : "Press key combination..."
                       : draftHotkey
                   }
                   onChange={(e) => {
@@ -525,16 +633,16 @@ export const SettingsWidget: React.FC = () => {
                     }
                   }}
                   onKeyDown={handleHotkeyKeyDown}
-                  placeholder={isRecordingHotkey ? "Press key combination..." : "e.g. Ctrl+Space"}
+                  placeholder={isRecordingHotkey ? "Press key combination..." : "e.g. Ctrl+Shift+B"}
                   style={{
                     flex: 1,
                     padding: "8px 10px",
                     borderRadius: "6px",
                     border: isRecordingHotkey
-                      ? "1px solid var(--bbq-accent, #60a5fa)"
+                      ? "1px solid var(--bbq-accent)"
                       : "1px solid var(--bbq-border)",
                     background: isRecordingHotkey
-                      ? "rgba(96, 165, 250, 0.12)"
+                      ? "var(--bbq-accent-subtle, rgba(255, 107, 53, 0.15))"
                       : "var(--bbq-surface)",
                     color: "var(--bbq-text)",
                     fontSize: "13px",
@@ -546,15 +654,22 @@ export const SettingsWidget: React.FC = () => {
                   type="button"
                   id="record-hotkey-btn"
                   onClick={() => {
-                    setIsRecordingHotkey(!isRecordingHotkey);
-                    setHotkeyError(null);
+                    if (!isRecordingHotkey) {
+                      setDraftHotkey("");
+                      setIsRecordingHotkey(true);
+                      setHotkeyError(null);
+                      setTimeout(() => hotkeyInputRef.current?.focus(), 50);
+                    } else {
+                      setIsRecordingHotkey(false);
+                      setDraftHotkey(settings.global_hotkey);
+                    }
                   }}
                   style={{
                     padding: "8px 12px",
                     borderRadius: "6px",
                     border: "1px solid var(--bbq-border)",
                     background: isRecordingHotkey
-                      ? "var(--bbq-accent, #3b82f6)"
+                      ? "var(--bbq-accent)"
                       : "rgba(255, 255, 255, 0.06)",
                     color: isRecordingHotkey ? "#fff" : "var(--bbq-text)",
                     fontSize: "12px",

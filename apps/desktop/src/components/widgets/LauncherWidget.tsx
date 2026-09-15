@@ -15,6 +15,7 @@ interface LauncherWidgetProps {
 }
 
 const EXCLUDED_LAUNCHER_ITEM_IDS = new Set([
+  "bbq_media",
   "bbq_clipboard",
   "bbq_timer",
   "bbq_reminders",
@@ -217,6 +218,47 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
     );
   };
 
+  const renderGridCard = (item: LauncherItem, idx: number) => {
+    const isSelected = idx === selectedIndex;
+    const itemDomId = `launcher-item-${item.id}`;
+
+    return (
+      <div
+        key={item.id}
+        id={itemDomId}
+        role="option"
+        aria-selected={isSelected}
+        className={`bbq-launcher-grid-card ${isSelected ? "active" : ""}`}
+        onClick={() => handleExecute(item)}
+        onMouseEnter={() => setSelectedIndex(idx)}
+      >
+        <div className="bbq-launcher-grid-card-header">
+          <span className="bbq-launcher-grid-card-icon" aria-hidden="true">
+            {getActionIcon(item)}
+          </span>
+          <button
+            type="button"
+            className={`bbq-launcher-fav-btn ${item.favorite ? "favorited" : ""}`}
+            aria-label={item.favorite ? "Remove from favorites" : "Add to favorites"}
+            title={item.favorite ? "Remove from favorites" : "Add to favorites"}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavorite(item).catch(console.error);
+            }}
+          >
+            {item.favorite ? "★" : "☆"}
+          </button>
+        </div>
+        <div className="bbq-launcher-grid-card-body">
+          <div className="bbq-launcher-grid-card-title">{item.title}</div>
+          {item.subtitle && (
+            <div className="bbq-launcher-grid-card-subtitle">{item.subtitle}</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const activeDescendant = visibleItems[selectedIndex]
     ? `launcher-item-${visibleItems[selectedIndex].id}`
     : undefined;
@@ -354,12 +396,19 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
 
             <div className="bbq-launcher-section">
               <div className="bbq-launcher-section-header">Quick Actions</div>
-              {items
-                .filter((item) => item.source === "built_in")
-                .map((item) => {
-                  const idx = visibleItems.findIndex((v) => v.id === item.id);
-                  return renderItemRow(item, idx >= 0 ? idx : 0);
-                })}
+              <div className="bbq-launcher-grid-2x2">
+                {items
+                  .filter(
+                    (item) =>
+                      item.source === "built_in" &&
+                      item.id !== "bbq_media" &&
+                      !EXCLUDED_LAUNCHER_ITEM_IDS.has(item.id)
+                  )
+                  .map((item) => {
+                    const idx = visibleItems.findIndex((v) => v.id === item.id);
+                    return renderGridCard(item, idx >= 0 ? idx : 0);
+                  })}
+              </div>
             </div>
           </>
         )}

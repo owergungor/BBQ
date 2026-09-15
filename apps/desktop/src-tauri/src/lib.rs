@@ -709,6 +709,19 @@ async fn timer_cancel(state: State<'_, AppState>) -> Result<TimerSession, String
 }
 
 #[tauri::command]
+async fn timer_set_mode(
+    state: State<'_, AppState>,
+    mode: TimerMode,
+    duration_ms: Option<u64>,
+) -> Result<TimerSession, String> {
+    state
+        .timer_service
+        .set_mode(mode, duration_ms)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn notification_get_capabilities(
     state: State<'_, AppState>,
 ) -> Result<NotificationCapabilities, String> {
@@ -1028,6 +1041,7 @@ pub fn run() {
             timer_resume,
             timer_reset,
             timer_cancel,
+            timer_set_mode,
             notification_get_capabilities,
             reminder_list,
             reminder_create,

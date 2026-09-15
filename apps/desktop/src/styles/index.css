@@ -166,6 +166,91 @@
   }
 }
 
+/* Accent Color Themes */
+:root[data-accent="orange"],
+[data-accent="orange"] {
+  --bbq-accent: #ff6b35;
+  --bbq-accent-hover: #ff7d4d;
+  --bbq-accent-glow: rgba(255, 107, 53, 0.35);
+  --bbq-accent-subtle: rgba(255, 107, 53, 0.15);
+  --accent: #ff6b35;
+  --accent-hover: #ff7d4d;
+  --accent-glow: rgba(255, 107, 53, 0.35);
+  --accent-subtle: rgba(255, 107, 53, 0.15);
+}
+
+:root[data-accent="blue"],
+[data-accent="blue"] {
+  --bbq-accent: #3b82f6;
+  --bbq-accent-hover: #60a5fa;
+  --bbq-accent-glow: rgba(59, 130, 246, 0.35);
+  --bbq-accent-subtle: rgba(59, 130, 246, 0.15);
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-glow: rgba(59, 130, 246, 0.35);
+  --accent-subtle: rgba(59, 130, 246, 0.15);
+}
+
+:root[data-accent="purple"],
+[data-accent="purple"] {
+  --bbq-accent: #a855f7;
+  --bbq-accent-hover: #c084fc;
+  --bbq-accent-glow: rgba(168, 85, 247, 0.35);
+  --bbq-accent-subtle: rgba(168, 85, 247, 0.15);
+  --accent: #a855f7;
+  --accent-hover: #c084fc;
+  --accent-glow: rgba(168, 85, 247, 0.35);
+  --accent-subtle: rgba(168, 85, 247, 0.15);
+}
+
+:root[data-accent="green"],
+[data-accent="green"] {
+  --bbq-accent: #10b981;
+  --bbq-accent-hover: #34d399;
+  --bbq-accent-glow: rgba(16, 185, 129, 0.35);
+  --bbq-accent-subtle: rgba(16, 185, 129, 0.15);
+  --accent: #10b981;
+  --accent-hover: #34d399;
+  --accent-glow: rgba(16, 185, 129, 0.35);
+  --accent-subtle: rgba(16, 185, 129, 0.15);
+}
+
+:root[data-accent="red"],
+[data-accent="red"] {
+  --bbq-accent: #ef4444;
+  --bbq-accent-hover: #f87171;
+  --bbq-accent-glow: rgba(239, 68, 68, 0.35);
+  --bbq-accent-subtle: rgba(239, 68, 68, 0.15);
+  --accent: #ef4444;
+  --accent-hover: #f87171;
+  --accent-glow: rgba(239, 68, 68, 0.35);
+  --accent-subtle: rgba(239, 68, 68, 0.15);
+}
+
+:root[data-accent="pink"],
+[data-accent="pink"] {
+  --bbq-accent: #ec4899;
+  --bbq-accent-hover: #f472b6;
+  --bbq-accent-glow: rgba(236, 72, 153, 0.35);
+  --bbq-accent-subtle: rgba(236, 72, 153, 0.15);
+  --accent: #ec4899;
+  --accent-hover: #f472b6;
+  --accent-glow: rgba(236, 72, 153, 0.35);
+  --accent-subtle: rgba(236, 72, 153, 0.15);
+}
+
+:root[data-accent="cyan"],
+[data-accent="cyan"] {
+  --bbq-accent: #06b6d4;
+  --bbq-accent-hover: #22d3ee;
+  --bbq-accent-glow: rgba(6, 182, 212, 0.35);
+  --bbq-accent-subtle: rgba(6, 182, 212, 0.15);
+  --accent: #06b6d4;
+  --accent-hover: #22d3ee;
+  --accent-glow: rgba(6, 182, 212, 0.35);
+  --accent-subtle: rgba(6, 182, 212, 0.15);
+}
+
 /* Reduced Motion Accessibility */
 [data-reduced-motion="true"] *,
 [data-reduced-motion="true"] *::before,
@@ -1463,6 +1548,75 @@ html, body {
   font-size: 9px;
   cursor: pointer;
   text-transform: uppercase;
+}
+
+/* 2x2 Grid Layout for Launcher Quick Actions */
+.bbq-launcher-grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px 0;
+}
+
+.bbq-launcher-grid-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--bbq-border, rgba(255, 255, 255, 0.08));
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  min-height: 54px;
+  box-sizing: border-box;
+}
+
+.bbq-launcher-grid-card:hover,
+.bbq-launcher-grid-card.active {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--bbq-accent);
+}
+
+.bbq-launcher-grid-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.bbq-launcher-grid-card-icon {
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.bbq-launcher-grid-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.bbq-launcher-grid-card-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bbq-launcher-grid-card-subtitle {
+  font-size: 9px;
+  color: var(--text-secondary, #94a3b8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bbq-launcher-item {

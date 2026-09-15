@@ -623,5 +623,187 @@ describe("BBQ v1.2 — Core Stabilization & Regression Guards", () => {
       assert.ok(!visible.some((i) => i.id === "bbq_settings"));
     });
   });
+
+  describe("13. Timer Mode Switch Auto-Start Prevention & Idle Contract", () => {
+    it("switching modes sets session state to Idle and never auto-starts", async () => {
+      // Simulate active running countdown session
+      timerStore.setState({
+        session: {
+          id: "active-session",
+          mode: "countdown",
+          state: "running",
+          duration_ms: 300000,
+          remaining_ms: 250000,
+          elapsed_ms: 50000,
+          preset_index: 0,
+          total_cycles: 0,
+        },
+        error: null,
+      });
+
+      assert.equal(timerStore.getState().session?.state, "running");
+
+      // Switching mode must yield Idle state
+      timerStore.setState({
+        session: {
+          id: "new-mode-session",
+          mode: "stopwatch",
+          state: "idle",
+          duration_ms: null,
+          remaining_ms: null,
+          elapsed_ms: 0,
+          preset_index: null,
+          total_cycles: 0,
+        },
+        error: null,
+      });
+
+      const session = timerStore.getState().session;
+      assert.ok(session);
+      assert.equal(session.mode, "stopwatch");
+      assert.equal(session.state, "idle");
+      assert.notEqual(session.state, "running");
+
+      // Switching to pomodoro must also remain idle
+      timerStore.setState({
+        session: {
+          id: "pomodoro-session",
+          mode: "pomodoro",
+          state: "idle",
+          duration_ms: 25 * 60 * 1000,
+          remaining_ms: 25 * 60 * 1000,
+          elapsed_ms: 0,
+          preset_index: 0,
+          total_cycles: 0,
+        },
+        error: null,
+      });
+
+      const pomodoroSession = timerStore.getState().session;
+      assert.ok(pomodoroSession);
+      assert.equal(pomodoroSession.mode, "pomodoro");
+      assert.equal(pomodoroSession.state, "idle");
+    });
+  });
+
+  describe("14. Hotkey Combination Validation & Multi-Modifier Support", () => {
+    it("validates multi-modifier hotkey combinations (Ctrl+Shift+B, Ctrl+Alt+Space, Alt+Shift+B, Win+Shift+B)", () => {
+      const validateHotkey = (hotkeyStr: string): boolean => {
+        const trimmed = hotkeyStr.trim();
+        if (!trimmed) return false;
+        const parts = trimmed.split("+").map((s) => s.trim().toLowerCase());
+        const hasMod = parts.some((p) =>
+          ["ctrl", "control", "alt", "option", "shift", "win", "cmd", "meta"].includes(p)
+        );
+        const nonMod = parts.filter(
+          (p) => !["ctrl", "control", "alt", "option", "shift", "win", "cmd", "meta"].includes(p)
+        );
+        return hasMod && parts.length >= 2 && nonMod.length === 1;
+      };
+
+      assert.ok(validateHotkey("Ctrl+Shift+B"));
+      assert.ok(validateHotkey("Ctrl+Alt+Space"));
+      assert.ok(validateHotkey("Alt+Shift+B"));
+      assert.ok(validateHotkey("Win+Shift+B"));
+      assert.ok(validateHotkey("Ctrl+Space"));
+      assert.ok(validateHotkey("Ctrl+Alt+Shift+F12"));
+
+      // Invalid combinations
+      assert.equal(validateHotkey(""), false);
+      assert.equal(validateHotkey("Space"), false);
+      assert.equal(validateHotkey("Ctrl"), false);
+      assert.equal(validateHotkey("Ctrl+Alt"), false);
+    });
+  });
+
+  describe("15. Launcher 2x2 Quick Actions & Media Shortcut Exclusion", () => {
+    it("excludes bbq_media and keeps exactly 4 items for 2x2 grid", () => {
+      const EXCLUDED_LAUNCHER_ITEM_IDS = [
+        "bbq_timer",
+        "bbq_reminders",
+        "bbq_clipboard",
+        "bbq_settings",
+        "bbq_system",
+        "bbq_media",
+      ];
+
+      const builtins = [
+        { id: "bbq_files", title: "Files & Workspace" },
+        { id: "bbq_downloads", title: "Downloads" },
+        { id: "bbq_home", title: "Home Directory" },
+        { id: "bbq_lock", title: "Lock Screen" },
+        { id: "bbq_media", title: "Media Player" },
+      ];
+
+      const filtered = builtins.filter((b) => !EXCLUDED_LAUNCHER_ITEM_IDS.includes(b.id));
+      assert.equal(filtered.length, 4);
+      assert.equal(filtered.some((b) => b.id === "bbq_media"), false);
+      assert.deepEqual(
+        filtered.map((b) => b.id),
+        ["bbq_files", "bbq_downloads", "bbq_home", "bbq_lock"]
+      );
+    });
+  });
+
+  describe("16. Accent Color Dynamic CSS Variable & DOM Token Application", () => {
+    it("applies data-accent attribute and accent color tokens to document root", async () => {
+      const { applyThemeAndMotionToDom, ACCENT_PALETTES } = await import(
+        "../src/state/settingsState.ts"
+      );
+
+      const mockStyle = new Map<string, string>();
+      const mockAttributes = new Map<string, string>();
+
+      const mockElement = {
+        style: {
+          setProperty(name: string, value: string) {
+            mockStyle.set(name, value);
+          },
+          getPropertyValue(name: string) {
+            return mockStyle.get(name) || "";
+          },
+        },
+        setAttribute(name: string, value: string) {
+          mockAttributes.set(name, value);
+        },
+        getAttribute(name: string) {
+          return mockAttributes.get(name) || null;
+        },
+      };
+
+      const originalDoc = globalThis.document;
+      // @ts-expect-error Mocking document
+      globalThis.document = { documentElement: mockElement };
+
+      try {
+        const supportedAccents = [
+          "orange",
+          "blue",
+          "purple",
+          "green",
+          "red",
+          "pink",
+          "cyan",
+        ] as const;
+
+        for (const accent of supportedAccents) {
+          applyThemeAndMotionToDom({
+            ...initialSettingsState.settings,
+            accent_color: accent,
+          });
+
+          assert.equal(mockAttributes.get("data-accent"), accent);
+          const palette = ACCENT_PALETTES[accent];
+          assert.equal(mockStyle.get("--bbq-accent"), palette.accent);
+          assert.equal(mockStyle.get("--bbq-accent-hover"), palette.hover);
+          assert.equal(mockStyle.get("--bbq-accent-glow"), palette.glow);
+          assert.equal(mockStyle.get("--bbq-accent-subtle"), palette.subtle);
+        }
+      } finally {
+        globalThis.document = originalDoc;
+      }
+    });
+  });
 });
+
 

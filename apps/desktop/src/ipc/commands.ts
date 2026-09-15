@@ -14,6 +14,7 @@ import type {
   SystemState,
   SystemCapabilities,
   TimerSession,
+  TimerMode,
   NotificationCapabilities,
   Reminder,
   LauncherCapabilities,
@@ -408,6 +409,21 @@ export const bbqCommands = {
     }
   },
 
+  timerSetMode: async (
+    mode: TimerMode,
+    durationMs?: number
+  ): Promise<TimerSession | null> => {
+    try {
+      return await invoke<TimerSession>("timer_set_mode", {
+        mode,
+        durationMs: durationMs ?? null,
+      });
+    } catch (err) {
+      console.error("Failed to set timer mode:", err);
+      return null;
+    }
+  },
+
   notificationGetCapabilities: async (): Promise<NotificationCapabilities | null> => {
     try {
       return await invoke<NotificationCapabilities>("notification_get_capabilities");
@@ -509,17 +525,6 @@ export const bbqCommands = {
           source: "built_in",
           usage_count: 8,
           favorite: true,
-          last_used_at: null,
-        },
-        {
-          id: "action-media",
-          title: "Now Playing",
-          subtitle: "System media controls",
-          icon: "🎵",
-          action: { type: "bbq_action", payload: { action: "open_media" } },
-          source: "built_in",
-          usage_count: 5,
-          favorite: false,
           last_used_at: null,
         },
         {

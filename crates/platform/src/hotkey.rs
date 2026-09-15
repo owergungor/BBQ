@@ -58,16 +58,57 @@ impl HotkeyDefinition {
         if parts.is_empty() {
             return Self::default_command_surface();
         }
-        let key = parts.last().unwrap_or(&"Space").to_string();
-        let modifiers = parts[..parts.len() - 1]
+        let raw_key = parts.last().unwrap_or(&"Space");
+        let key = if raw_key.eq_ignore_ascii_case("space") {
+            "Space".to_string()
+        } else if raw_key.len() == 1
+            || ((raw_key.starts_with('f') || raw_key.starts_with('F')) && raw_key.len() <= 3)
+        {
+            raw_key.to_uppercase()
+        } else {
+            let mut c = raw_key.chars();
+            match c.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        };
+
+        let modifiers: Vec<String> = parts[..parts.len() - 1]
             .iter()
-            .map(|m| m.to_string())
+            .map(|m| {
+                let lower = m.to_lowercase();
+                match lower.as_str() {
+                    "ctrl" | "control" => "Ctrl".to_string(),
+                    "alt" | "option" => "Alt".to_string(),
+                    "shift" => "Shift".to_string(),
+                    "win" | "super" => "Win".to_string(),
+                    "cmd" | "command" => "Cmd".to_string(),
+                    "meta" => {
+                        #[cfg(target_os = "macos")]
+                        {
+                            "Cmd".to_string()
+                        }
+                        #[cfg(not(target_os = "macos"))]
+                        {
+                            "Win".to_string()
+                        }
+                    }
+                    _ => m.to_string(),
+                }
+            })
             .collect();
+
+        let display_str = if !modifiers.is_empty() {
+            format!("{}+{}", modifiers.join("+"), key)
+        } else {
+            key.clone()
+        };
+
         Self {
             id: id.into(),
             key,
             modifiers,
-            display_str: s.to_string(),
+            display_str,
         }
     }
 }
