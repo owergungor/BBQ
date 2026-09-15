@@ -12,11 +12,9 @@ export { formatTimeDisplay };
 
 const COUNTDOWN_PRESETS = [
   { label: "1 dk", ms: 1 * 60 * 1000 },
-  { label: "3 dk", ms: 3 * 60 * 1000 },
   { label: "5 dk", ms: 5 * 60 * 1000 },
   { label: "10 dk", ms: 10 * 60 * 1000 },
   { label: "15 dk", ms: 15 * 60 * 1000 },
-  { label: "25 dk", ms: 25 * 60 * 1000 },
   { label: "30 dk", ms: 30 * 60 * 1000 },
   { label: "45 dk", ms: 45 * 60 * 1000 },
   { label: "60 dk", ms: 60 * 60 * 1000 },

@@ -9,6 +9,8 @@ import {
   setTimerError,
   formatTimeDisplay,
 } from "../src/state/timerState.ts";
+import fs from "node:fs";
+import path from "node:path";
 import { mediaStore } from "../src/state/mediaState.ts";
 import { clipboardStore } from "../src/state/clipboardState.ts";
 import { fileStore } from "../src/state/fileState.ts";
@@ -384,6 +386,33 @@ describe("Timer Mode Switching & Idle Guarantee", () => {
     };
     setTimerSession(startedSession);
     assert.equal(timerStore.getState().session.state, "Running");
+  });
+});
+
+describe("Countdown Presets Specification", () => {
+  it("strictly contains [1, 5, 10, 15, 30, 45, 60] minutes and excludes 3 and 25 minutes", () => {
+    const timerWidgetPath = path.resolve(import.meta.dirname, "../src/components/widgets/TimerWidget.tsx");
+    const source = fs.readFileSync(timerWidgetPath, "utf-8");
+
+    const presetsMatch = source.match(/const COUNTDOWN_PRESETS = \[([\s\S]*?)\];/);
+    assert.ok(presetsMatch, "COUNTDOWN_PRESETS declaration must exist");
+
+    const labelMatches = [...presetsMatch[1].matchAll(/label:\s*"([^"]+)"/g)].map((m) => m[1]);
+    assert.deepEqual(labelMatches, [
+      "1 dk",
+      "5 dk",
+      "10 dk",
+      "15 dk",
+      "30 dk",
+      "45 dk",
+      "60 dk",
+    ]);
+
+    // Explicit check that 3m and 25m are removed
+    assert.equal(labelMatches.includes("3 dk"), false, "3 dk preset must be removed");
+    assert.equal(labelMatches.includes("25 dk"), false, "25 dk preset must be removed");
+    assert.equal(presetsMatch[1].includes("3 * 60 * 1000"), false, "3 min ms must be removed");
+    assert.equal(presetsMatch[1].includes("25 * 60 * 1000"), false, "25 min ms must be removed");
   });
 });
 

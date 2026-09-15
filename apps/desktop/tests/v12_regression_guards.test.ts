@@ -441,7 +441,7 @@ describe("BBQ v1.2 — Core Stabilization & Regression Guards", () => {
     });
 
     it("preset minute options establish exact seconds target", () => {
-      const presets = [1, 3, 5, 10, 15, 25, 30, 45, 60];
+      const presets = [1, 5, 10, 15, 30, 45, 60];
       for (const mins of presets) {
         const expectedSecs = mins * 60;
         const session = {
