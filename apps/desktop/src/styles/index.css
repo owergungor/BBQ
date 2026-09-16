@@ -43,8 +43,10 @@
   --bbq-focus-ring: 0 0 0 2px var(--bbq-accent);
 
   /* Typography */
-  --bbq-font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bbq-font-sans: "Segoe UI Variable Text", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --bbq-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --bbq-font-tabular: tabular-nums;
+  --bbq-font-features-tabular: "tnum" 1;
   --bbq-text-xs: 11px;
   --bbq-text-sm: 12px;
   --bbq-text-base: 13px;
@@ -53,6 +55,11 @@
   --bbq-text-xl: 20px;
 
   /* Spacing */
+  --bbq-space-xs: 4px;
+  --bbq-space-sm: 8px;
+  --bbq-space-md: 12px;
+  --bbq-space-lg: 16px;
+  --bbq-space-xl: 24px;
   --bbq-space-2: 2px;
   --bbq-space-4: 4px;
   --bbq-space-6: 6px;
@@ -64,7 +71,13 @@
   --bbq-space-20: 20px;
   --bbq-space-24: 24px;
 
-  /* Radii */
+  /* Geometry & Radii Tokens (Atoll Parity Clean-Room) */
+  --bbq-radius-compact: 20px;
+  --bbq-radius-peek: 22px;
+  --bbq-radius-expanded: 24px;
+  --bbq-radius-squircle: 24px;
+  --bbq-radius-card: 16px;
+  --bbq-radius-control: 10px;
   --bbq-radius-xs: 4px;
   --bbq-radius-sm: 6px;
   --bbq-radius-md: 10px;
@@ -72,20 +85,44 @@
   --bbq-radius-xl: 24px;
   --bbq-radius-full: 9999px;
 
+  /* Surface & Glassmorphism Tokens (Hardware-Optimized) */
+  --bbq-surface-glass-idle: rgba(13, 13, 16, 0.88);
+  --bbq-surface-glass-expanded: rgba(18, 18, 24, 0.92);
+  --bbq-glass-opacity-idle: 0.88;
+  --bbq-glass-opacity-expanded: 0.92;
+  --bbq-glass-blur-idle: 24px;
+  --bbq-glass-blur-expanded: 32px;
+  --bbq-glass-blur: 28px;
+  --bbq-glass-saturation: 190%;
+  --bbq-glass-saturation-expanded: 200%;
+  --bbq-border-inner: rgba(255, 255, 255, 0.08);
+  --bbq-border-specular: rgba(255, 255, 255, 0.14);
+  --bbq-highlight-top: rgba(255, 255, 255, 0.22);
+  --bbq-shadow-card: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --bbq-shadow-card-subtle: 0 2px 8px rgba(0, 0, 0, 0.15);
+
   /* Shadows - Completely eliminated for crisp zero-halo outer edge */
   --bbq-shadow-idle: none;
   --bbq-shadow-expanded: none;
   --bbq-shadow: none;
 
-  /* Motion */
+  /* Motion & Animation Tokens */
   --bbq-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --bbq-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --bbq-duration-hover: 150ms;
   --bbq-duration-fast: 150ms;
+  --bbq-duration-collapse: 200ms;
   --bbq-duration-normal: 260ms;
-  --bbq-duration-expand: 320ms;
+  --bbq-duration-expand: 280ms;
 
-  /* Compact Dimensions */
+  /* Window & Island Geometry Tokens (Atoll Parity Clean-Room) */
   --bbq-compact-width: 240px;
-  --bbq-compact-height: 40px;
+  --bbq-compact-height: 38px;
+  --bbq-peek-width: 280px;
+  --bbq-peek-height: 44px;
+  --bbq-expanded-width: 520px;
+  --bbq-expanded-height: 360px;
+  --bbq-top-margin: 8px;
 
   /* Backward Compatibility Tokens */
   --bg-island-idle: var(--bbq-bg-idle);
@@ -113,6 +150,14 @@
   --bbq-surface-elevated: rgba(0, 0, 0, 0.06);
   --bbq-surface-hover: rgba(0, 0, 0, 0.09);
   --bbq-surface-active: rgba(0, 0, 0, 0.13);
+
+  --bbq-surface-glass-idle: rgba(240, 240, 244, 0.88);
+  --bbq-surface-glass-expanded: rgba(255, 255, 255, 0.94);
+  --bbq-border-inner: rgba(0, 0, 0, 0.06);
+  --bbq-border-specular: rgba(255, 255, 255, 0.60);
+  --bbq-highlight-top: rgba(255, 255, 255, 0.80);
+  --bbq-shadow-card: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --bbq-shadow-card-subtle: 0 2px 8px rgba(0, 0, 0, 0.04);
 
   --bbq-border: rgba(0, 0, 0, 0.12);
   --bbq-border-glow: rgba(0, 0, 0, 0.22);
@@ -154,6 +199,14 @@
     --bbq-surface-elevated: rgba(0, 0, 0, 0.06);
     --bbq-surface-hover: rgba(0, 0, 0, 0.09);
     --bbq-surface-active: rgba(0, 0, 0, 0.13);
+
+    --bbq-surface-glass-idle: rgba(240, 240, 244, 0.88);
+    --bbq-surface-glass-expanded: rgba(255, 255, 255, 0.94);
+    --bbq-border-inner: rgba(0, 0, 0, 0.06);
+    --bbq-border-specular: rgba(255, 255, 255, 0.60);
+    --bbq-highlight-top: rgba(255, 255, 255, 0.80);
+    --bbq-shadow-card: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --bbq-shadow-card-subtle: 0 2px 8px rgba(0, 0, 0, 0.04);
 
     --bbq-border: rgba(0, 0, 0, 0.12);
     --bbq-border-glow: rgba(0, 0, 0, 0.22);
@@ -444,6 +497,14 @@
 }
 
 /* Reduced Motion Accessibility */
+[data-reduced-motion="true"] {
+  --bbq-duration-hover: 0.01ms !important;
+  --bbq-duration-fast: 0.01ms !important;
+  --bbq-duration-collapse: 0.01ms !important;
+  --bbq-duration-normal: 0.01ms !important;
+  --bbq-duration-expand: 0.01ms !important;
+}
+
 [data-reduced-motion="true"] *,
 [data-reduced-motion="true"] *::before,
 [data-reduced-motion="true"] *::after {
@@ -459,6 +520,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --bbq-duration-hover: 0.01ms !important;
+    --bbq-duration-fast: 0.01ms !important;
+    --bbq-duration-collapse: 0.01ms !important;
+    --bbq-duration-normal: 0.01ms !important;
+    --bbq-duration-expand: 0.01ms !important;
+  }
   *,
   *::before,
   *::after {
@@ -476,6 +544,68 @@
   .bbq-status-dot.pulse {
     animation: none !important;
   }
+}
+
+/* ==========================================================================
+   Iconography System (Atoll Parity SVG System)
+   ========================================================================== */
+.bbq-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  flex-shrink: 0;
+  stroke: currentColor;
+  stroke-width: 1.75px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--bbq-duration-hover) var(--bbq-ease-spring),
+              color var(--bbq-duration-hover) var(--bbq-ease-spring),
+              stroke var(--bbq-duration-hover) var(--bbq-ease-spring);
+}
+
+/* ==========================================================================
+   Tabular Numbers Utility
+   ========================================================================== */
+.bbq-tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ==========================================================================
+   Atoll-Parity Clean-Room Glassmorphism Surfaces (Windows Hardware Optimized)
+   ========================================================================== */
+.bbq-glass-idle {
+  background: var(--bbq-surface-glass-idle);
+  backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
+  -webkit-backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
+  border: 1px solid var(--bbq-border);
+  border-top-color: var(--bbq-highlight-top);
+  box-shadow: var(--bbq-shadow-idle);
+}
+
+.bbq-glass-expanded {
+  background: var(--bbq-surface-glass-expanded);
+  backdrop-filter: blur(var(--bbq-glass-blur-expanded)) saturate(var(--bbq-glass-saturation-expanded));
+  -webkit-backdrop-filter: blur(var(--bbq-glass-blur-expanded)) saturate(var(--bbq-glass-saturation-expanded));
+  border: 1px solid var(--bbq-border-inner);
+  border-top-color: var(--bbq-border-specular);
+  box-shadow: var(--bbq-shadow-expanded);
+}
+
+.bbq-glass-card {
+  background: var(--bbq-surface-elevated);
+  border: 1px solid var(--bbq-border-inner);
+  border-radius: var(--bbq-radius-card);
+  box-shadow: var(--bbq-shadow-card-subtle);
+  transition: background var(--bbq-duration-hover) var(--bbq-ease-spring),
+              border-color var(--bbq-duration-hover) var(--bbq-ease-spring),
+              transform var(--bbq-duration-hover) var(--bbq-ease-spring);
+}
+
+.bbq-glass-card:hover {
+  background: var(--bbq-surface-hover);
+  border-color: var(--bbq-border-glow);
 }
 
 /* Universal Focus Visible */
@@ -597,28 +727,41 @@ html, body {
   width: 100%;
   max-width: var(--bbq-compact-width, 240px);
   height: 100%;
-  max-height: var(--bbq-compact-height, 40px);
-  border-radius: 9999px;
+  max-height: var(--bbq-compact-height, 38px);
+  border-radius: var(--bbq-radius-compact, 20px);
+  background: var(--bbq-surface-glass-idle);
+  backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
+  -webkit-backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
+  border: 1px solid var(--bbq-border);
+  border-top-color: var(--bbq-highlight-top);
+  box-shadow: none;
 }
 
 .bbq-island-shell.state-hovering {
   width: 100%;
-  max-width: calc(var(--bbq-compact-width, 240px) + 20px);
+  max-width: var(--bbq-peek-width, 280px);
   height: 100%;
-  max-height: calc(var(--bbq-compact-height, 40px) + 4px);
-  border-radius: 9999px;
-  background: var(--bbq-bg-active);
-  border-color: var(--bbq-border-glow);
+  max-height: var(--bbq-peek-height, 44px);
+  border-radius: var(--bbq-radius-peek, 22px);
+  background: var(--bbq-surface-glass-idle);
+  backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
+  -webkit-backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
+  border: 1px solid var(--bbq-border-glow);
+  border-top-color: var(--bbq-highlight-top);
   box-shadow: none;
 }
 
 .bbq-island-shell.state-expanded {
   width: 100%;
-  max-width: 400px;
+  max-width: var(--bbq-expanded-width, 520px);
   height: 100%;
-  max-height: 280px;
-  border-radius: 26px;
-  background: var(--bbq-bg-expanded);
+  max-height: var(--bbq-expanded-height, 360px);
+  border-radius: var(--bbq-radius-expanded, 24px);
+  background: var(--bbq-surface-glass-expanded);
+  backdrop-filter: blur(var(--bbq-glass-blur-expanded)) saturate(var(--bbq-glass-saturation-expanded));
+  -webkit-backdrop-filter: blur(var(--bbq-glass-blur-expanded)) saturate(var(--bbq-glass-saturation-expanded));
+  border: 1px solid var(--bbq-border-inner);
+  border-top-color: var(--bbq-border-specular);
   box-shadow: none;
   cursor: default;
   transform: translate3d(0, 0, 0);

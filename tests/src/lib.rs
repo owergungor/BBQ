@@ -1126,10 +1126,10 @@ mod tests {
             .apply_geometry(&primary_hotkey_geo)
             .await
             .expect("Apply geometry back to primary");
-        // (1920 - 400) / 2 = 760
+        // (1920 - 520) / 2 = 700
         assert_eq!(
             *mock_provider.window.position.lock().unwrap(),
-            (760, DEFAULT_TOP_MARGIN)
+            (700, DEFAULT_TOP_MARGIN)
         );
     }
 

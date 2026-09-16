@@ -63,13 +63,22 @@ fn main() {
 
     #[cfg(all(windows, target_env = "gnu"))]
     {
-        if let Ok(out_dir) = std::env::var("OUT_DIR") {
-            let spec_path = std::path::Path::new(&out_dir).join("no-default-manifest.spec");
-            let _ = std::fs::write(
-                &spec_path,
-                "*endfile:\n%{mdaz-ftz:crtfastmath.o%s;Ofast|ffast-math|funsafe-math-optimizations:%{!shared:%{!mno-daz-ftz:crtfastmath.o%s}}} %{fvtable-verify=none:%s; fvtable-verify=preinit:vtv_end.o%s; fvtable-verify=std:vtv_end.o%s} crtend.o%s\n",
-            );
-            println!("cargo:rustc-link-arg-bins=-specs={}", spec_path.display());
+        let all_flags = format!(
+            "{} {} {}",
+            std::env::var("CARGO_ENCODED_RUSTFLAGS").unwrap_or_default(),
+            std::env::var("RUSTFLAGS").unwrap_or_default(),
+            std::env::var("RUSTC_LINKER").unwrap_or_default(),
+        );
+        let is_lld = all_flags.contains("lld");
+        if !is_lld {
+            if let Ok(out_dir) = std::env::var("OUT_DIR") {
+                let spec_path = std::path::Path::new(&out_dir).join("no-default-manifest.spec");
+                let _ = std::fs::write(
+                    &spec_path,
+                    "*endfile:\n%{mdaz-ftz:crtfastmath.o%s;Ofast|ffast-math|funsafe-math-optimizations:%{!shared:%{!mno-daz-ftz:crtfastmath.o%s}}} %{fvtable-verify=none:%s; fvtable-verify=preinit:vtv_end.o%s; fvtable-verify=std:vtv_end.o%s} crtend.o%s\n",
+                );
+                println!("cargo:rustc-link-arg-bins=-specs={}", spec_path.display());
+            }
         }
     }
 

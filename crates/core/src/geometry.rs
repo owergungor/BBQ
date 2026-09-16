@@ -79,12 +79,17 @@ pub const MAX_ISLAND_HEIGHT: u32 = 520;
 /// Default idle compact width.
 pub const DEFAULT_IDLE_WIDTH: u32 = 240;
 /// Default idle compact height.
-pub const DEFAULT_IDLE_HEIGHT: u32 = 40;
+pub const DEFAULT_IDLE_HEIGHT: u32 = 38;
 
 /// Default hover width.
-pub const DEFAULT_HOVER_WIDTH: u32 = 260;
+pub const DEFAULT_HOVER_WIDTH: u32 = 280;
 /// Default hover height.
 pub const DEFAULT_HOVER_HEIGHT: u32 = 44;
+
+/// Default expanded HUD width.
+pub const DEFAULT_EXPANDED_WIDTH: u32 = 520;
+/// Default expanded HUD height.
+pub const DEFAULT_EXPANDED_HEIGHT: u32 = 360;
 
 /// Default drop overlay width.
 pub const DEFAULT_DROP_WIDTH: u32 = 380;
@@ -92,7 +97,7 @@ pub const DEFAULT_DROP_WIDTH: u32 = 380;
 pub const DEFAULT_DROP_HEIGHT: u32 = 200;
 
 /// Default top margin from the top edge of work area in logical pixels.
-pub const DEFAULT_TOP_MARGIN: i32 = 6;
+pub const DEFAULT_TOP_MARGIN: i32 = 8;
 
 /// Layout state corresponding to Island interaction modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -171,7 +176,17 @@ pub fn calculate_island_geometry(
             let pref = widget_dims.unwrap_or_default();
             let base_w = pref.preferred_width.unwrap_or(DEFAULT_IDLE_WIDTH);
             let base_h = pref.preferred_height.unwrap_or(DEFAULT_IDLE_HEIGHT);
-            (base_w + 20, base_h + 4, base_w, base_h)
+            let hover_w = if base_w == DEFAULT_IDLE_WIDTH {
+                DEFAULT_HOVER_WIDTH
+            } else {
+                base_w + (DEFAULT_HOVER_WIDTH - DEFAULT_IDLE_WIDTH)
+            };
+            let hover_h = if base_h == DEFAULT_IDLE_HEIGHT {
+                DEFAULT_HOVER_HEIGHT
+            } else {
+                base_h + (DEFAULT_HOVER_HEIGHT - DEFAULT_IDLE_HEIGHT)
+            };
+            (hover_w, hover_h, base_w, base_h)
         }
         IslandLayoutState::DraggingOver => (
             DEFAULT_DROP_WIDTH,
@@ -181,14 +196,14 @@ pub fn calculate_island_geometry(
         ),
         IslandLayoutState::Expanded => {
             let pref = widget_dims.unwrap_or_default();
-            let w = pref.preferred_width.unwrap_or(400);
-            let h = pref.preferred_height.unwrap_or(280);
+            let w = pref.preferred_width.unwrap_or(DEFAULT_EXPANDED_WIDTH);
+            let h = pref.preferred_height.unwrap_or(DEFAULT_EXPANDED_HEIGHT);
             (w, h, DEFAULT_IDLE_WIDTH, DEFAULT_IDLE_HEIGHT)
         }
         IslandLayoutState::Transitioning => {
             let pref = widget_dims.unwrap_or_default();
-            let w = pref.preferred_width.unwrap_or(320);
-            let h = pref.preferred_height.unwrap_or(120);
+            let w = pref.preferred_width.unwrap_or(360);
+            let h = pref.preferred_height.unwrap_or(160);
             (w, h, DEFAULT_IDLE_WIDTH, DEFAULT_IDLE_HEIGHT)
         }
     };
@@ -438,10 +453,10 @@ mod tests {
             None,
             IslandAnchor::TopCenter,
         );
-        assert_eq!(geo.width, 400);
-        assert_eq!(geo.height, 280);
-        // 1920 + (1080 - 400)/2 = 1920 + 340 = 2260
-        assert_eq!(geo.x, 2260);
+        assert_eq!(geo.width, DEFAULT_EXPANDED_WIDTH);
+        assert_eq!(geo.height, DEFAULT_EXPANDED_HEIGHT);
+        // 1920 + (1080 - 520)/2 = 1920 + 280 = 2200
+        assert_eq!(geo.x, 2200);
         assert_eq!(geo.y, DEFAULT_TOP_MARGIN);
     }
 
@@ -491,9 +506,9 @@ mod tests {
                     None,
                     IslandAnchor::TopCenter,
                 );
-                assert_eq!(exp_geo.width, 400);
-                assert_eq!(exp_geo.height, 280);
-                assert_eq!(exp_geo.x, (w as i32 - 400) / 2);
+                assert_eq!(exp_geo.width, DEFAULT_EXPANDED_WIDTH);
+                assert_eq!(exp_geo.height, DEFAULT_EXPANDED_HEIGHT);
+                assert_eq!(exp_geo.x, (w as i32 - DEFAULT_EXPANDED_WIDTH as i32) / 2);
                 assert_eq!(exp_geo.y, DEFAULT_TOP_MARGIN);
                 assert_eq!(exp_geo.scale_factor, scale);
             }
@@ -714,8 +729,8 @@ mod tests {
             None,
             IslandAnchor::TopCenter,
         );
-        // (2560 - 400) / 2 = 1080
-        assert_eq!(prim_geo.x, 1080);
+        // (2560 - 520) / 2 = 1020
+        assert_eq!(prim_geo.x, 1020);
         assert_eq!(prim_geo.y, DEFAULT_TOP_MARGIN);
 
         let sec_geo = calculate_island_geometry(
@@ -724,8 +739,8 @@ mod tests {
             None,
             IslandAnchor::TopCenter,
         );
-        // 2560 + (1920 - 400) / 2 = 2560 + 760 = 3320
-        assert_eq!(sec_geo.x, 3320);
+        // 2560 + (1920 - 520) / 2 = 2560 + 700 = 3260
+        assert_eq!(sec_geo.x, 3260);
         assert_eq!(sec_geo.y, DEFAULT_TOP_MARGIN);
     }
 
@@ -759,8 +774,8 @@ mod tests {
         );
         // In logical coordinates: (1440 - 240) / 2 = 600
         assert_eq!(idle_geo.x, 600);
-        // In work area with menu bar: 25 + 6 = 31
-        assert_eq!(idle_geo.y, 31);
+        // In work area with menu bar: 25 + DEFAULT_TOP_MARGIN = 25 + 8 = 33
+        assert_eq!(idle_geo.y, 25 + DEFAULT_TOP_MARGIN);
         assert_eq!(idle_geo.scale_factor, 2.0);
 
         let exp_geo = calculate_island_geometry(
@@ -769,9 +784,9 @@ mod tests {
             None,
             IslandAnchor::TopCenter,
         );
-        // (1440 - 400) / 2 = 520
-        assert_eq!(exp_geo.x, 520);
-        assert_eq!(exp_geo.y, 31);
+        // (1440 - 520) / 2 = 460
+        assert_eq!(exp_geo.x, 460);
+        assert_eq!(exp_geo.y, 25 + DEFAULT_TOP_MARGIN);
     }
 
     #[test]
@@ -812,8 +827,8 @@ mod tests {
             None,
             IslandAnchor::TopCenter,
         );
-        // 1920 + (1080 - 400) / 2 = 1920 + 340 = 2260
-        assert_eq!(exp.x, 2260);
+        // 1920 + (1080 - 520) / 2 = 1920 + 280 = 2200
+        assert_eq!(exp.x, 2200);
         assert_eq!(exp.y, DEFAULT_TOP_MARGIN);
     }
 
@@ -835,23 +850,23 @@ mod tests {
 
         // Hover container expands symmetrically
         assert_eq!(idle.width, DEFAULT_IDLE_WIDTH); // 240
-        assert_eq!(idle.height, DEFAULT_IDLE_HEIGHT); // 40
-        assert_eq!(hover.width, DEFAULT_HOVER_WIDTH); // 260 (+20px)
-        assert_eq!(hover.height, DEFAULT_HOVER_HEIGHT); // 44 (+4px)
+        assert_eq!(idle.height, DEFAULT_IDLE_HEIGHT); // 38
+        assert_eq!(hover.width, DEFAULT_HOVER_WIDTH); // 280 (+40px)
+        assert_eq!(hover.height, DEFAULT_HOVER_HEIGHT); // 44 (+6px)
 
         // Expansion is directional in all 4 axes:
-        // Left expands by 10px, right expands by 10px:
-        assert_eq!(hover.x, idle.x - 10);
+        // Left expands by 20px, right expands by 20px:
+        assert_eq!(hover.x, idle.x - 20);
         assert_eq!(
             hover.x + hover.width as i32,
-            idle.x + idle.width as i32 + 10
+            idle.x + idle.width as i32 + 20
         );
 
-        // Top expands upward by 2px, bottom expands downward by 2px:
-        assert_eq!(hover.y, idle.y - 2);
+        // Top expands upward by 3px, bottom expands downward by 3px:
+        assert_eq!(hover.y, idle.y - 3);
         assert_eq!(
             hover.y + hover.height as i32,
-            idle.y + idle.height as i32 + 2
+            idle.y + idle.height as i32 + 3
         );
 
         // Visual Center (X, Y) is mathematically identical:
