@@ -24,6 +24,7 @@ import type {
   DropBatch,
   HotkeyDefinition,
   HotkeyCapabilities,
+  PlatformCapabilities,
 } from "@bbq/types";
 
 export interface ServiceStatus {
@@ -52,7 +53,8 @@ export const bbqCommands = {
   getDisplays: async (): Promise<DisplayInfo[]> => {
     try {
       return await invoke<DisplayInfo[]>("get_displays");
-    } catch {
+    } catch (err) {
+      console.warn("bbqCommands.getDisplays failed, falling back to empty list:", err);
       return [];
     }
   },
@@ -122,8 +124,9 @@ export const bbqCommands = {
     try {
       await invoke("update_setting", { key, value });
       return true;
-    } catch {
-      return true;
+    } catch (err) {
+      console.warn(`Failed to update setting '${key}':`, err);
+      return false;
     }
   },
 
@@ -131,11 +134,8 @@ export const bbqCommands = {
     try {
       await invoke("update_settings", { settings });
       return true;
-    } catch {
-      if (typeof window !== "undefined" && window.localStorage) {
-        localStorage.setItem("bbq_settings", JSON.stringify(settings));
-        return true;
-      }
+    } catch (err) {
+      console.warn("Failed to update settings batch:", err);
       return false;
     }
   },
@@ -152,7 +152,8 @@ export const bbqCommands = {
   getServiceStatuses: async (): Promise<ServiceStatus[]> => {
     try {
       return await invoke<ServiceStatus[]>("get_service_statuses");
-    } catch {
+    } catch (err) {
+      console.warn("bbqCommands.getServiceStatuses failed, falling back to empty list:", err);
       return [];
     }
   },
@@ -165,50 +166,71 @@ export const bbqCommands = {
     }
   },
 
-  mediaPlay: async (): Promise<void> => {
+  mediaPlay: async (): Promise<boolean> => {
     try {
       await invoke("media_play");
+      return true;
     } catch (err) {
       console.error("Failed to play media:", err);
+      return false;
     }
   },
 
-  mediaPause: async (): Promise<void> => {
+  mediaPause: async (): Promise<boolean> => {
     try {
       await invoke("media_pause");
+      return true;
     } catch (err) {
       console.error("Failed to pause media:", err);
+      return false;
     }
   },
 
-  mediaTogglePlayPause: async (): Promise<void> => {
+  mediaTogglePlayPause: async (): Promise<boolean> => {
     try {
       await invoke("media_toggle_play_pause");
+      return true;
     } catch (err) {
       console.error("Failed to toggle play/pause:", err);
+      return false;
     }
   },
 
-  mediaNext: async (): Promise<void> => {
+  mediaNext: async (): Promise<boolean> => {
     try {
       await invoke("media_next");
+      return true;
     } catch (err) {
       console.error("Failed to next media:", err);
+      return false;
     }
   },
 
-  mediaPrevious: async (): Promise<void> => {
+  mediaPrevious: async (): Promise<boolean> => {
     try {
       await invoke("media_previous");
+      return true;
     } catch (err) {
       console.error("Failed to previous media:", err);
+      return false;
+    }
+  },
+
+  mediaSeek: async (positionMs: number): Promise<boolean> => {
+    try {
+      await invoke("media_seek", { positionMs: Math.max(0, Math.floor(positionMs)) });
+      return true;
+    } catch (err) {
+      console.error("Failed to seek media:", err);
+      return false;
     }
   },
 
   clipboardGetHistory: async (): Promise<ClipboardEntry[]> => {
     try {
       return await invoke<ClipboardEntry[]>("clipboard_get_history");
-    } catch {
+    } catch (err) {
+      console.warn("bbqCommands.clipboardGetHistory failed, falling back to empty history:", err);
       return [];
     }
   },
@@ -240,7 +262,8 @@ export const bbqCommands = {
   clipboardGetStatus: async (): Promise<ClipboardStatus | null> => {
     try {
       return await invoke<ClipboardStatus>("clipboard_get_status");
-    } catch {
+    } catch (err) {
+      console.warn("bbqCommands.clipboardGetStatus failed, falling back to null:", err);
       return null;
     }
   },
@@ -263,35 +286,43 @@ export const bbqCommands = {
     }
   },
 
-  fileOpen: async (id: string): Promise<void> => {
+  fileOpen: async (id: string): Promise<boolean> => {
     try {
       await invoke("file_open", { id });
+      return true;
     } catch (err) {
       console.error("Failed to open file:", err);
+      return false;
     }
   },
 
-  fileReveal: async (id: string): Promise<void> => {
+  fileReveal: async (id: string): Promise<boolean> => {
     try {
       await invoke("file_reveal", { id });
+      return true;
     } catch (err) {
       console.error("Failed to reveal file:", err);
+      return false;
     }
   },
 
-  fileRemove: async (id: string): Promise<void> => {
+  fileRemove: async (id: string): Promise<boolean> => {
     try {
       await invoke("file_remove", { id });
+      return true;
     } catch (err) {
       console.error("Failed to remove file:", err);
+      return false;
     }
   },
 
-  fileClearWorkspace: async (): Promise<void> => {
+  fileClearWorkspace: async (): Promise<boolean> => {
     try {
       await invoke("file_clear_workspace");
+      return true;
     } catch (err) {
       console.error("Failed to clear file workspace:", err);
+      return false;
     }
   },
 
@@ -509,7 +540,7 @@ export const bbqCommands = {
           id: "action-pomodoro",
           title: "Start Pomodoro Timer",
           subtitle: "25 minutes focus session",
-          icon: "⏱️",
+          icon: "timer",
           action: { type: "bbq_action", payload: { action: "open_timer" } },
           source: "built_in",
           usage_count: 12,
@@ -520,7 +551,7 @@ export const bbqCommands = {
           id: "action-clipboard",
           title: "Clipboard History",
           subtitle: "Browse recent text clippings",
-          icon: "📋",
+          icon: "clipboard",
           action: { type: "bbq_action", payload: { action: "open_clipboard" } },
           source: "built_in",
           usage_count: 8,
@@ -531,7 +562,7 @@ export const bbqCommands = {
           id: "action-system",
           title: "System Performance",
           subtitle: "Battery, network & volume",
-          icon: "⚙️",
+          icon: "settings",
           action: { type: "bbq_action", payload: { action: "open_system" } },
           source: "built_in",
           usage_count: 3,
@@ -593,11 +624,13 @@ export const bbqCommands = {
     }
   },
 
-  launcherClearRecent: async (): Promise<void> => {
+  launcherClearRecent: async (): Promise<boolean> => {
     try {
       await invoke("launcher_clear_recent");
+      return true;
     } catch (err) {
       console.error("Failed to clear recent launcher items:", err);
+      return false;
     }
   },
 
@@ -668,6 +701,15 @@ export const bbqCommands = {
       return await invoke<HotkeyCapabilities>("hotkey_get_capabilities");
     } catch (err) {
       console.error("Failed to get hotkey capabilities:", err);
+      return null;
+    }
+  },
+
+  getPlatformCapabilities: async (): Promise<PlatformCapabilities | null> => {
+    try {
+      return await invoke<PlatformCapabilities>("get_platform_capabilities");
+    } catch (err) {
+      console.error("Failed to get platform capabilities:", err);
       return null;
     }
   },

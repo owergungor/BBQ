@@ -14,6 +14,9 @@ pub trait NotesServiceTrait: Service {
     fn list_recent_notes(&self) -> BbqResult<Vec<QuickNote>>;
 }
 
+/// NotesService serves as an intentionally reserved architectural marker service
+/// within the BBQ ServiceRegistry (slot 14) for planned notes HUD functionality.
+/// It maintains ServiceState::Inactive until full implementation.
 #[derive(Debug, Default)]
 pub struct NotesService;
 

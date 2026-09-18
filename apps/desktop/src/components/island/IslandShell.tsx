@@ -1,6 +1,7 @@
 import React from "react";
 import type { IslandMode } from "@bbq/types";
 import type { IslandMachineState } from "../../island/islandState.ts";
+import { Icon } from "../common/Icon.tsx";
 
 interface IslandShellProps {
   state: IslandMachineState;
@@ -58,7 +59,10 @@ export const IslandShell: React.FC<IslandShellProps> = ({
         className={`bbq-drop-target-indicator ${isDragOver ? "visible" : ""}`}
         aria-hidden={!isDragOver}
       >
-        <span>📥 Drop file here to add to workspace</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <Icon name="drop" size={14} aria-hidden="true" />
+          <span>Stage files on Drop Shelf</span>
+        </span>
       </div>
       {children}
     </div>

@@ -149,9 +149,22 @@ export interface NetworkState {
   signal_strength: number | null;
 }
 
+export interface CpuMetrics {
+  usage_percent: number;
+  core_count: number;
+}
+
+export interface MemoryMetrics {
+  total_bytes: number;
+  used_bytes: number;
+  usage_percent: number;
+}
+
 export interface SystemState {
   battery: BatteryState;
   network: NetworkState;
+  cpu?: CpuMetrics | null;
+  memory?: MemoryMetrics | null;
   muted: boolean | null;
   volume: number | null;
   uptime_seconds: number | null;
@@ -163,6 +176,8 @@ export interface SystemState {
 export interface SystemCapabilities {
   has_battery: boolean;
   can_read_network: boolean;
+  can_read_cpu?: boolean;
+  can_read_memory?: boolean;
   can_control_volume: boolean;
   can_mute: boolean;
 }
@@ -391,4 +406,23 @@ export interface HotkeyConflictPayload {
   id: string;
   display_str: string;
   reason: string;
+}
+
+export type CapabilityStatus =
+  | 'supported'
+  | 'passive'
+  | 'unavailable'
+  | 'compositorDependent'
+  | 'permissionRequired';
+
+export interface PlatformCapabilities {
+  platform: string;
+  globalHotkey: CapabilityStatus;
+  clipboardLiveEvents: CapabilityStatus;
+  clipboardHistory: CapabilityStatus;
+  mediaControl: CapabilityStatus;
+  mediaEvents: CapabilityStatus;
+  notifications: CapabilityStatus;
+  displayChangeEvents: CapabilityStatus;
+  windowAbsolutePositioning: CapabilityStatus;
 }

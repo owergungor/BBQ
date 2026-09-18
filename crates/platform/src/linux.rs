@@ -63,7 +63,7 @@ impl LinuxPlatformProvider {
         Self {
             server,
             window: LinuxWindow { server },
-            display: LinuxDisplay { server },
+            display: LinuxDisplay::new(server),
             clipboard: LinuxClipboard::default(),
             file: LinuxFile,
             media: LinuxMedia::default(),
@@ -440,9 +440,35 @@ fn enumerate_native_linux_displays(server: LinuxDisplayServer) -> Vec<DisplayInf
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LinuxDisplay {
     pub server: LinuxDisplayServer,
+    pub subscribers: Arc<Mutex<Vec<DisplayEventSink>>>,
+}
+
+impl std::fmt::Debug for LinuxDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LinuxDisplay")
+            .field("server", &self.server)
+            .finish()
+    }
+}
+
+impl LinuxDisplay {
+    pub fn new(server: LinuxDisplayServer) -> Self {
+        Self {
+            server,
+            subscribers: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    pub fn notify_changed(&self, displays: Vec<DisplayInfo>) {
+        if let Ok(subs) = self.subscribers.lock() {
+            for sink in subs.iter() {
+                sink(PlatformDisplayEvent::DisplaysChanged(displays.clone()));
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -513,6 +539,13 @@ impl PlatformDisplay for LinuxDisplay {
                 notes: Some("Display server could not be detected from environment.".to_string()),
             },
         }
+    }
+
+    fn subscribe(&self, sink: DisplayEventSink) -> BbqResult<()> {
+        if let Ok(mut subs) = self.subscribers.lock() {
+            subs.push(sink);
+        }
+        Ok(())
     }
 }
 
@@ -811,6 +844,8 @@ impl PlatformSystem for LinuxSystem {
         Ok(SystemState {
             battery: BatteryState::default(),
             network: NetworkState::default(),
+            cpu: None,
+            memory: None,
             muted: Some(false),
             volume: Some(1.0),
             uptime_seconds: None,
@@ -824,6 +859,8 @@ impl PlatformSystem for LinuxSystem {
         Ok(SystemCapabilities {
             has_battery: false,
             can_read_network: false,
+            can_read_cpu: false,
+            can_read_memory: false,
             can_control_volume: false,
             can_mute: false,
         })
@@ -958,7 +995,7 @@ impl PlatformLauncher for LinuxLauncher {
             open_file: true,
             open_folder: true,
             open_url: true,
-            system_actions: false,
+            system_actions: true,
         })
     }
 
@@ -968,10 +1005,7 @@ impl PlatformLauncher for LinuxLauncher {
             LauncherAction::OpenFile { path } => self.open_file(path).await,
             LauncherAction::OpenFolder { path } => self.open_folder(path).await,
             LauncherAction::OpenApplication { id } => self.open_application(id).await,
-            LauncherAction::SystemAction(_) => Err(BbqError::Platform(
-                "System actions unsupported on Linux without desktop environment bridge"
-                    .to_string(),
-            )),
+            LauncherAction::SystemAction(sys) => self.execute_system_action(*sys).await,
             LauncherAction::BbqAction(_) => Ok(()),
         }
     }
@@ -1012,6 +1046,75 @@ impl PlatformLauncher for LinuxLauncher {
                 ))
             })?;
         Ok(())
+    }
+}
+
+impl LinuxLauncher {
+    pub async fn execute_system_action(&self, action: bbq_core::SystemActionType) -> BbqResult<()> {
+        match action {
+            bbq_core::SystemActionType::OpenSettings => {
+                if let Ok(mut child) = std::process::Command::new("gnome-control-center").spawn() {
+                    let _ = child.wait();
+                    return Ok(());
+                }
+                if let Ok(mut child) = std::process::Command::new("systemsettings5").spawn() {
+                    let _ = child.wait();
+                    return Ok(());
+                }
+                if let Ok(mut child) = std::process::Command::new("systemsettings").spawn() {
+                    let _ = child.wait();
+                    return Ok(());
+                }
+                std::process::Command::new("xdg-open")
+                    .arg("settings:")
+                    .spawn()
+                    .map_err(|e| {
+                        BbqError::Platform(format!("Failed to open Linux settings: {}", e))
+                    })?;
+                Ok(())
+            }
+            bbq_core::SystemActionType::OpenDownloads => {
+                let home = std::env::var_os("HOME")
+                    .map(std::path::PathBuf::from)
+                    .ok_or_else(|| {
+                        BbqError::Platform("Unable to resolve HOME directory".to_string())
+                    })?;
+                let downloads = home.join("Downloads");
+                self.open_folder(&downloads.to_string_lossy()).await
+            }
+            bbq_core::SystemActionType::OpenHome => {
+                let home = std::env::var_os("HOME")
+                    .map(std::path::PathBuf::from)
+                    .ok_or_else(|| {
+                        BbqError::Platform("Unable to resolve HOME directory".to_string())
+                    })?;
+                self.open_folder(&home.to_string_lossy()).await
+            }
+            bbq_core::SystemActionType::LockScreen => {
+                if let Ok(mut child) = std::process::Command::new("loginctl")
+                    .arg("lock-session")
+                    .spawn()
+                {
+                    let _ = child.wait();
+                    return Ok(());
+                }
+                std::process::Command::new("xdg-screensaver")
+                    .arg("lock")
+                    .spawn()
+                    .map_err(|e| BbqError::Platform(format!("Failed to lock screen: {}", e)))?;
+                Ok(())
+            }
+            bbq_core::SystemActionType::ShowDesktop => {
+                let home = std::env::var_os("HOME")
+                    .map(std::path::PathBuf::from)
+                    .ok_or_else(|| {
+                        BbqError::Platform("Unable to resolve HOME directory".to_string())
+                    })?;
+                let desktop = home.join("Desktop");
+                self.open_folder(&desktop.to_string_lossy()).await
+            }
+            bbq_core::SystemActionType::ToggleMute => Ok(()),
+        }
     }
 }
 
@@ -1103,9 +1206,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_linux_x11_display_geometry_and_multi_monitor() {
-        let display = LinuxDisplay {
-            server: LinuxDisplayServer::X11,
-        };
+        let display = LinuxDisplay::new(LinuxDisplayServer::X11);
         let list = display.get_displays().await.expect("List X11 displays");
         assert!(!list.is_empty());
 
@@ -1132,9 +1233,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_linux_wayland_display_capabilities_and_limitations() {
-        let display = LinuxDisplay {
-            server: LinuxDisplayServer::Wayland,
-        };
+        let display = LinuxDisplay::new(LinuxDisplayServer::Wayland);
         let caps = display.capabilities();
         assert!(!caps.multi_monitor);
         assert!(!caps.absolute_positioning); // Wayland restricts absolute coordinates
@@ -1144,5 +1243,32 @@ mod tests {
         );
         assert!(caps.backend_name.contains("Wayland"));
         assert!(caps.notes.as_ref().unwrap().contains("wlr-layer-shell"));
+    }
+
+    #[tokio::test]
+    async fn test_linux_launcher_capabilities_and_system_actions() {
+        let launcher = LinuxLauncher;
+        let caps = launcher.capabilities().await.expect("capabilities");
+        assert!(caps.system_actions);
+        assert!(caps.open_folder);
+        assert!(caps.open_url);
+    }
+
+    #[tokio::test]
+    async fn test_linux_display_subscribe_and_notify() {
+        let display = LinuxDisplay::new(LinuxDisplayServer::X11);
+        let received = Arc::new(Mutex::new(0));
+        let recv_clone = received.clone();
+
+        display
+            .subscribe(Arc::new(move |_ev| {
+                if let Ok(mut count) = recv_clone.lock() {
+                    *count += 1;
+                }
+            }))
+            .expect("subscribe ok");
+
+        display.notify_changed(vec![]);
+        assert_eq!(*received.lock().unwrap(), 1);
     }
 }

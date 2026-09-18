@@ -6,7 +6,14 @@ import {
   launchAction,
   toggleFavorite,
 } from "../../state/launcherState.ts";
-import { searchLauncherItems } from "../../utils/launcherSearch.ts";
+import { Icon } from "../common/Icon.tsx";
+import {
+  mapActionToIconName,
+  filterAndRankLauncherItems,
+  getTopQuickActions,
+  clampSelectedIndex,
+  MAX_LAUNCHER_VISIBLE_ITEMS,
+} from "./launcherModel.ts";
 
 interface LauncherWidgetProps {
   onSelectWidget?: (widgetId: string) => void;
@@ -50,36 +57,29 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
     inputRef.current?.focus();
   }, []);
 
-  const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
-  const recentIds = useMemo(() => new Set(recent.map((r) => r.id)), [recent]);
-
   // Unified deterministic smart search: 2x2 Quick Actions on empty query, and ranked search when query present
   const visibleItems = useMemo<LauncherItem[]>(() => {
     if (!query.trim()) {
-      return items.filter(
-        (item) =>
-          item.source === "built_in" &&
-          item.id !== "bbq_media" &&
-          !EXCLUDED_LAUNCHER_ITEM_IDS.has(item.id)
-      );
+      const availableItems = items.filter((i) => !EXCLUDED_LAUNCHER_ITEM_IDS.has(i.id));
+      const availableFavorites = favorites.filter((i) => !EXCLUDED_LAUNCHER_ITEM_IDS.has(i.id));
+      const availableRecent = recent.filter((i) => !EXCLUDED_LAUNCHER_ITEM_IDS.has(i.id));
+      return getTopQuickActions(availableItems, availableFavorites, availableRecent, 4);
     }
-    const results = searchLauncherItems(query, items, favoriteIds, recentIds);
-    return results.filter((item) => !EXCLUDED_LAUNCHER_ITEM_IDS.has(item.id));
-  }, [query, items, favoriteIds, recentIds]);
+    const filtered = items.filter((item) => !EXCLUDED_LAUNCHER_ITEM_IDS.has(item.id));
+    return filterAndRankLauncherItems(filtered, query, MAX_LAUNCHER_VISIBLE_ITEMS);
+  }, [query, items, favorites, recent]);
 
   // Keep selected index within bounds
   useEffect(() => {
-    if (visibleItems.length === 0) {
-      setSelectedIndex(0);
-    } else if (selectedIndex >= visibleItems.length) {
-      setSelectedIndex(visibleItems.length - 1);
-    }
-  }, [visibleItems.length, selectedIndex]);
+    setSelectedIndex((prev) => clampSelectedIndex(prev, visibleItems.length));
+  }, [visibleItems.length]);
 
   // Scroll active item into view
   useEffect(() => {
     if (!listRef.current) return;
-    const activeEl = listRef.current.querySelector<HTMLElement>(".bbq-launcher-item.active, .bbq-launcher-grid-card.active");
+    const activeEl = listRef.current.querySelector<HTMLElement>(
+      ".bbq-launcher-item.active, .bbq-launcher-grid-card.active"
+    );
     if (activeEl) {
       activeEl.scrollIntoView({ block: "nearest" });
     }
@@ -135,7 +135,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
         setSelectedIndex((prev) => (prev + 2 < 4 ? prev + 2 : prev % 2));
       } else {
         setSelectedIndex((prev) =>
-          prev < visibleItems.length - 1 ? prev + 1 : 0
+          clampSelectedIndex(prev < visibleItems.length - 1 ? prev + 1 : 0, visibleItems.length)
         );
       }
     } else if (e.key === "ArrowUp") {
@@ -144,7 +144,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
         setSelectedIndex((prev) => (prev - 2 >= 0 ? prev - 2 : prev + 2));
       } else {
         setSelectedIndex((prev) =>
-          prev > 0 ? prev - 1 : Math.max(0, visibleItems.length - 1)
+          clampSelectedIndex(prev > 0 ? prev - 1 : Math.max(0, visibleItems.length - 1), visibleItems.length)
         );
       }
     } else if (e.key === "ArrowRight" && !query.trim() && visibleItems.length === 4) {
@@ -153,16 +153,11 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
     } else if (e.key === "ArrowLeft" && !query.trim() && visibleItems.length === 4) {
       e.preventDefault();
       setSelectedIndex((prev) => (prev % 2 === 1 ? prev - 1 : prev));
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      setSelectedIndex(0);
-    } else if (e.key === "End") {
-      e.preventDefault();
-      setSelectedIndex(Math.max(0, visibleItems.length - 1));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (visibleItems[selectedIndex]) {
-        handleExecute(visibleItems[selectedIndex]);
+      const selected = visibleItems[selectedIndex];
+      if (selected) {
+        handleExecute(selected);
       }
     } else if (e.key === "Escape") {
       e.preventDefault();
@@ -174,28 +169,10 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
     }
   };
 
-
-  const getActionIcon = (item: LauncherItem): string => {
-    if (item.icon) return item.icon;
-    switch (item.action.type) {
-      case "open_application":
-        return "🚀";
-      case "open_file":
-        return "📄";
-      case "open_folder":
-        return "📁";
-      case "open_url":
-        return "🌐";
-      case "system_action":
-        return "⚙️";
-      case "bbq_action":
-        return "🧭";
-    }
-  };
-
   const renderItemRow = (item: LauncherItem, idx: number) => {
     const isSelected = idx === selectedIndex;
     const itemDomId = `launcher-item-${item.id}`;
+    const iconName = mapActionToIconName(item.action);
 
     return (
       <div
@@ -208,7 +185,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
         onMouseEnter={() => setSelectedIndex(idx)}
       >
         <div className="bbq-launcher-item-icon" aria-hidden="true">
-          {getActionIcon(item)}
+          <Icon name={iconName} size={16} />
         </div>
         <div className="bbq-launcher-item-content">
           <div className="bbq-launcher-item-title">{item.title}</div>
@@ -232,7 +209,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
               toggleFavorite(item).catch(console.error);
             }}
           >
-            {item.favorite ? "★" : "☆"}
+            <Icon name="pin" size={13} />
           </button>
         </div>
       </div>
@@ -242,6 +219,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
   const renderGridCard = (item: LauncherItem, idx: number) => {
     const isSelected = idx === selectedIndex;
     const itemDomId = `launcher-item-${item.id}`;
+    const iconName = mapActionToIconName(item.action);
 
     return (
       <div
@@ -255,7 +233,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
       >
         <div className="bbq-launcher-grid-card-header">
           <span className="bbq-launcher-grid-card-icon" aria-hidden="true">
-            {getActionIcon(item)}
+            <Icon name={iconName} size={18} />
           </span>
           <button
             type="button"
@@ -267,7 +245,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
               toggleFavorite(item).catch(console.error);
             }}
           >
-            {item.favorite ? "★" : "☆"}
+            <Icon name="pin" size={13} />
           </button>
         </div>
         <div className="bbq-launcher-grid-card-body">
@@ -285,11 +263,17 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
     : undefined;
 
   return (
-    <div id="bbq-launcher-widget" className="bbq-launcher-widget">
+    <div id="bbq-launcher-widget" className="bbq-launcher-widget" onClick={(e) => e.stopPropagation()}>
       {/* Search Input Bar */}
-      <div className="bbq-launcher-search-container" role="combobox" aria-expanded="true" aria-haspopup="listbox" aria-controls="bbq-launcher-items-list">
+      <div
+        className="bbq-launcher-search-container"
+        role="combobox"
+        aria-expanded="true"
+        aria-haspopup="listbox"
+        aria-controls="bbq-launcher-items-list"
+      >
         <span className="bbq-launcher-search-icon" aria-hidden="true">
-          ⌕
+          <Icon name="search" size={14} />
         </span>
         <input
           ref={inputRef}
@@ -317,7 +301,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
             }}
             aria-label="Clear search"
           >
-            ✕
+            <Icon name="close" size={12} />
           </button>
         )}
       </div>
@@ -325,7 +309,8 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
       {/* Error banner if any */}
       {error && (
         <div className="bbq-launcher-error-banner" role="alert">
-          <span>⚠️ {error}</span>
+          <Icon name="close" size={12} />
+          <span>{error}</span>
         </div>
       )}
 
@@ -402,7 +387,6 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
       <div className="bbq-launcher-footer">
         <div className="bbq-launcher-hints">
           <span className="bbq-kbd">↑↓</span> navigate
-          <span className="bbq-kbd">home/end</span> jump
           <span className="bbq-kbd">↵</span> open
           <span className="bbq-kbd">esc</span> close
         </div>

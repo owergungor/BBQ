@@ -1,38 +1,24 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   useReminderState,
-  formatDueTime,
   refreshReminders,
   setReminderError,
 } from "../../state/reminderState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
-
-interface PresetOption {
-  label: string;
-  calcMs: () => number;
-}
-
-const PRESETS: PresetOption[] = [
-  { label: "+10m", calcMs: () => Date.now() + 10 * 60 * 1000 },
-  { label: "+30m", calcMs: () => Date.now() + 30 * 60 * 1000 },
-  { label: "+1h", calcMs: () => Date.now() + 60 * 60 * 1000 },
-  {
-    label: "Tomorrow 9am",
-    calcMs: () => {
-      const d = new Date();
-      d.setDate(d.getDate() + 1);
-      d.setHours(9, 0, 0, 0);
-      return d.getTime();
-    },
-  },
-];
+import { Icon } from "../common/Icon.tsx";
+import {
+  calculateReminderPresets,
+  formatReminderDue,
+  validateReminderInput,
+  partitionReminders,
+} from "./reminderModel.ts";
 
 export const ReminderWidget: React.FC = () => {
   const { reminders, isLoading, error } = useReminderState();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [selectedDueAt, setSelectedDueAt] = useState<number>(Date.now() + 10 * 60 * 1000);
+  const [selectedDueAt, setSelectedDueAt] = useState<number>(() => Date.now() + 10 * 60 * 1000);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCustomDateTime, setShowCustomDateTime] = useState(false);
 
@@ -40,8 +26,10 @@ export const ReminderWidget: React.FC = () => {
     refreshReminders();
   }, []);
 
-  const handleSelectPreset = useCallback((calcMs: () => number) => {
-    setSelectedDueAt(calcMs());
+  const presets = useMemo(() => calculateReminderPresets(), []);
+
+  const handleSelectPreset = useCallback((dueAt: number) => {
+    setSelectedDueAt(dueAt);
     setShowCustomDateTime(false);
   }, []);
 
@@ -57,14 +45,9 @@ export const ReminderWidget: React.FC = () => {
 
   const handleCreateReminder = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      setReminderError("Please enter a reminder title");
-      return;
-    }
-
-    if (selectedDueAt <= Date.now()) {
-      setReminderError("Reminder must be set to a future time");
+    const validation = validateReminderInput(title, selectedDueAt);
+    if (!validation.valid) {
+      setReminderError(validation.reason);
       return;
     }
 
@@ -72,9 +55,9 @@ export const ReminderWidget: React.FC = () => {
     setReminderError(null);
     try {
       const created = await bbqCommands.reminderCreate(
-        trimmedTitle,
+        validation.title,
         body.trim() ? body.trim() : null,
-        selectedDueAt
+        validation.dueAt
       );
 
       if (created) {
@@ -82,6 +65,7 @@ export const ReminderWidget: React.FC = () => {
         setBody("");
         // Reset to default +10m preset
         setSelectedDueAt(Date.now() + 10 * 60 * 1000);
+        setShowCustomDateTime(false);
       }
     } catch (err) {
       setReminderError(err instanceof Error ? err.message : String(err));
@@ -90,7 +74,8 @@ export const ReminderWidget: React.FC = () => {
     }
   };
 
-  const handleCancelReminder = async (id: string) => {
+  const handleCancelReminder = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       await bbqCommands.reminderCancel(id);
     } catch (err) {
@@ -98,7 +83,8 @@ export const ReminderWidget: React.FC = () => {
     }
   };
 
-  const handleClearFired = async () => {
+  const handleClearFired = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       await bbqCommands.reminderClearFired();
       await refreshReminders();
@@ -107,15 +93,16 @@ export const ReminderWidget: React.FC = () => {
     }
   };
 
-  const scheduledReminders = reminders.filter((r) => r.state === "Scheduled");
-  const firedReminders = reminders.filter((r) => r.state === "Fired");
+  const { scheduled: scheduledReminders, fired: firedReminders } = useMemo(() => {
+    return partitionReminders(reminders);
+  }, [reminders]);
 
   return (
-    <div className="bbq-reminder-widget">
+    <div className="bbq-reminder-widget" onClick={(e) => e.stopPropagation()}>
       {/* Header with Title and Clear Action */}
       <div className="bbq-reminder-header">
         <div className="bbq-reminder-title-area">
-          <span className="bbq-reminder-icon" aria-hidden="true">🔔</span>
+          <Icon name="bell" size={16} className="bbq-reminder-header-icon" />
           <span className="bbq-reminder-heading">Reminders</span>
           <span className="bbq-reminder-badge">
             {scheduledReminders.length}
@@ -135,13 +122,15 @@ export const ReminderWidget: React.FC = () => {
 
       {error && (
         <div className="bbq-reminder-error-banner" role="alert">
+          <Icon name="close" size={12} />
           <span>{error}</span>
           <button
             type="button"
             className="bbq-reminder-error-dismiss"
             onClick={() => setReminderError(null)}
+            aria-label="Dismiss error"
           >
-            ✕
+            <Icon name="close" size={12} />
           </button>
         </div>
       )}
@@ -155,7 +144,7 @@ export const ReminderWidget: React.FC = () => {
             placeholder="What should BBQ remind you about?"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            maxLength={256}
+            maxLength={128}
             disabled={isSubmitting}
             aria-label="Reminder title"
           />
@@ -170,29 +159,33 @@ export const ReminderWidget: React.FC = () => {
 
         {/* Preset Chips */}
         <div className="bbq-reminder-presets">
-          {PRESETS.map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              className="bbq-reminder-preset-btn"
-              onClick={() => handleSelectPreset(preset.calcMs)}
-            >
-              {preset.label}
-            </button>
-          ))}
+          {presets.map((preset) => {
+            const isSelected = !showCustomDateTime && Math.abs(selectedDueAt - preset.dueAt) < 2000;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                className={`bbq-reminder-preset-btn ${isSelected ? "active" : ""}`}
+                onClick={() => handleSelectPreset(preset.dueAt)}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
           <button
             type="button"
             className={`bbq-reminder-preset-btn ${showCustomDateTime ? "active" : ""}`}
             onClick={() => setShowCustomDateTime(!showCustomDateTime)}
           >
-            Custom...
+            <Icon name="calendar" size={11} style={{ marginRight: "4px" }} />
+            Özel...
           </button>
         </div>
 
         {/* Custom Datetime Input */}
         {showCustomDateTime && (
           <div className="bbq-reminder-custom-datetime">
-            <label htmlFor="custom-due-at">Custom Time:</label>
+            <label htmlFor="custom-due-at">Tarih & Saat:</label>
             <input
               id="custom-due-at"
               type="datetime-local"
@@ -204,7 +197,7 @@ export const ReminderWidget: React.FC = () => {
 
         {/* Due Target Indicator */}
         <div className="bbq-reminder-due-preview">
-          Due: {formatDueTime(selectedDueAt)} (
+          Hedef: {formatReminderDue(selectedDueAt)} (
           {new Date(selectedDueAt).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
@@ -215,10 +208,10 @@ export const ReminderWidget: React.FC = () => {
 
       {/* Active Reminders List */}
       <div className="bbq-reminder-list-container">
-        <div className="bbq-reminder-section-title">Upcoming</div>
+        <div className="bbq-reminder-section-title">Yaklaşanlar</div>
         {scheduledReminders.length === 0 ? (
           <div className="bbq-reminder-empty">
-            {isLoading ? "Loading reminders..." : "No active reminders. Schedule one above!"}
+            {isLoading ? "Yükleniyor..." : "Aktif hatırlatıcı yok. Yukarıdan bir tane ekleyin!"}
           </div>
         ) : (
           <ul className="bbq-reminder-list">
@@ -232,16 +225,16 @@ export const ReminderWidget: React.FC = () => {
                 </div>
                 <div className="bbq-reminder-item-meta">
                   <span className="bbq-reminder-time-tag">
-                    {formatDueTime(rem.due_at)}
+                    {formatReminderDue(rem.due_at)}
                   </span>
                   <button
                     type="button"
                     className="bbq-reminder-cancel-btn"
-                    onClick={() => handleCancelReminder(rem.id)}
-                    title="Cancel reminder"
+                    onClick={(e) => handleCancelReminder(rem.id, e)}
+                    title="İptal et"
                     aria-label={`Cancel reminder ${rem.title}`}
                   >
-                    ✕
+                    <Icon name="close" size={12} />
                   </button>
                 </div>
               </li>

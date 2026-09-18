@@ -1,7 +1,13 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { clipboardStore, useClipboardState } from "../../state/clipboardState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import type { ClipboardEntry } from "@bbq/types";
+import { Icon } from "../common/Icon.tsx";
+import {
+  normalizeClipboardEntry,
+  boundClipboardEntries,
+  MAX_CLIPBOARD_HISTORY_ENTRIES,
+} from "./productivityModel.ts";
 
 export const ClipboardWidget: React.FC = () => {
   const { enabled, entries, status } = useClipboardState();
@@ -53,35 +59,34 @@ export const ClipboardWidget: React.FC = () => {
         try {
           await navigator.clipboard.writeText(entry.content);
         } catch {
-          // Fallback if browser clipboard permission is restricted
+          // Fallback if browser permission is restricted
         }
       }
     },
     []
   );
 
-  const formatTypeIcon = (type: string) => {
-    switch (type) {
-      case "text":
-        return "📄";
-      case "image":
-        return "🖼️";
-      case "file_list":
-        return "📁";
-      default:
-        return "📎";
-    }
-  };
+  const normalizedCards = useMemo(() => {
+    const bounded = boundClipboardEntries(entries, MAX_CLIPBOARD_HISTORY_ENTRIES);
+    const now = Date.now();
+    return bounded.map((entry) => ({
+      raw: entry,
+      normalized: normalizeClipboardEntry(entry, now),
+    }));
+  }, [entries]);
 
   return (
     <div className="bbq-clipboard-widget" onClick={(e) => e.stopPropagation()}>
       <div className="bbq-clipboard-header">
         <div className="bbq-clipboard-title-group">
-          <span className="bbq-status-dot" style={{ background: enabled ? "var(--accent, #6366f1)" : "#666" }} />
+          <span
+            className="bbq-status-dot"
+            style={{ background: enabled ? "var(--bbq-accent, #0A84FF)" : "#666" }}
+          />
           <span className="bbq-clipboard-title">Clipboard History</span>
-          {status && enabled && (
+          {enabled && (
             <span className="bbq-clipboard-badge">
-              {entries.length} / {status.max_entries}
+              {entries.length} / {status?.max_entries ?? MAX_CLIPBOARD_HISTORY_ENTRIES}
             </span>
           )}
         </div>
@@ -89,11 +94,13 @@ export const ClipboardWidget: React.FC = () => {
         <div className="bbq-clipboard-actions">
           <button
             type="button"
-            className={`bbq-btn ${enabled ? "bbq-btn-active" : ""}`}
+            className={"bbq-btn" + (enabled ? " bbq-btn-active" : "")}
             onClick={handleToggleEnabled}
             title={enabled ? "Disable clipboard history" : "Enable clipboard history"}
+            aria-label={enabled ? "Disable clipboard history" : "Enable clipboard history"}
           >
-            {enabled ? "Enabled" : "Disabled"}
+            <Icon name={enabled ? "check" : "close"} size={11} aria-hidden="true" />
+            <span>{enabled ? "Enabled" : "Disabled"}</span>
           </button>
 
           {enabled && entries.length > 0 && (
@@ -102,8 +109,10 @@ export const ClipboardWidget: React.FC = () => {
               className="bbq-btn bbq-btn-danger"
               onClick={handleClearHistory}
               title="Clear all saved history"
+              aria-label="Clear all clipboard history"
             >
-              Clear
+              <Icon name="trash" size={11} aria-hidden="true" />
+              <span>Clear</span>
             </button>
           )}
         </div>
@@ -111,55 +120,76 @@ export const ClipboardWidget: React.FC = () => {
 
       {!enabled ? (
         <div className="bbq-clipboard-privacy-notice">
-          <div style={{ fontWeight: 600, marginBottom: "4px" }}>Privacy Protected</div>
-          <div style={{ fontSize: "11px", color: "var(--text-secondary, #94a3b8)", lineHeight: "1.4" }}>
+          <div className="bbq-clipboard-privacy-header">
+            <Icon name="lock" size={16} aria-hidden="true" />
+            <span style={{ fontWeight: 600 }}>Privacy Protected</span>
+          </div>
+          <div className="bbq-clipboard-privacy-body">
             Clipboard history is strictly local-first and disabled by default.
-            Enable it above to save recent text clippings securely on this device.
+            Enable it above to save recent text clippings securely on this device without telemetry or logs.
           </div>
         </div>
       ) : entries.length === 0 ? (
         <div className="bbq-clipboard-empty">
-          <span>No clipboard items yet. Copy some text to see it here.</span>
+          <Icon name="clipboard" size={24} aria-hidden="true" style={{ opacity: 0.4 }} />
+          <span>No clipboard items yet. Copy text to stage clippings here.</span>
         </div>
       ) : (
-        <div className="bbq-clipboard-list">
-          {entries.map((entry) => (
-            <div key={entry.id} className="bbq-clipboard-item">
-              <div className="bbq-clipboard-item-header">
-                <span className="bbq-clipboard-item-type" title={entry.content_type}>
-                  {formatTypeIcon(entry.content_type)} {entry.content_type}
-                </span>
+        <div className="bbq-clipboard-card-grid" role="grid" aria-label="Clipboard history cards">
+          {normalizedCards.map(({ raw, normalized }) => (
+            <div
+              key={normalized.id}
+              className={"bbq-clipboard-card" + (normalized.isSensitive ? " is-sensitive" : "")}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleCopyAgain(e as unknown as React.MouseEvent, raw);
+                } else if (e.key === "Delete" || e.key === "Backspace") {
+                  e.preventDefault();
+                  handleDeleteEntry(e as unknown as React.MouseEvent, raw.id);
+                }
+              }}
+            >
+              <div className="bbq-clipboard-card-header">
+                <div className="bbq-clipboard-card-tag">
+                  <Icon name={normalized.iconName} size={12} aria-hidden="true" />
+                  <span className="bbq-clipboard-card-type">{normalized.contentType}</span>
+                  {normalized.isSensitive && (
+                    <span className="bbq-clipboard-sensitive-pill" title="Sensitive credentials masked">
+                      <Icon name="lock" size={10} aria-hidden="true" />
+                      <span>Protected</span>
+                    </span>
+                  )}
+                </div>
 
-                {entry.possible_sensitive && (
-                  <span className="bbq-clipboard-sensitive-badge" title="May contain credentials or tokens">
-                    🔒 Sensitive
-                  </span>
-                )}
-
-                <div className="bbq-clipboard-item-buttons">
-                  {entry.content && (
+                <div className="bbq-clipboard-card-actions">
+                  <span className="bbq-clipboard-time-ago">{normalized.timeAgo}</span>
+                  {raw.content && (
                     <button
                       type="button"
-                      className="bbq-clipboard-small-btn"
-                      onClick={(e) => handleCopyAgain(e, entry)}
+                      className="bbq-clipboard-action-btn"
+                      onClick={(e) => handleCopyAgain(e, raw)}
                       title="Copy again"
+                      aria-label={"Copy clipping: " + normalized.preview}
                     >
-                      Copy
+                      <Icon name="copy" size={11} aria-hidden="true" />
                     </button>
                   )}
                   <button
                     type="button"
-                    className="bbq-clipboard-small-btn bbq-btn-delete"
-                    onClick={(e) => handleDeleteEntry(e, entry.id)}
+                    className="bbq-clipboard-action-btn delete"
+                    onClick={(e) => handleDeleteEntry(e, raw.id)}
                     title="Delete item"
+                    aria-label="Delete clipboard clipping"
                   >
-                    ×
+                    <Icon name="close" size={11} aria-hidden="true" />
                   </button>
                 </div>
               </div>
 
-              <div className="bbq-clipboard-item-preview" title={entry.preview}>
-                {entry.preview}
+              <div className="bbq-clipboard-card-preview" title={normalized.preview}>
+                {normalized.preview}
               </div>
             </div>
           ))}

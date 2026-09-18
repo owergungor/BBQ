@@ -9,8 +9,9 @@ pub enum ReminderState {
     Cancelled,
 }
 
-pub const MAX_REMINDER_TITLE_LENGTH: usize = 256;
-pub const MAX_REMINDER_BODY_LENGTH: usize = 2048;
+pub const MAX_REMINDER_TITLE_LENGTH: usize = 128;
+pub const MAX_REMINDER_BODY_LENGTH: usize = 512;
+pub const MAX_REMINDERS_BOUND: usize = 50;
 
 /// Normalized reminder representation
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,7 +71,7 @@ impl Reminder {
             ));
         }
 
-        if self.title.len() > MAX_REMINDER_TITLE_LENGTH {
+        if self.title.chars().count() > MAX_REMINDER_TITLE_LENGTH {
             return Err(BbqError::Validation(format!(
                 "Reminder title exceeds maximum length of {} characters",
                 MAX_REMINDER_TITLE_LENGTH
@@ -78,7 +79,7 @@ impl Reminder {
         }
 
         if let Some(ref body) = self.body {
-            if body.len() > MAX_REMINDER_BODY_LENGTH {
+            if body.chars().count() > MAX_REMINDER_BODY_LENGTH {
                 return Err(BbqError::Validation(format!(
                     "Reminder body exceeds maximum length of {} characters",
                     MAX_REMINDER_BODY_LENGTH

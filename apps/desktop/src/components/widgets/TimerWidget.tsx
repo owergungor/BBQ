@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
-import type { TimerMode, PomodoroPhase, TimerSession } from "@bbq/types";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import type { TimerMode, TimerSession } from "@bbq/types";
 import {
   useTimerState,
   formatTimeDisplay,
@@ -7,6 +7,14 @@ import {
   initializeTimerStore,
 } from "../../state/timerState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
+import { Icon } from "../common/Icon.tsx";
+import {
+  calculateRemainingMs,
+  calculateTimerProgressPct,
+  calculateTimerDashOffset,
+  getPomodoroPhaseInfo,
+  parseAndValidateCustomMinutes,
+} from "./productivityModel.ts";
 
 export { formatTimeDisplay };
 
@@ -36,23 +44,9 @@ export const TimerWidget: React.FC = () => {
     };
   }, []);
 
-  // Derive display time from authoritative timestamps
+  // Derive display time strictly from timestamps via pure productivity model
   const getDisplayMs = useCallback((): number => {
-    const now = Date.now();
-    if (session.mode === "Countdown" || session.mode === "Pomodoro") {
-      if (session.state === "Running" && session.target_at) {
-        return Math.max(0, session.target_at - now);
-      }
-      return session.remaining_ms ?? session.duration_ms ?? 0;
-    } else {
-      // Stopwatch
-      if (session.state === "Running" && session.started_at) {
-        const active = Math.max(0, now - session.started_at);
-        const accumulated = session.remaining_ms ?? 0;
-        return accumulated + active;
-      }
-      return session.remaining_ms ?? 0;
-    }
+    return calculateRemainingMs(session, Date.now());
   }, [session]);
 
   const [displayMs, setDisplayMs] = useState<number>(getDisplayMs);
@@ -62,7 +56,7 @@ export const TimerWidget: React.FC = () => {
     setDisplayMs(getDisplayMs());
   }, [session, getDisplayMs]);
 
-  // Bounded, cancelable one-shot timeout scheduling for smooth countdown
+  // Bounded, cancelable one-shot timeout scheduling strictly targeting the next second boundary
   useEffect(() => {
     if (session.state !== "Running") {
       return;
@@ -92,7 +86,7 @@ export const TimerWidget: React.FC = () => {
     };
   }, [session.state, session.started_at, session.target_at, getDisplayMs]);
 
-  // Handlers for mode switching - always opens in Idle/Paused state without auto-starting
+  // Mode switching - preserves Idle state without auto-starting
   const handleSelectMode = useCallback(async (mode: TimerMode, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (mode === session.mode) return;
@@ -100,11 +94,10 @@ export const TimerWidget: React.FC = () => {
     if (res) {
       setTimerSession(res);
     } else {
-      // Fallback for browser / simulated test environment
       const duration =
         mode === "Stopwatch" ? null : mode === "Pomodoro" ? 25 * 60 * 1000 : selectedDurationMs;
       setTimerSession({
-        id: `timer_${Date.now()}`,
+        id: "timer_" + Date.now(),
         mode,
         state: "Idle",
         started_at: null,
@@ -168,29 +161,39 @@ export const TimerWidget: React.FC = () => {
       e.preventDefault();
       e.stopPropagation();
     }
-    const mins = parseFloat(customMinutes);
-    if (!isNaN(mins) && mins > 0) {
-      const ms = Math.round(mins * 60 * 1000);
-      setSelectedDurationMs(ms);
-      const res = await bbqCommands.timerStartCountdown(ms);
+    const validated = parseAndValidateCustomMinutes(customMinutes);
+    if (validated.valid) {
+      setSelectedDurationMs(validated.durationMs);
+      const res = await bbqCommands.timerStartCountdown(validated.durationMs);
       if (res) setTimerSession(res);
       setCustomMinutes("");
     }
   }, [customMinutes]);
 
-  const getPhaseBadge = (phase: PomodoroPhase | null) => {
-    switch (phase) {
-      case "ShortBreak":
-        return { label: "Short Break", color: "#10b981", icon: "☕" };
-      case "LongBreak":
-        return { label: "Long Break", color: "#3b82f6", icon: "🌴" };
-      case "Work":
-      default:
-        return { label: "Work", color: "#ef4444", icon: "🍅" };
-    }
-  };
+  const pomodoroInfo = useMemo(() => {
+    return getPomodoroPhaseInfo(session.pomodoro_phase);
+  }, [session.pomodoro_phase]);
 
-  const pomodoroBadge = getPhaseBadge(session.pomodoro_phase);
+  // Circular gauge calculations
+  const progressPct = useMemo(() => {
+    if (session.mode === "Stopwatch") {
+      return session.state === "Running" ? 100 : 0;
+    }
+    const totalDuration = session.duration_ms ?? selectedDurationMs;
+    return calculateTimerProgressPct(displayMs, totalDuration);
+  }, [session.mode, session.state, session.duration_ms, selectedDurationMs, displayMs]);
+
+  const radius = 54;
+  const { circumference, dashOffset } = useMemo(() => {
+    return calculateTimerDashOffset(progressPct, radius);
+  }, [progressPct, radius]);
+
+  const isPomodoro = session.mode === "Pomodoro";
+  const accentColor = isPomodoro
+    ? pomodoroInfo.color
+    : session.mode === "Stopwatch"
+    ? "#3b82f6"
+    : "var(--bbq-accent, #0A84FF)";
 
   return (
     <div
@@ -205,30 +208,33 @@ export const TimerWidget: React.FC = () => {
           type="button"
           role="tab"
           aria-selected={session.mode === "Countdown"}
-          className={`bbq-timer-mode-btn ${session.mode === "Countdown" ? "active" : ""}`}
+          className={"bbq-timer-mode-btn" + (session.mode === "Countdown" ? " active" : "")}
           onClick={(e) => handleSelectMode("Countdown", e)}
         >
-          ⏱ Countdown
+          <Icon name="timer" size={13} aria-hidden="true" />
+          <span>Countdown</span>
         </button>
         <button
           id="timer-mode-stopwatch"
           type="button"
           role="tab"
           aria-selected={session.mode === "Stopwatch"}
-          className={`bbq-timer-mode-btn ${session.mode === "Stopwatch" ? "active" : ""}`}
+          className={"bbq-timer-mode-btn" + (session.mode === "Stopwatch" ? " active" : "")}
           onClick={(e) => handleSelectMode("Stopwatch", e)}
         >
-          ⏱ Stopwatch
+          <Icon name="stopwatch" size={13} aria-hidden="true" />
+          <span>Stopwatch</span>
         </button>
         <button
           id="timer-mode-pomodoro"
           type="button"
           role="tab"
           aria-selected={session.mode === "Pomodoro"}
-          className={`bbq-timer-mode-btn ${session.mode === "Pomodoro" ? "active" : ""}`}
+          className={"bbq-timer-mode-btn" + (session.mode === "Pomodoro" ? " active" : "")}
           onClick={(e) => handleSelectMode("Pomodoro", e)}
         >
-          🍅 Pomodoro
+          <Icon name="sparkles" size={13} aria-hidden="true" />
+          <span>Pomodoro</span>
         </button>
       </div>
 
@@ -237,22 +243,64 @@ export const TimerWidget: React.FC = () => {
         <div className="bbq-pomodoro-status">
           <span
             className="bbq-pomodoro-phase-badge"
-            style={{ backgroundColor: `${pomodoroBadge.color}22`, color: pomodoroBadge.color }}
+            style={{ backgroundColor: pomodoroInfo.color + "1e", color: pomodoroInfo.color }}
           >
-            <span aria-hidden="true">{pomodoroBadge.icon}</span> {pomodoroBadge.label}
+            <Icon name={pomodoroInfo.iconName} size={12} aria-hidden="true" />
+            <span>{pomodoroInfo.label}</span>
           </span>
-          <div className="bbq-pomodoro-cycles" title={`Completed cycles: ${session.completed_cycles}`}>
+          <div className="bbq-pomodoro-cycles" title={"Completed cycles: " + session.completed_cycles}>
             <span className="bbq-cycles-label">Cycles: {session.completed_cycles}</span>
           </div>
         </div>
       )}
 
-      {/* Digital Readout */}
-      <div className="bbq-timer-display" aria-live="polite" aria-atomic="true">
-        <span className="bbq-timer-digits">{formatTimeDisplay(displayMs)}</span>
-        <span className={`bbq-timer-state-indicator ${session.state.toLowerCase()}`}>
-          {session.state}
-        </span>
+      {/* Circular Progress Ring + Digital Readout Centerpiece */}
+      <div className="bbq-timer-centerpiece" aria-live="polite" aria-atomic="true">
+        <div className="bbq-timer-ring-container">
+          <svg
+            className="bbq-timer-ring-svg"
+            width="128"
+            height="128"
+            viewBox="0 0 128 128"
+            aria-hidden="true"
+          >
+            {/* Background Track */}
+            <circle
+              className="bbq-timer-ring-bg"
+              cx="64"
+              cy="64"
+              r={radius}
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.08)"
+              strokeWidth="5"
+            />
+            {/* Active Progress Ring */}
+            <circle
+              className="bbq-timer-ring-fill"
+              cx="64"
+              cy="64"
+              r={radius}
+              fill="none"
+              stroke={accentColor}
+              strokeWidth="5"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashOffset}
+              strokeLinecap="round"
+              transform="rotate(-90 64 64)"
+              style={{
+                transition: session.state === "Running" ? "stroke-dashoffset 0.5s ease" : "none",
+              }}
+            />
+          </svg>
+
+          {/* Centered Digital Display */}
+          <div className="bbq-timer-center-content">
+            <span className="bbq-timer-digits">{formatTimeDisplay(displayMs)}</span>
+            <span className={"bbq-timer-state-indicator " + session.state.toLowerCase()}>
+              {session.state}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Countdown Presets & Custom Manual Time (Countdown mode) */}
@@ -262,9 +310,9 @@ export const TimerWidget: React.FC = () => {
             {COUNTDOWN_PRESETS.map((preset) => (
               <button
                 key={preset.ms}
-                id={`timer-preset-${preset.label.replace(/\s+/g, "")}`}
+                id={"timer-preset-" + preset.label.replace(/\s+/g, "")}
                 type="button"
-                className={`bbq-timer-preset-btn ${selectedDurationMs === preset.ms ? "active" : ""}`}
+                className={"bbq-timer-preset-btn" + (selectedDurationMs === preset.ms ? " active" : "")}
                 onClick={(e) => handlePresetSelect(preset.ms, e)}
               >
                 {preset.label}
@@ -311,8 +359,10 @@ export const TimerWidget: React.FC = () => {
             className="bbq-timer-btn bbq-timer-btn-primary"
             onClick={handleStart}
             disabled={isLoading}
+            aria-label="Start timer"
           >
-            ▶ Start
+            <Icon name="play" size={13} aria-hidden="true" />
+            <span>Start</span>
           </button>
         )}
 
@@ -324,8 +374,10 @@ export const TimerWidget: React.FC = () => {
               className="bbq-timer-btn bbq-timer-btn-warning"
               onClick={handlePause}
               disabled={isLoading}
+              aria-label="Pause timer"
             >
-              ⏸ Pause
+              <Icon name="pause" size={13} aria-hidden="true" />
+              <span>Pause</span>
             </button>
             <button
               id="timer-btn-reset"
@@ -333,8 +385,10 @@ export const TimerWidget: React.FC = () => {
               className="bbq-timer-btn bbq-timer-btn-secondary"
               onClick={handleReset}
               disabled={isLoading}
+              aria-label="Reset timer"
             >
-              ↺ Reset
+              <Icon name="refresh" size={13} aria-hidden="true" />
+              <span>Reset</span>
             </button>
             {session.mode === "Countdown" && (
               <button
@@ -343,8 +397,10 @@ export const TimerWidget: React.FC = () => {
                 className="bbq-timer-btn bbq-timer-btn-ghost"
                 onClick={handleCancel}
                 disabled={isLoading}
+                aria-label="Cancel timer"
               >
-                ✕ Cancel
+                <Icon name="close" size={13} aria-hidden="true" />
+                <span>Cancel</span>
               </button>
             )}
           </>
@@ -358,8 +414,10 @@ export const TimerWidget: React.FC = () => {
               className="bbq-timer-btn bbq-timer-btn-primary"
               onClick={handleResume}
               disabled={isLoading}
+              aria-label="Resume timer"
             >
-              ▶ Resume
+              <Icon name="play" size={13} aria-hidden="true" />
+              <span>Resume</span>
             </button>
             <button
               id="timer-btn-reset"
@@ -367,8 +425,10 @@ export const TimerWidget: React.FC = () => {
               className="bbq-timer-btn bbq-timer-btn-secondary"
               onClick={handleReset}
               disabled={isLoading}
+              aria-label="Reset timer"
             >
-              ↺ Reset
+              <Icon name="refresh" size={13} aria-hidden="true" />
+              <span>Reset</span>
             </button>
             {session.mode === "Countdown" && (
               <button
@@ -377,8 +437,10 @@ export const TimerWidget: React.FC = () => {
                 className="bbq-timer-btn bbq-timer-btn-ghost"
                 onClick={handleCancel}
                 disabled={isLoading}
+                aria-label="Cancel timer"
               >
-                ✕ Cancel
+                <Icon name="close" size={13} aria-hidden="true" />
+                <span>Cancel</span>
               </button>
             )}
           </>
@@ -392,8 +454,10 @@ export const TimerWidget: React.FC = () => {
               className="bbq-timer-btn bbq-timer-btn-primary"
               onClick={handleStart}
               disabled={isLoading}
+              aria-label="Start new timer"
             >
-              ▶ Start New
+              <Icon name="play" size={13} aria-hidden="true" />
+              <span>Start New</span>
             </button>
             <button
               id="timer-btn-reset"
@@ -401,8 +465,10 @@ export const TimerWidget: React.FC = () => {
               className="bbq-timer-btn bbq-timer-btn-secondary"
               onClick={handleReset}
               disabled={isLoading}
+              aria-label="Reset timer"
             >
-              ↺ Reset
+              <Icon name="refresh" size={13} aria-hidden="true" />
+              <span>Reset</span>
             </button>
           </>
         )}

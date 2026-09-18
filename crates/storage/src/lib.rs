@@ -55,6 +55,9 @@ impl DatabaseManager {
             PRAGMA journal_mode = WAL;
             PRAGMA foreign_keys = ON;
             PRAGMA synchronous = NORMAL;
+            PRAGMA cache_size = -512;
+            PRAGMA temp_store = MEMORY;
+            PRAGMA mmap_size = 0;
             "#,
         )
         .map_err(|e| BbqError::Storage(format!("Failed to configure SQLite pragmas: {}", e)))?;
@@ -64,6 +67,99 @@ impl DatabaseManager {
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
+    }
+
+    /// Open or create SQLite database on disk, applying migrations.
+    /// If opening or migration fails due to database corruption, quarantines the damaged
+    /// file as `bbq.sqlite.corrupt.<timestamp>.bak` and initializes a fresh database on disk.
+    /// Returns the database manager and an optional quarantine warning info.
+    pub fn open_with_recovery<P: AsRef<Path>>(path: P) -> BbqResult<(Self, Option<String>)> {
+        let path = path.as_ref();
+        match Self::open(path) {
+            Ok(db) => Ok((db, None)),
+            Err(orig_err) => {
+                tracing::warn!(
+                    "Failed to open SQLite database at {}: {}. Attempting corruption quarantine and recovery.",
+                    path.display(),
+                    orig_err
+                );
+
+                if !path.exists() {
+                    return Err(orig_err);
+                }
+
+                let parent = path.parent().unwrap_or_else(|| Path::new("."));
+                let base_timestamp = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis();
+
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("bbq.sqlite");
+
+                let mut counter: u32 = 0;
+                let (quarantine_name, quarantine_path) = loop {
+                    let name = if counter == 0 {
+                        format!("{}.corrupt.{}.bak", file_name, base_timestamp)
+                    } else {
+                        format!("{}.corrupt.{}_{}.bak", file_name, base_timestamp, counter)
+                    };
+                    let candidate = parent.join(&name);
+                    if !candidate.exists() {
+                        break (name, candidate);
+                    }
+                    counter += 1;
+                };
+
+                // Safely rename / quarantine the damaged file
+                std::fs::rename(path, &quarantine_path).map_err(|e| {
+                    BbqError::Storage(format!(
+                        "Database corruption detected, but failed to quarantine damaged file to {}: {}",
+                        quarantine_path.display(),
+                        e
+                    ))
+                })?;
+
+                // Also quarantine any associated WAL / SHM files if they exist
+                let wal_path = format!("{}-wal", path.to_string_lossy());
+                let wal = Path::new(&wal_path);
+                if wal.exists() {
+                    let _ = std::fs::rename(wal, parent.join(format!("{}.wal", quarantine_name)));
+                }
+                let shm_path = format!("{}-shm", path.to_string_lossy());
+                let shm = Path::new(&shm_path);
+                if shm.exists() {
+                    let _ = std::fs::rename(shm, parent.join(format!("{}.shm", quarantine_name)));
+                }
+
+                tracing::info!(
+                    "Damaged SQLite database quarantined to {}. Initializing clean persistent database.",
+                    quarantine_path.display()
+                );
+
+                // Now initialize fresh persistent database at original path
+                let fresh_db = Self::open(path)?;
+                let warning_msg = format!(
+                    "Database corruption was detected. Previous database was quarantined as {}.",
+                    quarantine_name
+                );
+
+                Ok((fresh_db, Some(warning_msg)))
+            }
+        }
+    }
+
+    /// Performs an explicit WAL checkpoint with TRUNCATE to flush WAL pages into main DB on shutdown.
+    pub fn checkpoint_wal(&self) -> BbqResult<()> {
+        let conn = self.conn.lock().map_err(|e| {
+            BbqError::Storage(format!("DB lock error during WAL checkpoint: {}", e))
+        })?;
+        conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+            .map_err(|e| BbqError::Storage(format!("WAL checkpoint failed: {}", e)))?;
+        tracing::info!("SQLite WAL checkpoint(TRUNCATE) completed successfully");
+        Ok(())
     }
 
     /// Open an in-memory database for testing
@@ -343,7 +439,7 @@ mod tests {
             "timer_item",
             "Open Timer",
             Some("Open timer widget".to_string()),
-            Some("⏱️".to_string()),
+            Some("timer".to_string()),
             LauncherAction::BbqAction(BbqActionType::OpenTimer),
             LauncherItemSource::BuiltIn,
             false,
@@ -354,7 +450,7 @@ mod tests {
             "url_item",
             "Google",
             Some("Search engine".to_string()),
-            Some("🌐".to_string()),
+            Some("globe".to_string()),
             LauncherAction::OpenUrl {
                 url: "https://google.com".to_string(),
             },

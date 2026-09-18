@@ -304,8 +304,32 @@ fn enumerate_native_macos_displays() -> Vec<DisplayInfo> {
     ]
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct MacOsDisplay;
+#[derive(Clone, Default)]
+pub struct MacOsDisplay {
+    pub subscribers: Arc<Mutex<Vec<DisplayEventSink>>>,
+}
+
+impl std::fmt::Debug for MacOsDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MacOsDisplay").finish()
+    }
+}
+
+impl MacOsDisplay {
+    pub fn new() -> Self {
+        Self {
+            subscribers: Arc::new(Mutex::new(Vec::new())),
+        }
+    }
+
+    pub fn notify_changed(&self, displays: Vec<DisplayInfo>) {
+        if let Ok(subs) = self.subscribers.lock() {
+            for sink in subs.iter() {
+                sink(PlatformDisplayEvent::DisplaysChanged(displays.clone()));
+            }
+        }
+    }
+}
 
 #[async_trait]
 impl PlatformDisplay for MacOsDisplay {
@@ -343,6 +367,13 @@ impl PlatformDisplay for MacOsDisplay {
                     .to_string(),
             ),
         }
+    }
+
+    fn subscribe(&self, sink: DisplayEventSink) -> BbqResult<()> {
+        if let Ok(mut subs) = self.subscribers.lock() {
+            subs.push(sink);
+        }
+        Ok(())
     }
 }
 
@@ -648,6 +679,8 @@ impl PlatformSystem for MacOsSystem {
         Ok(SystemState {
             battery: BatteryState::default(),
             network: NetworkState::default(),
+            cpu: None,
+            memory: None,
             muted: Some(false),
             volume: Some(1.0),
             uptime_seconds: None,
@@ -661,6 +694,8 @@ impl PlatformSystem for MacOsSystem {
         Ok(SystemCapabilities {
             has_battery: false,
             can_read_network: false,
+            can_read_cpu: false,
+            can_read_memory: false,
             can_control_volume: false,
             can_mute: false,
         })
@@ -792,7 +827,7 @@ impl PlatformLauncher for MacOsLauncher {
             open_file: true,
             open_folder: true,
             open_url: true,
-            system_actions: false,
+            system_actions: true,
         })
     }
 
@@ -802,9 +837,7 @@ impl PlatformLauncher for MacOsLauncher {
             LauncherAction::OpenFile { path } => self.open_file(path).await,
             LauncherAction::OpenFolder { path } => self.open_folder(path).await,
             LauncherAction::OpenApplication { id } => self.open_application(id).await,
-            LauncherAction::SystemAction(_) => Err(BbqError::Platform(
-                "System actions unsupported on macOS without native bridge".to_string(),
-            )),
+            LauncherAction::SystemAction(sys) => self.execute_system_action(*sys).await,
             LauncherAction::BbqAction(_) => Ok(()),
         }
     }
@@ -845,6 +878,56 @@ impl PlatformLauncher for MacOsLauncher {
                 ))
             })?;
         Ok(())
+    }
+}
+
+impl MacOsLauncher {
+    pub async fn execute_system_action(&self, action: bbq_core::SystemActionType) -> BbqResult<()> {
+        match action {
+            bbq_core::SystemActionType::OpenSettings => {
+                std::process::Command::new("open")
+                    .arg("x-apple.systempreferences:")
+                    .spawn()
+                    .map_err(|e| {
+                        BbqError::Platform(format!("Failed to open System Settings: {}", e))
+                    })?;
+                Ok(())
+            }
+            bbq_core::SystemActionType::OpenDownloads => {
+                let home = std::env::var_os("HOME")
+                    .map(std::path::PathBuf::from)
+                    .ok_or_else(|| {
+                        BbqError::Platform("Unable to resolve HOME directory".to_string())
+                    })?;
+                let downloads = home.join("Downloads");
+                self.open_folder(&downloads.to_string_lossy()).await
+            }
+            bbq_core::SystemActionType::OpenHome => {
+                let home = std::env::var_os("HOME")
+                    .map(std::path::PathBuf::from)
+                    .ok_or_else(|| {
+                        BbqError::Platform("Unable to resolve HOME directory".to_string())
+                    })?;
+                self.open_folder(&home.to_string_lossy()).await
+            }
+            bbq_core::SystemActionType::LockScreen => {
+                std::process::Command::new("/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession")
+                    .arg("-suspend")
+                    .spawn()
+                    .map_err(|e| BbqError::Platform(format!("Failed to lock screen: {}", e)))?;
+                Ok(())
+            }
+            bbq_core::SystemActionType::ShowDesktop => {
+                let home = std::env::var_os("HOME")
+                    .map(std::path::PathBuf::from)
+                    .ok_or_else(|| {
+                        BbqError::Platform("Unable to resolve HOME directory".to_string())
+                    })?;
+                let desktop = home.join("Desktop");
+                self.open_folder(&desktop.to_string_lossy()).await
+            }
+            bbq_core::SystemActionType::ToggleMute => Ok(()),
+        }
     }
 }
 
@@ -930,7 +1013,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_macos_display_geometry_and_capabilities() {
-        let display = MacOsDisplay;
+        let display = MacOsDisplay::new();
         let list = display.get_displays().await.expect("List macOS displays");
         assert!(!list.is_empty());
 
@@ -950,5 +1033,32 @@ mod tests {
         assert!(caps.dpi_scaling);
         assert_eq!(caps.geometry_support, DisplayGeometrySupport::Unverified);
         assert!(caps.backend_name.contains("CoreGraphics"));
+    }
+
+    #[tokio::test]
+    async fn test_macos_launcher_capabilities_and_system_actions() {
+        let launcher = MacOsLauncher;
+        let caps = launcher.capabilities().await.expect("capabilities");
+        assert!(caps.system_actions);
+        assert!(caps.open_folder);
+        assert!(caps.open_url);
+    }
+
+    #[tokio::test]
+    async fn test_macos_display_subscribe_and_notify() {
+        let display = MacOsDisplay::new();
+        let received = Arc::new(Mutex::new(0));
+        let recv_clone = received.clone();
+
+        display
+            .subscribe(Arc::new(move |_ev| {
+                if let Ok(mut count) = recv_clone.lock() {
+                    *count += 1;
+                }
+            }))
+            .expect("subscribe ok");
+
+        display.notify_changed(vec![]);
+        assert_eq!(*received.lock().unwrap(), 1);
     }
 }

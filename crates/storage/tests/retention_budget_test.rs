@@ -50,7 +50,7 @@ fn test_launcher_recent_bounded_to_budget() {
     let db = DatabaseManager::open_in_memory().expect("failed to open in-memory db");
     let repo = db.launcher_repository();
 
-    let max_recents = 50;
+    let max_recents = bbq_core::MAX_RECENT_ITEMS;
 
     // Record 500 launches across 70 distinct items
     for i in 0..500 {

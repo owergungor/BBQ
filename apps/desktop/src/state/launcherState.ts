@@ -119,12 +119,18 @@ export async function toggleFavorite(item: LauncherItem): Promise<void> {
   }
 }
 
-export async function clearRecent(): Promise<void> {
+export async function clearRecent(): Promise<boolean> {
   try {
-    await bbqCommands.launcherClearRecent();
-    await refreshLauncher();
+    const ok = await bbqCommands.launcherClearRecent();
+    if (ok) {
+      await refreshLauncher();
+      return true;
+    }
+    setLauncherError("Failed to clear recent launcher items.");
+    return false;
   } catch (err) {
     setLauncherError(err instanceof Error ? err.message : String(err));
+    return false;
   }
 }
 

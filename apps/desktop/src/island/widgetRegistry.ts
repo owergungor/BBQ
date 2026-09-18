@@ -33,14 +33,14 @@ export class WidgetRegistry {
   private registerDeclaredWidgets(): void {
     // Declared future widgets per Milestone 6 contract
     const declared = [
-      { id: "drop", title: "Drop Zone", icon: "📥", priority: 90 },
-      { id: "launcher", title: "Launcher", icon: "🚀", priority: 45 },
-      { id: "timer", title: "Timer", icon: "⏱️", priority: 40 },
-      { id: "reminder", title: "Reminders", icon: "🔔", priority: 35 },
-      { id: "notes", title: "Notes", icon: "📝", priority: 30 },
-      { id: "bookmarks", title: "Bookmarks", icon: "🔖", priority: 25 },
-      { id: "network", title: "Network", icon: "🌐", priority: 20 },
-      { id: "settings", title: "Settings", icon: "⚙️", priority: 15 },
+      { id: "drop", title: "Drop Zone", icon: "drop", priority: 90 },
+      { id: "launcher", title: "Launcher", icon: "launcher", priority: 45 },
+      { id: "timer", title: "Timer", icon: "timer", priority: 40 },
+      { id: "reminder", title: "Reminders", icon: "reminders", priority: 35 },
+      { id: "notes", title: "Notes", icon: "file-text", priority: 30 },
+      { id: "bookmarks", title: "Bookmarks", icon: "pin", priority: 25 },
+      { id: "network", title: "Network", icon: "network", priority: 20 },
+      { id: "settings", title: "Settings", icon: "settings", priority: 15 },
     ];
 
     for (const item of declared) {

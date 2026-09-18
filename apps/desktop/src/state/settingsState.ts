@@ -338,6 +338,57 @@ if (typeof window !== "undefined") {
   initSettingsState();
 }
 
+function coerceSettingValue(key: keyof BbqSettings, value: string): unknown {
+  switch (key) {
+    case "reduced_motion":
+    case "auto_expand_on_event":
+    case "start_at_login":
+    case "hotkey_enabled":
+    case "clipboard_history_enabled":
+    case "notifications_enabled":
+    case "timer_sound_enabled":
+    case "reminder_sound_enabled":
+    case "first_run_completed":
+    case "onboarding_completed":
+      return value === "true";
+
+    case "island_width":
+    case "island_height":
+    case "clipboard_max_entries":
+    case "clipboard_retention_days": {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : defaultSettings[key];
+    }
+
+    case "target_display_id":
+      return value.trim() === "" || value === "null" ? null : value;
+
+    case "custom_accent_color":
+      return value.trim() === "" || value === "null" ? null : value;
+
+    case "disabled_widgets":
+    case "compact_indicator_order":
+      try {
+        const arr = JSON.parse(value);
+        return Array.isArray(arr) ? arr : defaultSettings[key];
+      } catch {
+        return defaultSettings[key];
+      }
+
+    case "theme":
+      return value === "light" || value === "dark" ? value : "system";
+
+    case "accent_color":
+      return value;
+
+    case "global_hotkey":
+      return value;
+
+    default:
+      return value;
+  }
+}
+
 export async function updateSetting(key: string, value: string): Promise<boolean> {
   if (initPromise) {
     try {
@@ -349,17 +400,31 @@ export async function updateSetting(key: string, value: string): Promise<boolean
 
   try {
     const success = await bbqCommands.updateSetting(key, value);
-    if (success && key === "accent_color") {
+    if (success) {
       const current = settingsStore.getState().settings;
-      const nextSettings = { ...current, accent_color: value };
-      settingsStore.setState({ settings: nextSettings });
-      applyThemeAndMotionToDom(nextSettings);
-      const storage = getLocalStorage();
-      if (storage) {
-        try {
-          storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(nextSettings));
-        } catch {
-          // Ignore
+      if (key in current) {
+        const typedKey = key as keyof BbqSettings;
+        const parsedValue = coerceSettingValue(typedKey, value);
+        const nextSettings: BbqSettings = {
+          ...current,
+          [typedKey]: parsedValue,
+        };
+
+        // If switching to an accent preset, keep custom_accent_color intact
+        if (typedKey === "accent_color" && value !== "custom" && !nextSettings.custom_accent_color) {
+          nextSettings.custom_accent_color = current.custom_accent_color;
+        }
+
+        settingsStore.setState({ settings: nextSettings, error: null });
+        applyThemeAndMotionToDom(nextSettings);
+
+        const storage = getLocalStorage();
+        if (storage) {
+          try {
+            storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(nextSettings));
+          } catch {
+            // Ignore
+          }
         }
       }
     }
@@ -390,25 +455,36 @@ export async function updateSettingsBatch(patch: Partial<BbqSettings>): Promise<
     nextSettings.custom_accent_color = current.custom_accent_color;
   }
 
-  settingsStore.setState({ settings: nextSettings });
-  applyThemeAndMotionToDom(nextSettings);
-
-  const storage = getLocalStorage();
-  if (storage) {
-    try {
-      storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(nextSettings));
-    } catch {
-      // Ignore
-    }
-  }
-
   try {
     const success = await bbqCommands.updateSettings(nextSettings);
-    return success;
+    if (!success) {
+      // Revert optimistic update on backend rejection
+      settingsStore.setState({
+        settings: current,
+        error: "Settings rejected by system backend",
+      });
+      applyThemeAndMotionToDom(current);
+      return false;
+    }
+
+    settingsStore.setState({ settings: nextSettings, error: null });
+    applyThemeAndMotionToDom(nextSettings);
+
+    const storage = getLocalStorage();
+    if (storage) {
+      try {
+        storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(nextSettings));
+      } catch {
+        // Ignore
+      }
+    }
+    return true;
   } catch (err) {
     settingsStore.setState({
+      settings: current,
       error: err instanceof Error ? err.message : String(err),
     });
+    applyThemeAndMotionToDom(current);
     return false;
   }
 }

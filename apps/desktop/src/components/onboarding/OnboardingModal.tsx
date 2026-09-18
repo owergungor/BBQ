@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import { updateSettingsBatch, useSettingsState } from "../../state/settingsState.ts";
 import { islandRuntime } from "../../island/IslandRuntime.ts";
 import type { ThemePreference } from "@bbq/types";
+import { Icon, type IconName } from "../common/Icon.tsx";
 
 interface OnboardingStep {
   badge: string;
-  icon: string;
+  icon: IconName;
   title: string;
   subtitle: string;
   description: string;
@@ -15,7 +16,7 @@ interface OnboardingStep {
 const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     badge: "Welcome",
-    icon: "🏝️",
+    icon: "sparkles",
     title: "Welcome to BBQ",
     subtitle: "Your Desktop Productivity Island",
     description:
@@ -24,7 +25,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     badge: "Architecture",
-    icon: "✨",
+    icon: "refresh",
     title: "Dynamic Island States",
     subtitle: "Fluid, GPU-accelerated interaction",
     description:
@@ -33,7 +34,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     badge: "Navigation",
-    icon: "🚀",
+    icon: "launcher",
     title: "Global Hotkey & Launcher",
     subtitle: "Instant access from anywhere",
     description:
@@ -42,7 +43,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     badge: "Privacy",
-    icon: "🛡️",
+    icon: "lock",
     title: "100% Local & Privacy-First",
     subtitle: "Zero telemetry, zero tracking",
     description:
@@ -51,7 +52,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     badge: "Customization",
-    icon: "🎨",
+    icon: "settings",
     title: "Tailor Your Experience",
     subtitle: "Theme, accessibility & indicators",
     description:
@@ -60,7 +61,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     badge: "Ready",
-    icon: "🎉",
+    icon: "check",
     title: "You're Ready to Launch!",
     subtitle: "Welcome to BBQ Production Edition",
     description:
@@ -147,8 +148,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
         {/* Step Top Bar */}
         <div className="bbq-onboarding-top-bar">
           <div className="bbq-onboarding-badge-group">
-            <span className="bbq-onboarding-icon" aria-hidden="true">
-              {step.icon}
+            <span className="bbq-onboarding-icon" aria-hidden="true" style={{ display: "inline-flex", alignItems: "center" }}>
+              <Icon name={step.icon} size={14} />
             </span>
             <span className="bbq-onboarding-badge">
               {step.badge} • {currentStep + 1} / {ONBOARDING_STEPS.length}
@@ -230,7 +231,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
             onClick={handleNext}
             aria-label={isLastStep ? "Finish onboarding" : "Next step"}
           >
-            {isLastStep ? "Get Started 🚀" : "Next →"}
+            {isLastStep ? "Get Started" : "Next →"}
           </button>
         </div>
       </div>

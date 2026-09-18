@@ -24,6 +24,8 @@ export const defaultSystemState: SystemState = {
     connection_type: null,
     signal_strength: null,
   },
+  cpu: null,
+  memory: null,
   muted: false,
   volume: 1.0,
   uptime_seconds: null,
@@ -42,6 +44,20 @@ export const initialSystemDomainState: SystemDomainState = {
 export const systemStore = createDomainStore<SystemDomainState>(initialSystemDomainState);
 
 export const useSystemState = systemStore.useStore;
+
+/**
+ * On-demand manual or event-driven refresh of system telemetry (zero continuous polling)
+ */
+export async function refreshSystemState(): Promise<void> {
+  try {
+    const state = await bbqCommands.systemGetState();
+    if (state) {
+      systemStore.setState({ system: state });
+    }
+  } catch (err) {
+    console.error("Failed to refresh system state:", err);
+  }
+}
 
 export function setSystemState(system: SystemState): void {
   systemStore.setState({ system, isLoading: false, error: null });

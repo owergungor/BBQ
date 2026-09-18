@@ -17,6 +17,8 @@ pub trait MediaServiceTrait: Service {
     async fn subscribe_events(&self, sink: MediaEventSink) -> BbqResult<()>;
 }
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 #[derive(Clone)]
 pub struct MediaService {
     platform: Arc<dyn PlatformMedia>,
@@ -24,6 +26,7 @@ pub struct MediaService {
     known_sessions: Arc<Mutex<HashMap<String, MediaSession>>>,
     subscribers: Arc<Mutex<Vec<MediaEventSink>>>,
     service_state: Arc<Mutex<ServiceState>>,
+    is_platform_initialized: Arc<AtomicBool>,
 }
 
 impl std::fmt::Debug for MediaService {
@@ -43,7 +46,23 @@ impl MediaService {
             known_sessions: Arc::new(Mutex::new(HashMap::new())),
             subscribers: Arc::new(Mutex::new(Vec::new())),
             service_state: Arc::new(Mutex::new(ServiceState::Sleeping)),
+            is_platform_initialized: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// Lazily initializes underlying platform media session manager (e.g. Windows SMTC)
+    /// on first actual request or control action, avoiding heavy startup DLL mapping.
+    pub async fn ensure_platform_initialized(&self) -> BbqResult<()> {
+        if !self.is_platform_initialized.load(Ordering::Acquire)
+            && !self.is_platform_initialized.swap(true, Ordering::SeqCst)
+        {
+            tracing::info!("Lazily initializing PlatformMedia / SMTC discovery");
+            self.platform.initialize().await?;
+            if let Ok(Some(session)) = self.platform.current_session().await {
+                self.handle_media_event(MediaEvent::SessionChanged(Some(session)));
+            }
+        }
+        Ok(())
     }
 
     /// Select the most appropriate active player deterministically:
@@ -229,10 +248,9 @@ impl Service for MediaService {
     }
 
     async fn init(&self) -> BbqResult<()> {
-        tracing::info!("Initializing MediaService");
-        self.platform.initialize().await?;
+        tracing::info!("Initializing MediaService (cheap local registration)");
 
-        // Wire platform media events into MediaService
+        // Wire platform media events into MediaService (in-memory subscription)
         let self_clone = self.clone();
         self.platform
             .subscribe(Arc::new(move |event| {
@@ -240,11 +258,8 @@ impl Service for MediaService {
             }))
             .await?;
 
-        // Check if there is an initial playing session
-        if let Ok(Some(session)) = self.platform.current_session().await {
-            self.handle_media_event(MediaEvent::SessionChanged(Some(session)));
-        }
-
+        // Note: SMTC platform discovery is lazily deferred until first explicit
+        // media session request or playback control invocation.
         Ok(())
     }
 
@@ -273,6 +288,7 @@ impl Service for MediaService {
 #[async_trait]
 impl MediaServiceTrait for MediaService {
     async fn current_session(&self) -> BbqResult<Option<MediaSession>> {
+        self.ensure_platform_initialized().await?;
         let current = self
             .current_session
             .lock()
@@ -281,26 +297,32 @@ impl MediaServiceTrait for MediaService {
     }
 
     async fn play(&self) -> BbqResult<()> {
+        self.ensure_platform_initialized().await?;
         self.platform.play().await
     }
 
     async fn pause(&self) -> BbqResult<()> {
+        self.ensure_platform_initialized().await?;
         self.platform.pause().await
     }
 
     async fn toggle_play_pause(&self) -> BbqResult<()> {
+        self.ensure_platform_initialized().await?;
         self.platform.toggle_play_pause().await
     }
 
     async fn next(&self) -> BbqResult<()> {
+        self.ensure_platform_initialized().await?;
         self.platform.next().await
     }
 
     async fn previous(&self) -> BbqResult<()> {
+        self.ensure_platform_initialized().await?;
         self.platform.previous().await
     }
 
     async fn seek(&self, position_ms: u64) -> BbqResult<()> {
+        self.ensure_platform_initialized().await?;
         self.platform.seek(position_ms).await
     }
 
@@ -393,5 +415,24 @@ mod tests {
         mock_platform.simulate_session(None);
         assert_eq!(service.current_session().await.unwrap(), None);
         assert_eq!(service.status().state, ServiceState::Sleeping);
+    }
+
+    #[tokio::test]
+    async fn test_media_service_lazy_smtc_discovery() {
+        let mock_platform = Arc::new(MockMedia::default());
+        let service = MediaService::new(mock_platform.clone());
+
+        // At registration and startup init(), platform initialize() is NOT invoked
+        assert!(!service.is_platform_initialized.load(Ordering::Acquire));
+        service.init().await.expect("init must succeed cheaply");
+        assert!(!service.is_platform_initialized.load(Ordering::Acquire));
+
+        // On first explicit current_session call, platform initialize() is lazily invoked
+        let session = service
+            .current_session()
+            .await
+            .expect("current_session succeeds");
+        assert!(session.is_none());
+        assert!(service.is_platform_initialized.load(Ordering::Acquire));
     }
 }

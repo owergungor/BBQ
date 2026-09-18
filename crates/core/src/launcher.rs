@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 pub const MAX_TITLE_LEN: usize = 128;
 pub const MAX_SUBTITLE_LEN: usize = 256;
-pub const MAX_RECENT_ITEMS: usize = 50;
+pub const MAX_RECENT_ITEMS: usize = 20;
 pub const MAX_FAVORITE_ITEMS: usize = 20;
 pub const MAX_DISCOVERED_APPS: usize = 100;
 
@@ -247,7 +247,7 @@ mod tests {
             "github",
             "GitHub",
             Some("Open developer portal".to_string()),
-            Some("🌐".to_string()),
+            Some("globe".to_string()),
             LauncherAction::OpenUrl {
                 url: "https://github.com".to_string(),
             },

@@ -4,7 +4,7 @@ use bbq_core::{
     BbqError, BbqEvent, BbqResult, PomodoroPhase, TimerMode, TimerSession, TimerState,
     POMODORO_LONG_BREAK_MS, POMODORO_SHORT_BREAK_MS, POMODORO_WORK_MS,
 };
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -41,6 +41,7 @@ pub struct TimerService {
     event_sinks: Arc<RwLock<Vec<EventSink>>>,
     time_provider: TimeProvider,
     session_counter: Arc<AtomicU64>,
+    stopped: Arc<AtomicBool>,
 }
 
 impl std::fmt::Debug for TimerService {
@@ -90,6 +91,7 @@ impl TimerService {
             event_sinks: Arc::new(RwLock::new(Vec::new())),
             time_provider,
             session_counter: Arc::new(AtomicU64::new(1)),
+            stopped: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -117,22 +119,29 @@ impl TimerService {
         }
     }
 
-    /// Schedule single one-shot wake-up for countdown or pomodoro completion
-    fn schedule_wake_up(&self, duration_ms: u64, expected_id: String, expected_target: u64) {
+    /// Schedule single one-shot wake-up for countdown or pomodoro completion.
+    /// Synchronously registers the cancellation sender in TimerInner before dropping the write lock,
+    /// preventing races where cancel/stop executes before cancel_tx is assigned.
+    fn schedule_wake_up(
+        &self,
+        guard: &mut TimerInner,
+        duration_ms: u64,
+        expected_id: String,
+        expected_target: u64,
+    ) {
+        let (tx, mut rx) = tokio::sync::oneshot::channel::<()>();
+        guard.cancel_tx = Some(tx);
+
         let inner_clone = self.inner.clone();
         let event_sinks_clone = self.event_sinks.clone();
-        let (tx, mut rx) = tokio::sync::oneshot::channel::<()>();
-
-        // Store cancellation sender
-        let inner_for_tx = self.inner.clone();
-        tokio::spawn(async move {
-            let mut guard = inner_for_tx.write().await;
-            guard.cancel_tx = Some(tx);
-        });
+        let stopped_clone = self.stopped.clone();
 
         tokio::spawn(async move {
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_millis(duration_ms)) => {
+                    if stopped_clone.load(Ordering::SeqCst) {
+                        return;
+                    }
                     let mut guard = inner_clone.write().await;
                     // Verify session is still running and matches expected ID and target
                     if guard.session.id == expected_id
@@ -240,12 +249,12 @@ impl TimerService {
         guard.session.remaining_ms = Some(next_duration);
         guard.session.state = TimerState::Running;
 
-        let snapshot = guard.session.clone();
-        let expected_id = snapshot.id.clone();
-        let expected_target = snapshot.target_at.unwrap_or(0);
-        drop(guard);
+        let expected_id = guard.session.id.clone();
+        let expected_target = guard.session.target_at.unwrap_or(0);
+        self.schedule_wake_up(&mut guard, next_duration, expected_id, expected_target);
 
-        self.schedule_wake_up(next_duration, expected_id, expected_target);
+        let snapshot = guard.session.clone();
+        drop(guard);
 
         self.dispatch_events(vec![
             BbqEvent::TimerPhaseChanged(snapshot.clone()),
@@ -315,6 +324,12 @@ impl TimerService {
         self.dispatch_events(events).await;
         Ok(snapshot)
     }
+
+    #[cfg(test)]
+    pub async fn has_active_wake_up(&self) -> bool {
+        let guard = self.inner.read().await;
+        guard.cancel_tx.is_some()
+    }
 }
 
 #[async_trait]
@@ -329,10 +344,12 @@ impl Service for TimerService {
     }
 
     async fn start(&self) -> BbqResult<()> {
+        self.stopped.store(false, Ordering::SeqCst);
         Ok(())
     }
 
     async fn stop(&self) -> BbqResult<()> {
+        self.stopped.store(true, Ordering::SeqCst);
         let mut guard = self.inner.write().await;
         self.cancel_active_wake_up(&mut guard);
         Ok(())
@@ -390,10 +407,10 @@ impl TimerServiceTrait for TimerService {
         };
         guard.accumulated_stopwatch_ms = 0;
 
+        self.schedule_wake_up(&mut guard, duration_ms, session_id, target_at);
+
         let snapshot = guard.session.clone();
         drop(guard);
-
-        self.schedule_wake_up(duration_ms, session_id, target_at);
 
         self.dispatch_events(vec![
             BbqEvent::TimerStarted(snapshot.clone()),
@@ -462,10 +479,10 @@ impl TimerServiceTrait for TimerService {
         guard.pomodoro_work_count = 1;
         guard.accumulated_stopwatch_ms = 0;
 
+        self.schedule_wake_up(&mut guard, duration_ms, session_id, target_at);
+
         let snapshot = guard.session.clone();
         drop(guard);
-
-        self.schedule_wake_up(duration_ms, session_id, target_at);
 
         self.dispatch_events(vec![
             BbqEvent::TimerStarted(snapshot.clone()),
@@ -562,12 +579,12 @@ impl TimerServiceTrait for TimerService {
             }
         }
 
+        if wake_up_duration > 0 {
+            self.schedule_wake_up(&mut guard, wake_up_duration, expected_id, expected_target);
+        }
+
         let snapshot = guard.session.clone();
         drop(guard);
-
-        if wake_up_duration > 0 {
-            self.schedule_wake_up(wake_up_duration, expected_id, expected_target);
-        }
 
         self.dispatch_events(vec![
             BbqEvent::TimerResumed(snapshot.clone()),
@@ -977,5 +994,114 @@ mod tests {
         assert_eq!(countdown_session.started_at, None);
         assert_eq!(countdown_session.duration_ms, Some(120_000));
         assert_eq!(countdown_session.remaining_ms, Some(120_000));
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_start_cancel_cleans_wake_task() {
+        let (service, _time) = create_mock_timer_service(1000);
+        assert!(!service.has_active_wake_up().await);
+
+        service
+            .start_countdown(60_000)
+            .await
+            .expect("start countdown");
+        assert!(
+            service.has_active_wake_up().await,
+            "Active countdown must register wake up"
+        );
+
+        let cancelled = service.cancel().await.expect("cancel");
+        assert_eq!(cancelled.state, TimerState::Idle);
+        assert!(
+            !service.has_active_wake_up().await,
+            "Cancellation must clean wake up task"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_start_replace_reset_cancels_old_wakeup() {
+        let (service, _time) = create_mock_timer_service(1000);
+
+        // Start initial timer
+        service
+            .start_countdown(60_000)
+            .await
+            .expect("start countdown");
+        assert!(service.has_active_wake_up().await);
+
+        // Reset replaces/cancels active wake up
+        let reset_session = service.reset().await.expect("reset");
+        assert_eq!(reset_session.state, TimerState::Idle);
+        assert!(
+            !service.has_active_wake_up().await,
+            "Reset must cancel previous wake up"
+        );
+
+        // Start replacement timer
+        service
+            .start_countdown(30_000)
+            .await
+            .expect("start replacement countdown");
+        assert!(service.has_active_wake_up().await);
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_stop_with_active_timer_prevents_completion_event() {
+        let (service, _time) = create_mock_timer_service(1000);
+        let completion_events = Arc::new(Mutex::new(Vec::new()));
+        let events_clone = completion_events.clone();
+
+        service
+            .subscribe_events(Arc::new(move |event| {
+                if matches!(event, BbqEvent::TimerCompleted(_)) {
+                    events_clone.lock().unwrap().push(event);
+                }
+            }))
+            .await
+            .unwrap();
+
+        // Start a short timer (30ms)
+        service.start_countdown(30).await.expect("start countdown");
+        assert!(service.has_active_wake_up().await);
+
+        // Stop the service immediately before sleep finishes
+        service.stop().await.expect("stop service");
+        assert!(!service.has_active_wake_up().await);
+
+        // Wait past original timer duration
+        tokio::time::sleep(Duration::from_millis(60)).await;
+
+        // Verify no completion event was emitted
+        assert_eq!(
+            completion_events.lock().unwrap().len(),
+            0,
+            "No completion event should fire after service stop"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_stop_twice_idempotent() {
+        let (service, _time) = create_mock_timer_service(1000);
+        service
+            .start_countdown(60_000)
+            .await
+            .expect("start countdown");
+
+        assert!(service.stop().await.is_ok());
+        assert!(!service.has_active_wake_up().await);
+
+        // Calling stop a second time is safe and idempotent
+        assert!(service.stop().await.is_ok());
+        assert!(!service.has_active_wake_up().await);
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_stop_without_active_timer_is_safe() {
+        let (service, _time) = create_mock_timer_service(1000);
+        assert!(!service.has_active_wake_up().await);
+
+        // Stopping an idle service is safe
+        assert!(service.stop().await.is_ok());
+        assert!(!service.has_active_wake_up().await);
     }
 }

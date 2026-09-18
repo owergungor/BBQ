@@ -555,6 +555,16 @@ unsafe extern "system" fn clipboard_wndproc(
             notify_display_changed();
             LRESULT(0)
         }
+        windows::Win32::UI::WindowsAndMessaging::WM_POWERBROADCAST => {
+            // PBT_APMRESUMEAUTOMATIC = 0x0012, PBT_APMRESUMESUSPEND = 0x0007
+            if wparam.0 == 0x0012 || wparam.0 == 0x0007 {
+                tracing::info!(
+                    "WM_POWERBROADCAST resume event received: re-evaluating displays and geometry"
+                );
+                notify_display_changed();
+            }
+            LRESULT(1)
+        }
         WM_DESTROY => {
             let _ = RemoveClipboardFormatListener(hwnd);
             PostQuitMessage(0);
@@ -694,7 +704,8 @@ use windows::Foundation::TypedEventHandler;
 use windows::Media::Control::{
     CurrentSessionChangedEventArgs, GlobalSystemMediaTransportControlsSession,
     GlobalSystemMediaTransportControlsSessionManager,
-    GlobalSystemMediaTransportControlsSessionPlaybackStatus,
+    GlobalSystemMediaTransportControlsSessionPlaybackStatus, MediaPropertiesChangedEventArgs,
+    PlaybackInfoChangedEventArgs, TimelinePropertiesChangedEventArgs,
 };
 
 #[derive(Clone, Default)]
@@ -741,7 +752,7 @@ fn extract_session_from_smtc(
                 can_pause: controls.IsPauseEnabled().unwrap_or(false),
                 can_go_next: controls.IsNextEnabled().unwrap_or(false),
                 can_go_previous: controls.IsPreviousEnabled().unwrap_or(false),
-                can_seek: false,
+                can_seek: controls.IsPlaybackPositionEnabled().unwrap_or(false),
                 can_change_volume: false,
             }
         } else {
@@ -793,6 +804,63 @@ fn extract_session_from_smtc(
     })
 }
 
+#[cfg(windows)]
+fn attach_session_listeners(
+    session: &GlobalSystemMediaTransportControlsSession,
+    subs: Arc<Mutex<Vec<MediaEventSink>>>,
+) {
+    let subs_props = subs.clone();
+    let _ = session.MediaPropertiesChanged(&TypedEventHandler::<
+        GlobalSystemMediaTransportControlsSession,
+        MediaPropertiesChangedEventArgs,
+    >::new(move |sender, _args| {
+        if let Some(s) = sender.as_ref() {
+            if let Some(media_session) = extract_session_from_smtc(s) {
+                if let Ok(listeners) = subs_props.lock() {
+                    for l in listeners.iter() {
+                        l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }));
+
+    let subs_playback = subs.clone();
+    let _ = session.PlaybackInfoChanged(&TypedEventHandler::<
+        GlobalSystemMediaTransportControlsSession,
+        PlaybackInfoChangedEventArgs,
+    >::new(move |sender, _args| {
+        if let Some(s) = sender.as_ref() {
+            if let Some(media_session) = extract_session_from_smtc(s) {
+                if let Ok(listeners) = subs_playback.lock() {
+                    for l in listeners.iter() {
+                        l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }));
+
+    let subs_timeline = subs;
+    let _ = session.TimelinePropertiesChanged(&TypedEventHandler::<
+        GlobalSystemMediaTransportControlsSession,
+        TimelinePropertiesChangedEventArgs,
+    >::new(move |sender, _args| {
+        if let Some(s) = sender.as_ref() {
+            if let Some(media_session) = extract_session_from_smtc(s) {
+                if let Ok(listeners) = subs_timeline.lock() {
+                    for l in listeners.iter() {
+                        l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }));
+}
+
 #[async_trait]
 impl PlatformMedia for WindowsMedia {
     async fn initialize(&self) -> BbqResult<()> {
@@ -802,7 +870,18 @@ impl PlatformMedia for WindowsMedia {
             std::thread::spawn(move || {
                 if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
                     if let Ok(manager) = op.get() {
-                        let subs_inner = subs.clone();
+                        if let Ok(session) = manager.GetCurrentSession() {
+                            attach_session_listeners(&session, subs.clone());
+                            if let Some(media_session) = extract_session_from_smtc(&session) {
+                                if let Ok(listeners) = subs.lock() {
+                                    for l in listeners.iter() {
+                                        l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                                    }
+                                }
+                            }
+                        }
+
+                        let subs_inner = subs;
                         let _ = manager.CurrentSessionChanged(&TypedEventHandler::<
                             GlobalSystemMediaTransportControlsSessionManager,
                             CurrentSessionChangedEventArgs,
@@ -810,6 +889,7 @@ impl PlatformMedia for WindowsMedia {
                             move |sender, _args| {
                                 if let Ok(mgr) = sender.ok() {
                                     if let Ok(session) = mgr.GetCurrentSession() {
+                                        attach_session_listeners(&session, subs_inner.clone());
                                         if let Some(media_session) =
                                             extract_session_from_smtc(&session)
                                         {
@@ -840,11 +920,32 @@ impl PlatformMedia for WindowsMedia {
     async fn current_session(&self) -> BbqResult<Option<MediaSession>> {
         #[cfg(windows)]
         {
-            if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                if let Ok(manager) = op.get() {
-                    if let Ok(session) = manager.GetCurrentSession() {
-                        return Ok(extract_session_from_smtc(&session));
+            let res = tokio::time::timeout(
+                std::time::Duration::from_millis(250),
+                tokio::task::spawn_blocking(|| {
+                    if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
+                    {
+                        if let Ok(manager) = op.get() {
+                            if let Ok(session) = manager.GetCurrentSession() {
+                                return extract_session_from_smtc(&session);
+                            }
+                        }
                     }
+                    None
+                }),
+            )
+            .await;
+
+            match res {
+                Ok(Ok(opt)) => return Ok(opt),
+                Ok(Err(join_err)) => {
+                    tracing::warn!(
+                        "SMTC session retrieval spawn_blocking join error: {}",
+                        join_err
+                    );
+                }
+                Err(_) => {
+                    tracing::warn!("SMTC session retrieval timed out after 250ms");
                 }
             }
         }
@@ -861,13 +962,16 @@ impl PlatformMedia for WindowsMedia {
     async fn play(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                if let Ok(manager) = op.get() {
-                    if let Ok(session) = manager.GetCurrentSession() {
-                        let _ = session.TryPlayAsync();
+            let _ = tokio::task::spawn_blocking(|| {
+                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
+                    if let Ok(manager) = op.get() {
+                        if let Ok(session) = manager.GetCurrentSession() {
+                            let _ = session.TryPlayAsync();
+                        }
                     }
                 }
-            }
+            })
+            .await;
         }
         Ok(())
     }
@@ -875,13 +979,16 @@ impl PlatformMedia for WindowsMedia {
     async fn pause(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                if let Ok(manager) = op.get() {
-                    if let Ok(session) = manager.GetCurrentSession() {
-                        let _ = session.TryPauseAsync();
+            let _ = tokio::task::spawn_blocking(|| {
+                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
+                    if let Ok(manager) = op.get() {
+                        if let Ok(session) = manager.GetCurrentSession() {
+                            let _ = session.TryPauseAsync();
+                        }
                     }
                 }
-            }
+            })
+            .await;
         }
         Ok(())
     }
@@ -889,13 +996,16 @@ impl PlatformMedia for WindowsMedia {
     async fn toggle_play_pause(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                if let Ok(manager) = op.get() {
-                    if let Ok(session) = manager.GetCurrentSession() {
-                        let _ = session.TryTogglePlayPauseAsync();
+            let _ = tokio::task::spawn_blocking(|| {
+                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
+                    if let Ok(manager) = op.get() {
+                        if let Ok(session) = manager.GetCurrentSession() {
+                            let _ = session.TryTogglePlayPauseAsync();
+                        }
                     }
                 }
-            }
+            })
+            .await;
         }
         Ok(())
     }
@@ -903,13 +1013,16 @@ impl PlatformMedia for WindowsMedia {
     async fn next(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                if let Ok(manager) = op.get() {
-                    if let Ok(session) = manager.GetCurrentSession() {
-                        let _ = session.TrySkipNextAsync();
+            let _ = tokio::task::spawn_blocking(|| {
+                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
+                    if let Ok(manager) = op.get() {
+                        if let Ok(session) = manager.GetCurrentSession() {
+                            let _ = session.TrySkipNextAsync();
+                        }
                     }
                 }
-            }
+            })
+            .await;
         }
         Ok(())
     }
@@ -917,18 +1030,36 @@ impl PlatformMedia for WindowsMedia {
     async fn previous(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                if let Ok(manager) = op.get() {
-                    if let Ok(session) = manager.GetCurrentSession() {
-                        let _ = session.TrySkipPreviousAsync();
+            let _ = tokio::task::spawn_blocking(|| {
+                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
+                    if let Ok(manager) = op.get() {
+                        if let Ok(session) = manager.GetCurrentSession() {
+                            let _ = session.TrySkipPreviousAsync();
+                        }
                     }
                 }
-            }
+            })
+            .await;
         }
         Ok(())
     }
 
-    async fn seek(&self, _position_ms: u64) -> BbqResult<()> {
+    async fn seek(&self, position_ms: u64) -> BbqResult<()> {
+        #[cfg(windows)]
+        {
+            let _ = tokio::task::spawn_blocking(move || {
+                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
+                    if let Ok(manager) = op.get() {
+                        if let Ok(session) = manager.GetCurrentSession() {
+                            // WinRT expects 100-nanosecond units (1 ms = 10,000 ticks)
+                            let pos_100ns = (position_ms as i64).saturating_mul(10_000);
+                            let _ = session.TryChangePlaybackPositionAsync(pos_100ns);
+                        }
+                    }
+                }
+            })
+            .await;
+        }
         Ok(())
     }
 }
@@ -1066,14 +1197,105 @@ impl WindowsSystem {
         }
     }
 
+    fn read_memory() -> Option<bbq_core::MemoryMetrics> {
+        #[cfg(windows)]
+        {
+            use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+            let mut mem_status = MEMORYSTATUSEX {
+                dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+                ..Default::default()
+            };
+            if unsafe { GlobalMemoryStatusEx(&mut mem_status) }.is_ok() {
+                let total = mem_status.ullTotalPhys;
+                let avail = mem_status.ullAvailPhys;
+                let used = total.saturating_sub(avail);
+                let pct = if total > 0 {
+                    (used as f64 / total as f64 * 100.0).clamp(0.0, 100.0) as f32
+                } else {
+                    0.0
+                };
+                return Some(bbq_core::MemoryMetrics {
+                    total_bytes: total,
+                    used_bytes: used,
+                    usage_percent: pct,
+                });
+            }
+        }
+        None
+    }
+
+    fn read_cpu() -> Option<bbq_core::CpuMetrics> {
+        #[cfg(windows)]
+        {
+            use windows::Win32::Foundation::FILETIME;
+            use windows::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};
+            use windows::Win32::System::Threading::GetSystemTimes;
+
+            let mut sys_info = SYSTEM_INFO::default();
+            unsafe { GetSystemInfo(&mut sys_info) };
+            let core_count = sys_info.dwNumberOfProcessors;
+
+            let mut idle = FILETIME::default();
+            let mut kernel = FILETIME::default();
+            let mut user = FILETIME::default();
+
+            if unsafe { GetSystemTimes(Some(&mut idle), Some(&mut kernel), Some(&mut user)) }
+                .is_ok()
+            {
+                let to_u64 =
+                    |ft: FILETIME| ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64);
+                let idle_time = to_u64(idle);
+                let kernel_time = to_u64(kernel);
+                let user_time = to_u64(user);
+                let total_time = kernel_time.saturating_add(user_time);
+
+                use std::sync::Mutex;
+                static PREV_CPU: Mutex<Option<(u64, u64, std::time::Instant)>> = Mutex::new(None);
+
+                let now = std::time::Instant::now();
+                let usage_percent = if let Ok(mut lock) = PREV_CPU.lock() {
+                    let pct = if let Some((p_idle, p_total, p_inst)) = *lock {
+                        let idle_delta = idle_time.saturating_sub(p_idle);
+                        let total_delta = total_time.saturating_sub(p_total);
+                        let elapsed = now.duration_since(p_inst);
+
+                        if total_delta > 0 && elapsed.as_millis() >= 80 {
+                            let busy_delta = total_delta.saturating_sub(idle_delta);
+                            (busy_delta as f64 / total_delta as f64 * 100.0).clamp(0.0, 100.0)
+                                as f32
+                        } else {
+                            0.0
+                        }
+                    } else {
+                        0.0
+                    };
+                    *lock = Some((idle_time, total_time, now));
+                    pct
+                } else {
+                    0.0
+                };
+
+                return Some(bbq_core::CpuMetrics {
+                    usage_percent,
+                    core_count,
+                });
+            }
+        }
+        None
+    }
+
     fn read_state() -> SystemState {
         let battery = Self::read_battery();
         let network = Self::read_network();
+        let cpu = Self::read_cpu();
+        let memory = Self::read_memory();
         let hostname = std::env::var("COMPUTERNAME").ok();
 
         SystemState {
             battery,
             network,
+            cpu,
+            memory,
             muted: Some(false),
             volume: Some(1.0),
             uptime_seconds: None,
@@ -1099,6 +1321,8 @@ impl PlatformSystem for WindowsSystem {
         Ok(SystemCapabilities {
             has_battery,
             can_read_network: true,
+            can_read_cpu: true,
+            can_read_memory: true,
             can_control_volume: false,
             can_mute: false,
         })

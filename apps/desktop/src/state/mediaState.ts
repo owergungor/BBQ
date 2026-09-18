@@ -10,16 +10,21 @@ export const mediaStore = createDomainStore<MediaState>({
 export const useMediaState = mediaStore.useStore;
 
 /**
- * Initializes the media store by querying current session and listening for event updates
+ * Lazily queries current media session from backend and updates store
  */
-export async function initializeMediaStore(): Promise<() => void> {
+export async function refreshMediaSession(): Promise<void> {
   try {
     const session = await bbqCommands.mediaGetCurrentSession();
     mediaStore.setState({ currentSession: session });
   } catch (err) {
-    console.error("Failed to query initial media session:", err);
+    console.error("Failed to query media session:", err);
   }
+}
 
+/**
+ * Initializes the media store by listening for event updates
+ */
+export async function initializeMediaStore(): Promise<() => void> {
   const unlistenChanged = await subscribeToMediaChanged((session: MediaSession | null) => {
     mediaStore.setState({ currentSession: session });
   });

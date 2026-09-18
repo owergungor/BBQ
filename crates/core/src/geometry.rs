@@ -878,4 +878,51 @@ mod tests {
         assert_eq!(idle_center_x, hover_center_x);
         assert_eq!(idle_center_y, hover_center_y);
     }
+
+    #[test]
+    fn test_single_instance_and_resume_reconciliation_geometry_is_idempotent() {
+        let display = DisplayInfo {
+            id: "primary".to_string(),
+            name: "Primary Monitor".to_string(),
+            is_primary: true,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1040,
+            },
+        };
+
+        let geo1 = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Hovering,
+            Some(WidgetDimensions {
+                preferred_width: Some(280),
+                preferred_height: Some(44),
+            }),
+            IslandAnchor::TopCenter,
+        );
+        let geo2 = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Hovering,
+            Some(WidgetDimensions {
+                preferred_width: Some(280),
+                preferred_height: Some(44),
+            }),
+            IslandAnchor::TopCenter,
+        );
+
+        assert_eq!(geo1.x, geo2.x);
+        assert_eq!(geo1.y, geo2.y);
+        assert_eq!(geo1.width, geo2.width);
+        assert_eq!(geo1.height, geo2.height);
+        assert_eq!(geo1.scale_factor, geo2.scale_factor);
+    }
 }

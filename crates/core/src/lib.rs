@@ -1,5 +1,6 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::panic))]
 
+pub mod capabilities;
 pub mod clipboard;
 pub mod config;
 pub mod drop;
@@ -16,6 +17,8 @@ pub mod search;
 pub mod settings;
 pub mod system;
 pub mod timer;
+
+pub use capabilities::{CapabilityStatus, PlatformCapabilities};
 
 pub use settings::{
     is_valid_hex_color, validate_setting_entry, BbqSettings, ThemePreference,
@@ -54,14 +57,20 @@ pub use notification::{
     NotificationCapabilities, NotificationCategory, NotificationRequest,
     MAX_NOTIFICATION_BODY_LENGTH, MAX_NOTIFICATION_TITLE_LENGTH,
 };
-pub use reminder::{Reminder, ReminderState, MAX_REMINDER_BODY_LENGTH, MAX_REMINDER_TITLE_LENGTH};
+pub use reminder::{
+    Reminder, ReminderState, MAX_REMINDERS_BOUND, MAX_REMINDER_BODY_LENGTH,
+    MAX_REMINDER_TITLE_LENGTH,
+};
 pub use search::{
     calculate_recency_bonus, calculate_usage_bonus, is_fuzzy_subsequence, rank_launcher_items,
     score_launcher_item, SearchContext, SearchMatchType, SearchMatchedField, SearchQuery,
     SearchResult, MAX_KEYWORDS, MAX_KEYWORD_LEN, MAX_QUERY_LEN, MAX_QUERY_TOKENS,
     MAX_SEARCH_RESULTS,
 };
-pub use system::{BatteryState, NetworkState, SystemCapabilities, SystemEvent, SystemState};
+pub use system::{
+    BatteryState, CpuMetrics, MemoryMetrics, NetworkState, SystemCapabilities, SystemEvent,
+    SystemState,
+};
 pub use timer::{
     PomodoroPhase, TimerMode, TimerSession, TimerState, POMODORO_LONG_BREAK_MS,
     POMODORO_SHORT_BREAK_MS, POMODORO_WORK_MS,

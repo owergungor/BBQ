@@ -797,6 +797,15 @@ impl Default for MockSystem {
                     connection_type: Some("WiFi".to_string()),
                     signal_strength: Some(4),
                 },
+                cpu: Some(bbq_core::CpuMetrics {
+                    usage_percent: 25.0,
+                    core_count: 8,
+                }),
+                memory: Some(bbq_core::MemoryMetrics {
+                    total_bytes: 16 * 1024 * 1024 * 1024,
+                    used_bytes: 8 * 1024 * 1024 * 1024,
+                    usage_percent: 50.0,
+                }),
                 muted: Some(false),
                 volume: Some(0.8),
                 uptime_seconds: Some(3600),
@@ -807,6 +816,8 @@ impl Default for MockSystem {
             capabilities: Arc::new(Mutex::new(SystemCapabilities {
                 has_battery: true,
                 can_read_network: true,
+                can_read_cpu: true,
+                can_read_memory: true,
                 can_control_volume: true,
                 can_mute: true,
             })),

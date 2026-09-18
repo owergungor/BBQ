@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import type { ThemePreference, AccentColor } from "@bbq/types";
+import { Icon, type IconName } from "./Icon.tsx";
 
 /* ==========================================================================
    1. Theme Switcher (Inspired by 21st.dev / theme-switcher-1)
@@ -10,10 +11,10 @@ interface ThemeSwitcherProps {
 }
 
 export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ theme, onChange }) => {
-  const options: { id: ThemePreference; label: string; icon: string }[] = [
-    { id: "light", label: "Light", icon: "☀️" },
-    { id: "dark", label: "Dark", icon: "🌙" },
-    { id: "system", label: "System", icon: "💻" },
+  const options: { id: ThemePreference; label: string; icon: IconName }[] = [
+    { id: "light", label: "Light", icon: "sun" },
+    { id: "dark", label: "Dark", icon: "moon" },
+    { id: "system", label: "System", icon: "settings" },
   ];
 
   return (
@@ -58,8 +59,8 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ theme, onChange })
               boxShadow: isSelected ? "0 1px 4px rgba(0, 0, 0, 0.25)" : "none",
             }}
           >
-            <span style={{ fontSize: "12px" }} aria-hidden="true">
-              {opt.icon}
+            <span style={{ display: "inline-flex", alignItems: "center" }} aria-hidden="true">
+              <Icon name={opt.icon} size={13} />
             </span>
             <span>{opt.label}</span>
           </button>

@@ -150,11 +150,14 @@ impl ClipboardRepository for SqliteClipboardRepository {
     }
 
     fn insert_entry(&self, entry: &bbq_core::ClipboardEntry, max_entries: usize) -> BbqResult<()> {
-        let conn = self
+        let mut conn = self
             .conn
             .lock()
             .map_err(|e| BbqError::Storage(format!("DB lock error: {}", e)))?;
-        conn.execute(
+        let tx = conn
+            .transaction()
+            .map_err(|e| BbqError::Storage(e.to_string()))?;
+        tx.execute(
             r#"
             INSERT INTO clipboard_entries (
                 id, content_type, content, preview, size_bytes, created_at, source, possible_sensitive
@@ -182,7 +185,7 @@ impl ClipboardRepository for SqliteClipboardRepository {
         .map_err(|e| BbqError::Storage(e.to_string()))?;
 
         if max_entries > 0 {
-            conn.execute(
+            tx.execute(
                 r#"
                 DELETE FROM clipboard_entries
                 WHERE id NOT IN (
@@ -195,6 +198,8 @@ impl ClipboardRepository for SqliteClipboardRepository {
             )
             .map_err(|e| BbqError::Storage(e.to_string()))?;
         }
+
+        tx.commit().map_err(|e| BbqError::Storage(e.to_string()))?;
 
         Ok(())
     }
@@ -331,11 +336,14 @@ impl FileRepository for SqliteFileRepository {
     }
 
     fn insert_entry(&self, entry: &bbq_core::FileEntry, max_entries: usize) -> BbqResult<()> {
-        let conn = self
+        let mut conn = self
             .conn
             .lock()
             .map_err(|e| BbqError::Storage(format!("DB lock error: {}", e)))?;
-        conn.execute(
+        let tx = conn
+            .transaction()
+            .map_err(|e| BbqError::Storage(e.to_string()))?;
+        tx.execute(
             r#"
             INSERT INTO file_entries (
                 id, name, path, extension, mime_type, size_bytes, modified_at, created_at, source, missing
@@ -367,7 +375,7 @@ impl FileRepository for SqliteFileRepository {
         .map_err(|e| BbqError::Storage(e.to_string()))?;
 
         if max_entries > 0 {
-            conn.execute(
+            tx.execute(
                 r#"
                 DELETE FROM file_entries
                 WHERE id NOT IN (
@@ -380,6 +388,8 @@ impl FileRepository for SqliteFileRepository {
             )
             .map_err(|e| BbqError::Storage(e.to_string()))?;
         }
+
+        tx.commit().map_err(|e| BbqError::Storage(e.to_string()))?;
 
         Ok(())
     }
@@ -542,12 +552,16 @@ impl SqliteReminderRepository {
 
 impl ReminderRepository for SqliteReminderRepository {
     fn insert(&self, reminder: &Reminder) -> BbqResult<()> {
-        let conn = self
+        let mut conn = self
             .conn
             .lock()
             .map_err(|e| BbqError::Storage(format!("DB lock error: {}", e)))?;
 
-        conn.execute(
+        let tx = conn
+            .transaction()
+            .map_err(|e| BbqError::Storage(e.to_string()))?;
+
+        tx.execute(
             r#"
             INSERT INTO reminders (id, title, body, due_at, state, created_at)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -562,6 +576,28 @@ impl ReminderRepository for SqliteReminderRepository {
             ],
         )
         .map_err(|e| BbqError::Storage(format!("Failed to insert reminder: {}", e)))?;
+
+        tx.execute(
+            r#"
+            DELETE FROM reminders
+            WHERE id NOT IN (
+                SELECT id FROM reminders
+                ORDER BY 
+                    CASE state 
+                        WHEN 'Scheduled' THEN 0 
+                        WHEN 'Fired' THEN 1 
+                        ELSE 2 
+                    END ASC,
+                    due_at ASC,
+                    created_at DESC
+                LIMIT ?1
+            )
+            "#,
+            params![bbq_core::MAX_REMINDERS_BOUND as i64],
+        )
+        .map_err(|e| BbqError::Storage(format!("Failed to prune reminders: {}", e)))?;
+
+        tx.commit().map_err(|e| BbqError::Storage(e.to_string()))?;
 
         Ok(())
     }
@@ -776,7 +812,7 @@ impl LauncherRepository for SqliteLauncherRepository {
     }
 
     fn record_recent(&self, item: &LauncherItem, max_recent: usize) -> BbqResult<()> {
-        let conn = self
+        let mut conn = self
             .conn
             .lock()
             .map_err(|e| BbqError::Storage(format!("DB lock error: {}", e)))?;
@@ -790,7 +826,11 @@ impl LauncherRepository for SqliteLauncherRepository {
             .unwrap_or_default()
             .as_millis() as i64;
 
-        conn.execute(
+        let tx = conn
+            .transaction()
+            .map_err(|e| BbqError::Storage(e.to_string()))?;
+
+        tx.execute(
             r#"
             INSERT INTO launcher_recent (id, title, subtitle, icon, action_json, last_used_at, usage_count)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1)
@@ -814,7 +854,7 @@ impl LauncherRepository for SqliteLauncherRepository {
         .map_err(|e| BbqError::Storage(format!("Failed to record recent launcher action: {}", e)))?;
 
         if max_recent > 0 {
-            conn.execute(
+            tx.execute(
                 r#"
                 DELETE FROM launcher_recent
                 WHERE id NOT IN (
@@ -827,6 +867,8 @@ impl LauncherRepository for SqliteLauncherRepository {
             )
             .map_err(|e| BbqError::Storage(format!("Failed to prune recent actions: {}", e)))?;
         }
+
+        tx.commit().map_err(|e| BbqError::Storage(e.to_string()))?;
 
         Ok(())
     }
@@ -890,7 +932,7 @@ impl LauncherRepository for SqliteLauncherRepository {
     }
 
     fn add_favorite(&self, item: &LauncherItem, max_favorites: usize) -> BbqResult<()> {
-        let conn = self
+        let mut conn = self
             .conn
             .lock()
             .map_err(|e| BbqError::Storage(format!("DB lock error: {}", e)))?;
@@ -904,7 +946,11 @@ impl LauncherRepository for SqliteLauncherRepository {
             .unwrap_or_default()
             .as_millis() as i64;
 
-        conn.execute(
+        let tx = conn
+            .transaction()
+            .map_err(|e| BbqError::Storage(e.to_string()))?;
+
+        tx.execute(
             r#"
             INSERT INTO launcher_favorites (id, title, subtitle, icon, action_json, created_at)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
@@ -926,7 +972,7 @@ impl LauncherRepository for SqliteLauncherRepository {
         .map_err(|e| BbqError::Storage(format!("Failed to add favorite launcher action: {}", e)))?;
 
         if max_favorites > 0 {
-            conn.execute(
+            tx.execute(
                 r#"
                 DELETE FROM launcher_favorites
                 WHERE id NOT IN (
@@ -939,6 +985,8 @@ impl LauncherRepository for SqliteLauncherRepository {
             )
             .map_err(|e| BbqError::Storage(format!("Failed to prune favorites: {}", e)))?;
         }
+
+        tx.commit().map_err(|e| BbqError::Storage(e.to_string()))?;
 
         Ok(())
     }

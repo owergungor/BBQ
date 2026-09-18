@@ -19,11 +19,30 @@ pub struct NetworkState {
     pub signal_strength: Option<u8>,
 }
 
+/// Normalized CPU telemetry
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct CpuMetrics {
+    pub usage_percent: f32,
+    pub core_count: u32,
+}
+
+/// Normalized Memory telemetry
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct MemoryMetrics {
+    pub total_bytes: u64,
+    pub used_bytes: u64,
+    pub usage_percent: f32,
+}
+
 /// Normalized system state
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SystemState {
     pub battery: BatteryState,
     pub network: NetworkState,
+    #[serde(default)]
+    pub cpu: Option<CpuMetrics>,
+    #[serde(default)]
+    pub memory: Option<MemoryMetrics>,
     pub muted: Option<bool>,
     pub volume: Option<f32>,
     pub uptime_seconds: Option<u64>,
@@ -37,6 +56,8 @@ impl Default for SystemState {
         Self {
             battery: BatteryState::default(),
             network: NetworkState::default(),
+            cpu: None,
+            memory: None,
             muted: None,
             volume: None,
             uptime_seconds: None,
@@ -52,6 +73,10 @@ impl Default for SystemState {
 pub struct SystemCapabilities {
     pub has_battery: bool,
     pub can_read_network: bool,
+    #[serde(default)]
+    pub can_read_cpu: bool,
+    #[serde(default)]
+    pub can_read_memory: bool,
     pub can_control_volume: bool,
     pub can_mute: bool,
 }
@@ -61,6 +86,8 @@ impl Default for SystemCapabilities {
         Self {
             has_battery: false,
             can_read_network: true,
+            can_read_cpu: true,
+            can_read_memory: true,
             can_control_volume: false,
             can_mute: false,
         }
@@ -103,6 +130,15 @@ mod tests {
                 connection_type: Some("WiFi".to_string()),
                 signal_strength: Some(4),
             },
+            cpu: Some(CpuMetrics {
+                usage_percent: 24.5,
+                core_count: 8,
+            }),
+            memory: Some(MemoryMetrics {
+                total_bytes: 17179869184,
+                used_bytes: 8589934592,
+                usage_percent: 50.0,
+            }),
             muted: Some(false),
             volume: Some(0.75),
             uptime_seconds: Some(3600),

@@ -3,25 +3,26 @@
 use bbq_core::{
     init_logging, AppDirectories, BbqSettings, ClipboardEntry, ClipboardStatus, DropAction,
     DropActionResult, DropBatch, FileEntry, IslandMode, LauncherCapabilities, LauncherItem,
-    NotificationCapabilities, NotificationCategory, NotificationRequest, PomodoroPhase, Reminder,
-    SystemCapabilities, SystemState, TimerMode, TimerSession,
+    NotificationCapabilities, PlatformCapabilities, Reminder, SystemCapabilities, SystemState,
+    TimerMode, TimerSession,
 };
 use bbq_platform::{
     create_default_platform_provider, DisplayInfo, HotkeyCapabilities, HotkeyDefinition,
     PlatformProvider,
 };
 use bbq_services::{
-    create_service_registry, ClipboardService, ClipboardServiceTrait, DisplayService,
-    DisplayServiceTrait, DropService, DropServiceTrait, FileService, FileServiceTrait,
-    HotkeyService, HotkeyServiceTrait, LauncherService, LauncherServiceTrait, NotificationService,
-    NotificationServiceTrait, ReminderService, ReminderServiceTrait, ServiceRegistry,
-    ServiceStatus, SettingsService, SystemService, SystemServiceTrait, TimerService,
-    TimerServiceTrait, WindowService, WindowServiceTrait,
+    ClipboardService, ClipboardServiceTrait, DisplayService, DisplayServiceTrait, DropService,
+    DropServiceTrait, FileService, FileServiceTrait, HotkeyService, HotkeyServiceTrait,
+    LauncherService, LauncherServiceTrait, NotificationService, NotificationServiceTrait,
+    ReminderService, ReminderServiceTrait, ServiceRegistry, ServiceStatus, SettingsService,
+    SystemService, SystemServiceTrait, TimerService, TimerServiceTrait, WindowService,
+    WindowServiceTrait,
 };
 use bbq_storage::DatabaseManager;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State};
 
+pub mod events;
 pub mod tray;
 
 pub struct AppState {
@@ -42,6 +43,7 @@ pub struct AppState {
     pub hotkey_service: Arc<HotkeyService>,
     pub display_service: Arc<DisplayService>,
     pub window_service: Arc<WindowService>,
+    pub media_service: Arc<bbq_services::MediaService>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -410,44 +412,60 @@ fn get_service_statuses(state: State<'_, AppState>) -> Result<Vec<ServiceStatus>
 async fn media_get_current_session(
     state: State<'_, AppState>,
 ) -> Result<Option<bbq_core::MediaSession>, String> {
-    let media = bbq_services::MediaService::new(state.platform.media());
     use bbq_services::MediaServiceTrait;
-    media.current_session().await.map_err(|e| e.to_string())
+    state
+        .media_service
+        .current_session()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn media_play(state: State<'_, AppState>) -> Result<(), String> {
-    let media = bbq_services::MediaService::new(state.platform.media());
     use bbq_services::MediaServiceTrait;
-    media.play().await.map_err(|e| e.to_string())
+    state.media_service.play().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn media_pause(state: State<'_, AppState>) -> Result<(), String> {
-    let media = bbq_services::MediaService::new(state.platform.media());
     use bbq_services::MediaServiceTrait;
-    media.pause().await.map_err(|e| e.to_string())
+    state.media_service.pause().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn media_toggle_play_pause(state: State<'_, AppState>) -> Result<(), String> {
-    let media = bbq_services::MediaService::new(state.platform.media());
     use bbq_services::MediaServiceTrait;
-    media.toggle_play_pause().await.map_err(|e| e.to_string())
+    state
+        .media_service
+        .toggle_play_pause()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn media_next(state: State<'_, AppState>) -> Result<(), String> {
-    let media = bbq_services::MediaService::new(state.platform.media());
     use bbq_services::MediaServiceTrait;
-    media.next().await.map_err(|e| e.to_string())
+    state.media_service.next().await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn media_previous(state: State<'_, AppState>) -> Result<(), String> {
-    let media = bbq_services::MediaService::new(state.platform.media());
     use bbq_services::MediaServiceTrait;
-    media.previous().await.map_err(|e| e.to_string())
+    state
+        .media_service
+        .previous()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn media_seek(state: State<'_, AppState>, position_ms: u64) -> Result<(), String> {
+    use bbq_services::MediaServiceTrait;
+    state
+        .media_service
+        .seek(position_ms)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -900,6 +918,11 @@ async fn hotkey_get_capabilities(state: State<'_, AppState>) -> Result<HotkeyCap
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn get_platform_capabilities() -> PlatformCapabilities {
+    PlatformCapabilities::detect()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let _ = init_logging();
@@ -914,53 +937,61 @@ pub fn run() {
     let _ = dirs.ensure_created();
 
     let db_path = dirs.data_dir.join("bbq.sqlite");
-    let db = match DatabaseManager::open(&db_path) {
-        Ok(d) => Arc::new(d),
+    let (db, db_recovered_quarantine) = match DatabaseManager::open_with_recovery(&db_path) {
+        Ok((d, q_opt)) => (Arc::new(d), q_opt),
         Err(err) => {
             tracing::error!(
-                "Failed to open disk database at {}: {}. Falling back to in-memory DB.",
+                "Failed to open/recover disk database at {}: {}. Falling back to in-memory DB.",
                 db_path.display(),
                 err
             );
-            Arc::new(
-                DatabaseManager::open_in_memory().expect("In-memory SQLite must always succeed"),
+            (
+                Arc::new(
+                    DatabaseManager::open_in_memory()
+                        .expect("In-memory SQLite must always succeed"),
+                ),
+                None,
             )
         }
     };
 
     let platform = create_default_platform_provider();
-    let services = create_service_registry(platform.clone(), db.clone())
-        .expect("Service registry bootstrap must succeed");
 
     let clipboard_repo = db.clipboard_repository();
     let settings_repo = db.settings_repository();
     let file_repo = db.file_repository();
+    let reminder_repo = db.reminder_repository();
+    let launcher_repo = db.launcher_repository();
 
-    let settings_service = Arc::new(
-        SettingsService::new(db.settings_repository()).with_autostart(platform.autostart()),
-    );
+    let storage_service = Arc::new(bbq_services::StorageService::new(db.clone()));
+    let settings_service =
+        Arc::new(SettingsService::new(settings_repo.clone()).with_autostart(platform.autostart()));
+    let display_service = Arc::new(DisplayService::new(platform.display()));
+    let window_service = Arc::new(WindowService::new(platform.window()));
+    let media_service = Arc::new(bbq_services::MediaService::new(platform.media()));
     let clipboard = Arc::new(ClipboardService::new(
         platform.clipboard(),
         Some(clipboard_repo),
-        Some(settings_repo),
+        Some(settings_repo.clone()),
     ));
-    let file_service = Arc::new(FileService::new(platform.file(), Some(file_repo)));
     let system_service = Arc::new(SystemService::new(platform.system()));
-    let timer_service = Arc::new(TimerService::new());
     let notification_service = Arc::new(NotificationService::new(
         platform.notification(),
         Some(settings_service.clone()),
     ));
-    let reminder_repo = db.reminder_repository();
     let reminder_service = Arc::new(ReminderService::new(
         Some(reminder_repo),
         notification_service.clone(),
     ));
-    let launcher_repo = db.launcher_repository();
+    let network_service = Arc::new(bbq_services::NetworkService::new(platform.network()));
+    let timer_service = Arc::new(TimerService::new());
+    let file_service = Arc::new(FileService::new(platform.file(), Some(file_repo)));
     let launcher_service = Arc::new(LauncherService::new(
         platform.launcher(),
         Some(launcher_repo),
     ));
+    let notes_service = Arc::new(bbq_services::NotesService);
+    let bookmark_service = Arc::new(bbq_services::BookmarkService);
     let drop_service = Arc::new(DropService::new(
         platform.file(),
         clipboard.clone(),
@@ -970,10 +1001,35 @@ pub fn run() {
         platform.hotkey(),
         Some(settings_service.clone()),
     ));
-    let display_service = Arc::new(DisplayService::new(platform.display()));
-    let window_service = Arc::new(WindowService::new(platform.window()));
+
+    let mut services = ServiceRegistry::new();
+    services.register(storage_service);
+    services.register(settings_service.clone());
+    services.register(display_service.clone());
+    services.register(window_service.clone());
+    services.register(media_service.clone());
+    services.register(clipboard.clone());
+    services.register(system_service.clone());
+    services.register(notification_service.clone());
+    services.register(reminder_service.clone());
+    services.register(network_service);
+    services.register(timer_service.clone());
+    services.register(file_service.clone());
+    services.register(launcher_service.clone());
+    services.register(notes_service);
+    services.register(bookmark_service);
+    services.register(drop_service.clone());
+    services.register(hotkey_service.clone());
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            tracing::info!("Single-instance check triggered: focusing existing BBQ instance");
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .manage(AppState {
             current_mode: Mutex::new(IslandMode::Idle),
             last_geometry: Mutex::new(None),
@@ -992,6 +1048,7 @@ pub fn run() {
             hotkey_service,
             display_service,
             window_service,
+            media_service,
         })
         .invoke_handler(tauri::generate_handler![
             get_island_state,
@@ -1013,6 +1070,7 @@ pub fn run() {
             media_toggle_play_pause,
             media_next,
             media_previous,
+            media_seek,
             clipboard_get_history,
             clipboard_clear_history,
             clipboard_delete_entry,
@@ -1059,9 +1117,10 @@ pub fn run() {
             launcher_clear_recent,
             hotkey_get_definition,
             hotkey_update_definition,
-            hotkey_get_capabilities
+            hotkey_get_capabilities,
+            get_platform_capabilities,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             let handle = app.handle();
             let state = handle.state::<AppState>();
 
@@ -1072,367 +1131,29 @@ pub fn run() {
                 services_clone.len()
             );
 
+            // If a corrupted database was quarantined and recovered, emit a safe warning event to frontend
+            if let Some(backup_file) = db_recovered_quarantine.clone() {
+                let recovery_handle = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri::Emitter;
+                    let _ = recovery_handle.emit(
+                        "bbq://db_recovered",
+                        serde_json::json!({
+                            "recovered": true,
+                            "backup_name": backup_file,
+                            "message": "A damaged database was quarantined and a clean database was initialized.",
+                        }),
+                    );
+                });
+            }
+
             // Initialize System Tray
             if let Err(e) = tray::setup_tray(handle) {
                 tracing::warn!("Failed to initialize system tray: {}", e);
             }
 
-            // Forward media events to frontend
-            let app_handle = handle.clone();
-            let platform_media = state.platform.media();
-            tauri::async_runtime::spawn(async move {
-                let _ = platform_media
-                    .subscribe(Arc::new(move |event| {
-                        use tauri::Emitter;
-                        match event {
-                            bbq_core::MediaEvent::SessionChanged(session) => {
-                                let _ = app_handle.emit("bbq://media_changed", session);
-                            }
-                            bbq_core::MediaEvent::PlaybackChanged { state, .. } => {
-                                let _ = app_handle.emit("bbq://media_playback_state", state);
-                            }
-                            _ => {}
-                        }
-                    }))
-                    .await;
-            });
-
-            // Forward clipboard events to frontend
-            let app_handle_clip = handle.clone();
-            let clipboard_clone = state.clipboard.clone();
-            tauri::async_runtime::spawn(async move {
-                use bbq_services::Service;
-                let _ = clipboard_clone.init().await;
-                use bbq_services::ClipboardServiceTrait;
-                let _ = clipboard_clone
-                    .subscribe_events(Arc::new(move |entry| {
-                        use tauri::Emitter;
-                        let _ = app_handle_clip.emit("bbq://clipboard_changed", entry);
-                    }))
-                    .await;
-            });
-
-            // Forward file events to frontend
-            let app_handle_file = handle.clone();
-            let file_clone = state.file_service.clone();
-            tauri::async_runtime::spawn(async move {
-                use bbq_services::Service;
-                let _ = file_clone.init().await;
-                use bbq_services::FileServiceTrait;
-                let _ = file_clone
-                    .subscribe_events(Arc::new(move |event| {
-                        use tauri::Emitter;
-                        match event {
-                            bbq_core::BbqEvent::FileAdded { entry } => {
-                                let _ = app_handle_file.emit("bbq://file_added", entry);
-                            }
-                            bbq_core::BbqEvent::FileRemoved { id } => {
-                                let _ = app_handle_file.emit("bbq://file_removed", id);
-                            }
-                            bbq_core::BbqEvent::FileWorkspaceChanged { entries } => {
-                                let _ =
-                                    app_handle_file.emit("bbq://file_workspace_changed", entries);
-                            }
-                            _ => {}
-                        }
-                    }))
-                    .await;
-            });
-
-            // Forward system events to frontend
-            let app_handle_system = handle.clone();
-            let system_clone = state.system_service.clone();
-            let platform_sys = state.platform.system();
-            tauri::async_runtime::spawn(async move {
-                use bbq_services::Service;
-                let _ = system_clone.init().await;
-                let sys_for_emit = system_clone.clone();
-                let _ = platform_sys
-                    .subscribe(Arc::new(move |_event| {
-                        use tauri::Emitter;
-                        let app_emit = app_handle_system.clone();
-                        let sys_read = sys_for_emit.clone();
-                        tauri::async_runtime::spawn(async move {
-                            if let Ok(state) = sys_read.get_state().await {
-                                let _ = app_emit.emit("bbq://system_changed", state);
-                            }
-                        });
-                    }))
-                    .await;
-            });
-
-            // Forward timer events to frontend and coordinate desktop notification on completion
-            let app_handle_timer = handle.clone();
-            let timer_clone = state.timer_service.clone();
-            let notif_for_timer = state.notification_service.clone();
-            tauri::async_runtime::spawn(async move {
-                use bbq_services::Service;
-                let _ = timer_clone.init().await;
-                let _ = timer_clone
-                    .subscribe_events(Arc::new(move |event| {
-                        use tauri::Emitter;
-                        match event {
-                            bbq_core::BbqEvent::TimerCompleted(ref session) => {
-                                let _ = app_handle_timer.emit("bbq://timer_changed", session);
-
-                                // Application Event Layer: dispatch native notification
-                                let notif_res = match session.mode {
-                                    TimerMode::Countdown => NotificationRequest::new(
-                                        format!("timer_finish_{}", session.id),
-                                        NotificationCategory::Timer,
-                                        "Timer finished",
-                                        "Your countdown is complete.",
-                                    ),
-                                    TimerMode::Pomodoro => {
-                                        let (title, body) = match session.pomodoro_phase {
-                                            Some(PomodoroPhase::Work) => (
-                                                "Pomodoro break finished",
-                                                "Work session starting. Stay focused.",
-                                            ),
-                                            Some(PomodoroPhase::ShortBreak)
-                                            | Some(PomodoroPhase::LongBreak) => (
-                                                "Pomodoro finished",
-                                                "Work session complete. Take a break.",
-                                            ),
-                                            None => ("Pomodoro finished", "Session complete."),
-                                        };
-                                        NotificationRequest::new(
-                                            format!("pomodoro_finish_{}", session.id),
-                                            NotificationCategory::Pomodoro,
-                                            title,
-                                            body,
-                                        )
-                                    }
-                                    _ => Err(bbq_core::BbqError::Validation(
-                                        "No notification for stopwatch completion".to_string(),
-                                    )),
-                                };
-
-                                if let Ok(req) = notif_res {
-                                    let _ = notif_for_timer.notify(req);
-                                }
-                            }
-                            bbq_core::BbqEvent::TimerStarted(session)
-                            | bbq_core::BbqEvent::TimerPaused(session)
-                            | bbq_core::BbqEvent::TimerResumed(session)
-                            | bbq_core::BbqEvent::TimerReset(session)
-                            | bbq_core::BbqEvent::TimerPhaseChanged(session)
-                            | bbq_core::BbqEvent::TimerChanged(session) => {
-                                let _ = app_handle_timer.emit("bbq://timer_changed", session);
-                            }
-                            _ => {}
-                        }
-                    }))
-                    .await;
-            });
-
-            // Initialize and forward reminder events to frontend
-            let app_handle_reminder = handle.clone();
-            let reminder_clone = state.reminder_service.clone();
-            tauri::async_runtime::spawn(async move {
-                use bbq_services::Service;
-                let _ = reminder_clone.init().await;
-                let _ = reminder_clone.subscribe_events(Arc::new(move |event| {
-                    use tauri::Emitter;
-                    match event {
-                        bbq_core::BbqEvent::ReminderCreated(rem)
-                        | bbq_core::BbqEvent::ReminderCancelled(rem)
-                        | bbq_core::BbqEvent::ReminderFired(rem)
-                        | bbq_core::BbqEvent::ReminderChanged(rem) => {
-                            let _ = app_handle_reminder.emit("bbq://reminder_changed", rem);
-                        }
-                        _ => {}
-                    }
-                }));
-            });
-
-            // Initialize and forward notification events to frontend
-            let app_handle_notif = handle.clone();
-            let notif_clone = state.notification_service.clone();
-            tauri::async_runtime::spawn(async move {
-                use bbq_services::Service;
-                let _ = notif_clone.init().await;
-                let _ = notif_clone.subscribe_events(Arc::new(move |event| {
-                    use tauri::Emitter;
-                    match event {
-                        bbq_core::BbqEvent::NotificationRequested(req)
-                        | bbq_core::BbqEvent::NotificationDelivered(req)
-                        | bbq_core::BbqEvent::NotificationUnavailable(req) => {
-                            let _ = app_handle_notif.emit("bbq://notification_changed", req);
-                        }
-                        _ => {}
-                    }
-                }));
-            });
-
-            // Initialize and forward launcher events to frontend
-            let app_handle_launcher = handle.clone();
-            let launcher_clone = state.launcher_service.clone();
-            tauri::async_runtime::spawn(async move {
-                use bbq_services::Service;
-                let _ = launcher_clone.init().await;
-                use bbq_services::LauncherServiceTrait;
-                let _ = launcher_clone.subscribe_events(Arc::new(move |event| {
-                    use tauri::Emitter;
-                    match event {
-                        bbq_core::BbqEvent::LauncherItemsChanged(items)
-                        | bbq_core::BbqEvent::LauncherRecentChanged(items)
-                        | bbq_core::BbqEvent::LauncherFavoritesChanged(items) => {
-                            let _ = app_handle_launcher.emit("bbq://launcher_changed", items);
-                        }
-                        bbq_core::BbqEvent::LauncherActionCompleted { item_id, action } => {
-                            let _ = app_handle_launcher.emit(
-                                "bbq://launcher_changed",
-                                serde_json::json!({
-                                    "item_id": item_id,
-                                    "action": action,
-                                    "status": "completed"
-                                }),
-                            );
-                        }
-                        bbq_core::BbqEvent::LauncherActionFailed { item_id, error } => {
-                            let _ = app_handle_launcher.emit(
-                                "bbq://launcher_changed",
-                                serde_json::json!({
-                                    "item_id": item_id,
-                                    "error": error,
-                                    "status": "failed"
-                                }),
-                            );
-                        }
-                        _ => {}
-                    }
-                }));
-            });
-
-            // Initialize and forward drop events to frontend
-            let app_handle_drop = handle.clone();
-            let drop_clone = state.drop_service.clone();
-            tauri::async_runtime::spawn(async move {
-                use bbq_services::Service;
-                let _ = drop_clone.init().await;
-                use bbq_services::DropServiceTrait;
-                let _ = drop_clone
-                    .subscribe_events(Arc::new(move |event| {
-                        use tauri::Emitter;
-                        match event {
-                            bbq_core::BbqEvent::DropBatchInspected(batch) => {
-                                let _ = app_handle_drop.emit(
-                                    "bbq://drop_changed",
-                                    serde_json::json!({
-                                        "type": "inspected",
-                                        "batch": batch
-                                    }),
-                                );
-                            }
-                            bbq_core::BbqEvent::DropActionExecuted(result) => {
-                                let _ = app_handle_drop.emit(
-                                    "bbq://drop_changed",
-                                    serde_json::json!({
-                                        "type": "action_executed",
-                                        "result": result
-                                    }),
-                                );
-                            }
-                            _ => {}
-                        }
-                    }))
-                    .await;
-            });
-
-            // Forward display events to frontend
-            let app_handle_display = handle.clone();
-            let display_clone = state.display_service.clone();
-            tauri::async_runtime::spawn(async move {
-                use bbq_services::Service;
-                let _ = display_clone.init().await;
-                use bbq_services::DisplayServiceTrait;
-                let _ = display_clone
-                    .subscribe_events(Arc::new(move |event| {
-                        use tauri::Emitter;
-                        if let bbq_core::BbqEvent::DisplayChanged(info) = event {
-                            let _ = app_handle_display.emit("bbq://display_changed", info);
-                        }
-                    }))
-                    .await;
-            });
-
-            // Initialize and forward hotkey events to frontend
-            let app_handle_hotkey = handle.clone();
-            let hotkey_clone = state.hotkey_service.clone();
-            let hotkey_disp_svc = state.display_service.clone();
-            let hotkey_win_svc = state.window_service.clone();
-            tauri::async_runtime::spawn(async move {
-                use bbq_services::Service;
-                let _ = hotkey_clone.init().await;
-                let _ = hotkey_clone.start().await;
-                use bbq_services::HotkeyServiceTrait;
-                let _ = hotkey_clone
-                    .subscribe_events(Arc::new(move |event| {
-                        use tauri::Emitter;
-                        match event {
-                            bbq_core::BbqEvent::HotkeyTriggered { id, display_str } => {
-                                let window_opt = app_handle_hotkey.get_webview_window("main");
-                                let disp_svc = hotkey_disp_svc.clone();
-                                let win_svc = hotkey_win_svc.clone();
-                                tauri::async_runtime::spawn(async move {
-                                    use bbq_services::DisplayServiceTrait;
-                                    use bbq_services::WindowServiceTrait;
-                                    if let Ok(active_display) = disp_svc.get_active_display().await
-                                    {
-                                        let geo = bbq_core::calculate_island_geometry(
-                                            &active_display,
-                                            bbq_core::IslandLayoutState::Expanded,
-                                            None,
-                                            bbq_core::IslandAnchor::TopCenter,
-                                        );
-                                        if let Some(ref window) = window_opt {
-                                            let _ = window.set_size(tauri::Size::Logical(
-                                                tauri::LogicalSize {
-                                                    width: geo.width as f64,
-                                                    height: geo.height as f64,
-                                                },
-                                            ));
-                                            let _ = window.set_position(tauri::Position::Logical(
-                                                tauri::LogicalPosition {
-                                                    x: geo.x as f64,
-                                                    y: geo.y as f64,
-                                                },
-                                            ));
-                                            let _ = window.unminimize();
-                                            let _ = window.show();
-                                            let _ = window.set_focus();
-                                        }
-                                        let _ = win_svc.apply_geometry(&geo).await;
-                                    }
-                                });
-                                let _ = app_handle_hotkey.emit(
-                                    "bbq://hotkey_triggered",
-                                    serde_json::json!({
-                                        "id": id,
-                                        "display_str": display_str
-                                    }),
-                                );
-                            }
-                            bbq_core::BbqEvent::HotkeyConflict {
-                                id,
-                                display_str,
-                                reason,
-                            } => {
-                                let _ = app_handle_hotkey.emit(
-                                    "bbq://hotkey_conflict",
-                                    serde_json::json!({
-                                        "id": id,
-                                        "display_str": display_str,
-                                        "reason": reason
-                                    }),
-                                );
-                            }
-                            _ => {}
-                        }
-                    }))
-                    .await;
-            });
+            // Consolidated async initialization and event forwarding
+            events::wire_service_events(handle, &state);
 
             // Setup main window and DragDrop listener
             if let Some(window) = app.get_webview_window("main") {
@@ -1537,12 +1258,15 @@ pub fn run() {
         .run(|app_handle, event| {
             if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
                 if let Some(state) = app_handle.try_state::<AppState>() {
-                    let hotkey_svc = state.hotkey_service.clone();
-                    let clip_svc = state.clipboard.clone();
+                    let db = state.db.clone();
+                    let services = state.services.clone();
                     tauri::async_runtime::block_on(async move {
-                        use bbq_services::Service;
-                        let _ = hotkey_svc.stop().await;
-                        let _ = clip_svc.stop().await;
+                        // 1. Controlled shutdown of all services in reverse dependency order (bounded timeout)
+                        let _ = services.stop_all().await;
+                        // 2. Perform SQLite WAL truncate checkpoint during clean shutdown
+                        if let Err(e) = db.checkpoint_wal() {
+                            tracing::warn!("SQLite WAL checkpoint on exit reported: {}", e);
+                        }
                     });
                 }
             }

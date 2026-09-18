@@ -241,3 +241,20 @@ export async function subscribeToShowIsland(
   }
 }
 
+export interface DatabaseRecoveredPayload {
+  recovered: boolean;
+  backup_name: string;
+  message: string;
+}
+
+export async function subscribeToDatabaseRecovered(
+  callback: (payload: DatabaseRecoveredPayload) => void
+): Promise<UnlistenFn> {
+  try {
+    return await listen<DatabaseRecoveredPayload>("bbq://db_recovered", (event) => {
+      callback(event.payload);
+    });
+  } catch {
+    return () => {};
+  }
+}

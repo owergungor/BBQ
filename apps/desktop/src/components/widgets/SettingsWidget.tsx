@@ -3,6 +3,8 @@ import {
   useSettingsState,
   updateSettingsBatch,
   resetSettingsToDefaults,
+  SYSTEM_ACCENT_COLORS,
+  type AccentPreset,
 } from "../../state/settingsState.ts";
 import { widgetRegistry } from "../../island/widgetRegistry.ts";
 import {
@@ -10,13 +12,28 @@ import {
   resolveEffectiveIndicatorOrder,
 } from "../../island/compactOrder.ts";
 import { useHotkeyState } from "../../state/hotkeyState.ts";
-import type { ThemePreference, AccentColor } from "@bbq/types";
+import type { ThemePreference, AccentColor, PlatformCapabilities } from "@bbq/types";
+import { bbqCommands } from "../../ipc/commands.ts";
 import {
   ThemeSwitcher,
   Switch,
   Slider,
   AccentColorPicker,
 } from "../common/SettingsControls.tsx";
+import { Icon, type IconName } from "../common/Icon.tsx";
+import {
+  clampIslandWidth,
+  clampIslandHeight,
+  clampClipboardCapacity,
+  clampClipboardRetention,
+  computeWcagContrast,
+  validateHexColor,
+  validateHotkeyInput,
+  sanitizeIndicatorOrder,
+  formatCapabilityStatus,
+  isHotkeySupported,
+  isClipboardLiveSupported,
+} from "./settingsModel.ts";
 
 type SettingsTab = "appearance" | "island" | "hotkey" | "privacy" | "notifications" | "widgets" | "about";
 
@@ -25,6 +42,22 @@ export const SettingsWidget: React.FC = () => {
   const { conflictError } = useHotkeyState();
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [capabilities, setCapabilities] = useState<PlatformCapabilities | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    bbqCommands.getPlatformCapabilities().then((caps) => {
+      if (active && caps) {
+        setCapabilities(caps);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const hotkeySupported = isHotkeySupported(capabilities);
+  const clipboardLiveSupported = isClipboardLiveSupported(capabilities);
 
   // Local draft states for sliders and text inputs to prevent IPC write storms
   const [draftWidth, setDraftWidth] = useState(settings.island_width);
@@ -71,11 +104,12 @@ export const SettingsWidget: React.FC = () => {
   };
 
   const handleCustomAccentChange = async (hex: string) => {
+    const validated = validateHexColor(hex);
     await updateSettingsBatch({
       accent_color: "custom",
-      custom_accent_color: hex,
+      custom_accent_color: validated.normalized,
     });
-    showStatus(`Custom accent set to ${hex}`);
+    showStatus(`Custom accent set to ${validated.normalized}`);
   };
 
   const handleToggle = async (key: keyof typeof settings, value: boolean) => {
@@ -84,56 +118,51 @@ export const SettingsWidget: React.FC = () => {
   };
 
   const commitWidth = async () => {
-    if (draftWidth !== settings.island_width) {
-      await updateSettingsBatch({ island_width: draftWidth });
+    const clamped = clampIslandWidth(draftWidth);
+    if (clamped !== settings.island_width) {
+      await updateSettingsBatch({ island_width: clamped });
       showStatus("Island width updated");
     }
   };
 
   const commitHeight = async () => {
-    if (draftHeight !== settings.island_height) {
-      await updateSettingsBatch({ island_height: draftHeight });
+    const clamped = clampIslandHeight(draftHeight);
+    if (clamped !== settings.island_height) {
+      await updateSettingsBatch({ island_height: clamped });
       showStatus("Island height updated");
     }
   };
 
   const commitClipboardMax = async () => {
-    if (draftClipboardMax !== settings.clipboard_max_entries) {
-      await updateSettingsBatch({ clipboard_max_entries: draftClipboardMax });
+    const clamped = clampClipboardCapacity(draftClipboardMax);
+    if (clamped !== settings.clipboard_max_entries) {
+      await updateSettingsBatch({ clipboard_max_entries: clamped });
       showStatus("Clipboard capacity updated");
     }
   };
 
   const commitRetention = async () => {
-    if (draftRetention !== settings.clipboard_retention_days) {
-      await updateSettingsBatch({ clipboard_retention_days: draftRetention });
+    const clamped = clampClipboardRetention(draftRetention);
+    if (clamped !== settings.clipboard_retention_days) {
+      await updateSettingsBatch({ clipboard_retention_days: clamped });
       showStatus("Clipboard retention updated");
     }
   };
 
   const handleSaveHotkey = async () => {
-    const trimmed = draftHotkey.trim();
-    if (!trimmed) {
-      setHotkeyError("Hotkey combination cannot be empty.");
-      return;
-    }
-    const parts = trimmed.split("+").map((s) => s.trim().toLowerCase());
-    const hasMod = parts.some((p) =>
-      ["ctrl", "control", "alt", "option", "shift", "win", "cmd", "meta"].includes(p)
-    );
-    if (!hasMod || parts.length < 2) {
-      setHotkeyError(
-        "Shortcut must include at least one modifier key (Ctrl, Alt, Shift, or Win) plus a key."
-      );
+    const validation = validateHotkeyInput(draftHotkey);
+    if (!validation.valid) {
+      setHotkeyError(validation.error || "Shortcut must include at least one modifier key plus a key.");
       return;
     }
     setHotkeyError(null);
     setIsRecordingHotkey(false);
-    if (trimmed === settings.global_hotkey) {
+    if (validation.normalized === settings.global_hotkey) {
       return;
     }
-    const ok = await updateSettingsBatch({ global_hotkey: trimmed });
+    const ok = await updateSettingsBatch({ global_hotkey: validation.normalized });
     if (ok) {
+      setDraftHotkey(validation.normalized);
       showStatus("Global hotkey updated");
     } else {
       setHotkeyError("Failed to register hotkey with the operating system.");
@@ -255,7 +284,12 @@ export const SettingsWidget: React.FC = () => {
     newOrder[index] = newOrder[targetIndex];
     newOrder[targetIndex] = temp;
 
-    await updateSettingsBatch({ compact_indicator_order: newOrder });
+    const sanitized = sanitizeIndicatorOrder(
+      newOrder,
+      allRegisteredWidgets.map((w) => w.id)
+    );
+
+    await updateSettingsBatch({ compact_indicator_order: sanitized });
     showStatus("Indicator priority updated");
   };
 
@@ -296,7 +330,9 @@ export const SettingsWidget: React.FC = () => {
           flexShrink: 0,
         }}
       >
-        <h2 style={{ fontSize: "13px", fontWeight: 600, margin: 0 }}>⚙️ Preferences</h2>
+        <h2 style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 600, margin: 0 }}>
+          <Icon name="settings" size={14} /> Preferences
+        </h2>
         {statusMessage && (
           <span
             style={{ fontSize: "11px", color: "var(--bbq-accent)", fontWeight: 500 }}
@@ -383,6 +419,48 @@ export const SettingsWidget: React.FC = () => {
               onChangeCustom={handleCustomAccentChange}
             />
 
+            {(() => {
+              const activeColorHex =
+                settings.accent_color === "custom" || (settings.accent_color && settings.accent_color.startsWith("#"))
+                  ? settings.custom_accent_color || "#007aff"
+                  : SYSTEM_ACCENT_COLORS[settings.accent_color as AccentPreset]?.dark || "#0a84ff";
+              const bgHex = settings.theme === "light" ? "#ffffff" : "#121216";
+              const contrast = computeWcagContrast(activeColorHex, bgHex);
+              return (
+                <div
+                  id="wcag-contrast-status"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "6px 10px",
+                    borderRadius: "6px",
+                    background: "var(--bbq-surface-elevated)",
+                    border: "1px solid var(--bbq-border)",
+                    fontSize: "11px",
+                  }}
+                >
+                  <span style={{ color: "var(--bbq-text-muted)" }}>
+                    Accessibility Contrast: <strong style={{ color: "var(--bbq-text)" }}>{contrast.ratio}:1</strong>
+                  </span>
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      color: contrast.normalTextAa ? "var(--bbq-success, #34c759)" : "var(--bbq-warning, #ff9500)",
+                    }}
+                  >
+                    {contrast.normalTextAaa
+                      ? "AAA Compliant"
+                      : contrast.normalTextAa
+                      ? "AA Compliant"
+                      : contrast.largeTextAa
+                      ? "AA Large Only"
+                      : "Fails WCAG AA"}
+                  </span>
+                </div>
+              );
+            })()}
+
             <Switch
               id="reduced-motion-toggle"
               checked={settings.reduced_motion}
@@ -459,6 +537,30 @@ export const SettingsWidget: React.FC = () => {
         {/* HOTKEY */}
         {activeTab === "hotkey" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {!hotkeySupported && capabilities && (
+              <div
+                id="hotkey-platform-warning"
+                role="status"
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: "6px",
+                  background: "rgba(245, 158, 11, 0.12)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  color: "#f59e0b",
+                  fontSize: "12px",
+                  lineHeight: 1.4,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <Icon name="globe" size={13} aria-hidden="true" />
+                <span>
+                  Global shortcut registration is {capabilities.globalHotkey} on {capabilities.platform}. The island can be opened via tray icon or CLI.
+                </span>
+              </div>
+            )}
+
             <div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
                 <label htmlFor="global-hotkey-input" style={{ fontWeight: 500, fontSize: "13px" }}>
@@ -506,6 +608,7 @@ export const SettingsWidget: React.FC = () => {
                   }}
                   onKeyDown={handleHotkeyKeyDown}
                   placeholder={isRecordingHotkey ? "Press key combination..." : "e.g. Ctrl+Shift+B"}
+                  disabled={!hotkeySupported}
                   style={{
                     flex: 1,
                     padding: "8px 10px",
@@ -519,12 +622,15 @@ export const SettingsWidget: React.FC = () => {
                     color: "var(--bbq-text)",
                     fontSize: "13px",
                     boxSizing: "border-box",
+                    opacity: !hotkeySupported ? 0.5 : 1,
+                    cursor: !hotkeySupported ? "not-allowed" : "text",
                   }}
                   aria-label="Global hotkey combination"
                 />
                 <button
                   type="button"
                   id="record-hotkey-btn"
+                  disabled={!hotkeySupported}
                   onClick={() => {
                     if (!isRecordingHotkey) {
                       setDraftHotkey("");
@@ -545,8 +651,9 @@ export const SettingsWidget: React.FC = () => {
                       : "rgba(255, 255, 255, 0.06)",
                     color: isRecordingHotkey ? "#fff" : "var(--bbq-text)",
                     fontSize: "12px",
-                    cursor: "pointer",
+                    cursor: !hotkeySupported ? "not-allowed" : "pointer",
                     whiteSpace: "nowrap",
+                    opacity: !hotkeySupported ? 0.5 : 1,
                   }}
                 >
                   {isRecordingHotkey ? "Stop Recording" : "Record Keys"}
@@ -558,7 +665,11 @@ export const SettingsWidget: React.FC = () => {
                   type="button"
                   id="save-hotkey-btn"
                   onClick={handleSaveHotkey}
-                  disabled={draftHotkey.trim() === settings.global_hotkey || !draftHotkey.trim()}
+                  disabled={
+                    !hotkeySupported ||
+                    draftHotkey.trim() === settings.global_hotkey ||
+                    !draftHotkey.trim()
+                  }
                   style={{
                     padding: "6px 14px",
                     borderRadius: "6px",
@@ -609,6 +720,8 @@ export const SettingsWidget: React.FC = () => {
 
               {(hotkeyError || conflictError) && (
                 <div
+                  id="hotkey-conflict-error"
+                  role="alert"
                   style={{
                     marginTop: "8px",
                     padding: "8px 10px",
@@ -618,9 +731,13 @@ export const SettingsWidget: React.FC = () => {
                     color: "#f87171",
                     fontSize: "12px",
                     lineHeight: 1.4,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
                   }}
                 >
-                  ⚠️ {hotkeyError || conflictError}
+                  <Icon name="close" size={13} aria-hidden="true" />
+                  <span>{hotkeyError || conflictError}</span>
                 </div>
               )}
 
@@ -640,9 +757,14 @@ export const SettingsWidget: React.FC = () => {
               <Switch
                 id="hotkey-enable-toggle"
                 checked={settings.hotkey_enabled}
+                disabled={!hotkeySupported}
                 onChange={(checked) => handleToggle("hotkey_enabled", checked)}
                 label="Hotkey Trigger Enabled"
-                description="Toggle whether the global shortcut is actively registered with the OS."
+                description={
+                  !hotkeySupported && capabilities
+                    ? `Global shortcuts are ${capabilities.globalHotkey} on ${capabilities.platform}.`
+                    : "Toggle whether the global shortcut is actively registered with the OS."
+                }
               />
             </div>
           </div>
@@ -651,6 +773,29 @@ export const SettingsWidget: React.FC = () => {
         {/* PRIVACY */}
         {activeTab === "privacy" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {!clipboardLiveSupported && capabilities && (
+              <div
+                id="clipboard-platform-notice"
+                role="status"
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: "6px",
+                  background: "rgba(59, 130, 246, 0.12)",
+                  border: "1px solid rgba(59, 130, 246, 0.3)",
+                  color: "#60a5fa",
+                  fontSize: "12px",
+                  lineHeight: 1.4,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <Icon name="globe" size={13} aria-hidden="true" />
+                <span>
+                  Clipboard live events are {capabilities.clipboardLiveEvents} on {capabilities.platform}. Clips are captured on-demand upon interaction.
+                </span>
+              </div>
+            )}
             <Switch
               id="clipboard-history-toggle"
               checked={settings.clipboard_history_enabled}
@@ -747,7 +892,7 @@ export const SettingsWidget: React.FC = () => {
                 {currentIndicatorOrder.map((widgetId, idx) => {
                   const w = allRegisteredWidgets.find((item) => item.id === widgetId);
                   const title = w?.title ?? widgetId;
-                  const icon = w?.icon ?? "⚙️";
+                  const iconName = (w?.icon as IconName) || "settings";
 
                   return (
                     <div
@@ -767,7 +912,9 @@ export const SettingsWidget: React.FC = () => {
                         <span style={{ color: "var(--bbq-text-muted)", fontSize: "11px", width: "16px" }}>
                           {idx + 1}.
                         </span>
-                        <span aria-hidden="true">{icon}</span>
+                        <span aria-hidden="true" style={{ display: "flex", alignItems: "center" }}>
+                          <Icon name={iconName} size={13} />
+                        </span>
                         <span style={{ fontWeight: 500 }}>{title}</span>
                       </span>
 
@@ -787,10 +934,12 @@ export const SettingsWidget: React.FC = () => {
                               cursor: idx === 0 ? "not-allowed" : "pointer",
                               opacity: idx === 0 ? 0.35 : 1,
                               fontSize: "10px",
+                              display: "flex",
+                              alignItems: "center",
                             }}
                             aria-label={`Move ${title} up`}
                           >
-                            ▲
+                            <Icon name="chevron-up" size={10} />
                           </button>
                           <button
                             id={`widget-move-down-${widgetId}`}
@@ -806,10 +955,12 @@ export const SettingsWidget: React.FC = () => {
                               cursor: idx === currentIndicatorOrder.length - 1 ? "not-allowed" : "pointer",
                               opacity: idx === currentIndicatorOrder.length - 1 ? 0.35 : 1,
                               fontSize: "10px",
+                              display: "flex",
+                              alignItems: "center",
                             }}
                             aria-label={`Move ${title} down`}
                           >
-                            ▼
+                            <Icon name="chevron-down" size={10} />
                           </button>
                         </div>
 
@@ -853,7 +1004,9 @@ export const SettingsWidget: React.FC = () => {
                         }}
                       >
                         <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
-                          <span aria-hidden="true">{w.icon}</span>
+                          <span aria-hidden="true" style={{ display: "flex", alignItems: "center" }}>
+                            <Icon name={(w?.icon as IconName) || "settings"} size={13} />
+                          </span>
                           <span>{w.title}</span>
                         </span>
                         <input
@@ -886,7 +1039,9 @@ export const SettingsWidget: React.FC = () => {
                 gap: "12px",
               }}
             >
-              <span style={{ fontSize: "32px" }} aria-hidden="true">🏝️</span>
+              <span style={{ display: "flex", alignItems: "center", color: "var(--bbq-accent)" }} aria-hidden="true">
+                <Icon name="palm" size={28} />
+              </span>
               <div>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>BBQ Desktop</h3>
                 <span style={{ fontSize: "12px", color: "var(--bbq-accent)", fontWeight: 600 }}>
@@ -920,6 +1075,46 @@ export const SettingsWidget: React.FC = () => {
                 <span style={{ fontWeight: 500 }}>Non-destructive (Preferences preserved)</span>
               </div>
             </div>
+
+            {capabilities && (
+              <div style={{ paddingTop: "8px", borderTop: "1px solid var(--bbq-border)" }}>
+                <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--bbq-text)", display: "block", marginBottom: "8px" }}>
+                  Platform Capabilities ({capabilities.platform})
+                </span>
+                <div id="platform-capabilities-list" style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "11px" }}>
+                  {[
+                    { label: "Global Hotkey", status: capabilities.globalHotkey },
+                    { label: "Clipboard Live Events", status: capabilities.clipboardLiveEvents },
+                    { label: "Clipboard History", status: capabilities.clipboardHistory },
+                    { label: "Media Control", status: capabilities.mediaControl },
+                    { label: "Media Events", status: capabilities.mediaEvents },
+                    { label: "Notifications", status: capabilities.notifications },
+                    { label: "Display Change Events", status: capabilities.displayChangeEvents },
+                    { label: "Window Positioning", status: capabilities.windowAbsolutePositioning },
+                  ].map(({ label, status }) => {
+                    const formatted = formatCapabilityStatus(status);
+                    return (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ color: "var(--bbq-text-muted)" }}>{label}:</span>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color: formatted.color,
+                            fontFamily: "monospace",
+                            fontSize: "10px",
+                            padding: "1px 5px",
+                            borderRadius: "3px",
+                            background: "rgba(255, 255, 255, 0.04)",
+                          }}
+                        >
+                          {formatted.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div style={{ paddingTop: "8px", borderTop: "1px solid var(--bbq-border)" }}>
               <button

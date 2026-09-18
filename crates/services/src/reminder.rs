@@ -7,6 +7,7 @@ use bbq_core::{
 };
 use bbq_storage::ReminderRepository;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::oneshot;
@@ -46,6 +47,8 @@ pub struct ReminderService {
     wake_up_cancel_tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
     event_sink: Arc<Mutex<Option<ReminderEventSink>>>,
     time_provider: TimeProvider,
+    stopped: Arc<AtomicBool>,
+    id_counter: Arc<AtomicU64>,
 }
 
 impl std::fmt::Debug for ReminderService {
@@ -68,6 +71,8 @@ impl ReminderService {
             wake_up_cancel_tx: Arc::new(Mutex::new(None)),
             event_sink: Arc::new(Mutex::new(None)),
             time_provider: Arc::new(system_time_now_ms),
+            stopped: Arc::new(AtomicBool::new(false)),
+            id_counter: Arc::new(AtomicU64::new(1)),
         }
     }
 
@@ -84,11 +89,22 @@ impl ReminderService {
             wake_up_cancel_tx: Arc::new(Mutex::new(None)),
             event_sink: Arc::new(Mutex::new(None)),
             time_provider,
+            stopped: Arc::new(AtomicBool::new(false)),
+            id_counter: Arc::new(AtomicU64::new(1)),
         }
     }
 
     pub fn now(&self) -> u64 {
         (self.time_provider)()
+    }
+
+    #[cfg(test)]
+    pub fn has_active_wake_up(&self) -> bool {
+        if let Ok(guard) = self.wake_up_cancel_tx.lock() {
+            guard.is_some()
+        } else {
+            false
+        }
     }
 
     fn emit_event(&self, event: BbqEvent) {
@@ -102,6 +118,10 @@ impl ReminderService {
     /// Schedule a single one-shot wake-up for the nearest upcoming reminder.
     /// Cancels any previously active wake-up task.
     pub fn schedule_nearest(&self) {
+        if self.stopped.load(Ordering::SeqCst) {
+            return;
+        }
+
         let mut cancel_tx_guard = match self.wake_up_cancel_tx.lock() {
             Ok(g) => g,
             Err(_) => return,
@@ -142,7 +162,9 @@ impl ReminderService {
                         // Wake-up superseded or cancelled
                     }
                     _ = tokio::time::sleep(Duration::from_millis(delay_ms)) => {
-                        this.process_due_reminders();
+                        if !this.stopped.load(Ordering::SeqCst) {
+                            this.process_due_reminders();
+                        }
                     }
                 }
             });
@@ -264,10 +286,13 @@ impl Service for ReminderService {
     }
 
     async fn start(&self) -> BbqResult<()> {
+        self.stopped.store(false, Ordering::SeqCst);
+        self.schedule_nearest();
         Ok(())
     }
 
     async fn stop(&self) -> BbqResult<()> {
+        self.stopped.store(true, Ordering::SeqCst);
         if let Ok(mut tx_guard) = self.wake_up_cancel_tx.lock() {
             if let Some(tx) = tx_guard.take() {
                 let _ = tx.send(());
@@ -294,7 +319,8 @@ impl ReminderServiceTrait for ReminderService {
         due_at: u64,
     ) -> BbqResult<Reminder> {
         let now = self.now();
-        let id = format!("rem_{}", now);
+        let seq = self.id_counter.fetch_add(1, Ordering::Relaxed);
+        let id = format!("rem_{}_{}", now, seq);
 
         let reminder = Reminder::new(id, title, body, due_at, now)?;
 
@@ -304,6 +330,25 @@ impl ReminderServiceTrait for ReminderService {
 
         if let Ok(mut guard) = self.reminders.lock() {
             guard.insert(reminder.id.clone(), reminder.clone());
+            if guard.len() > bbq_core::MAX_REMINDERS_BOUND {
+                let mut items: Vec<Reminder> = guard.values().cloned().collect();
+                items.sort_by(|a, b| {
+                    let a_prio = if a.state == ReminderState::Scheduled {
+                        0
+                    } else {
+                        1
+                    };
+                    let b_prio = if b.state == ReminderState::Scheduled {
+                        0
+                    } else {
+                        1
+                    };
+                    a_prio.cmp(&b_prio).then(a.due_at.cmp(&b.due_at))
+                });
+                for excess in items.iter().skip(bbq_core::MAX_REMINDERS_BOUND) {
+                    guard.remove(&excess.id);
+                }
+            }
         }
 
         self.emit_event(BbqEvent::ReminderCreated(reminder.clone()));
@@ -531,5 +576,140 @@ mod tests {
         for r in all {
             assert_eq!(r.state, ReminderState::Fired);
         }
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_schedule_reminder_cancel_stop_no_stale_notification() {
+        let env = create_test_env(1000);
+        let rem = env
+            .service
+            .create_reminder("Test A", None, 1030)
+            .await
+            .unwrap();
+        assert!(env.service.has_active_wake_up());
+
+        // Cancel reminder
+        env.service.cancel_reminder(&rem.id).await.unwrap();
+        assert!(
+            !env.service.has_active_wake_up(),
+            "Cancelling single reminder must clean wake up task"
+        );
+
+        // Wait past due_at
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert_eq!(env.mock_platform.notification_count(), 0);
+
+        // Schedule another and stop the service
+        let _rem2 = env
+            .service
+            .create_reminder("Test A2", None, 1040)
+            .await
+            .unwrap();
+        assert!(env.service.has_active_wake_up());
+        env.service.stop().await.unwrap();
+        assert!(
+            !env.service.has_active_wake_up(),
+            "Stopping service must cancel wake up"
+        );
+
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        assert_eq!(env.mock_platform.notification_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_replace_nearest_reminder_cancels_old_wakeup() {
+        let env = create_test_env(1000);
+
+        // Schedule reminder for t=5000
+        env.service
+            .create_reminder("Far Reminder", None, 5000)
+            .await
+            .unwrap();
+        assert!(env.service.has_active_wake_up());
+
+        // Schedule a closer reminder for t=2000 (replaces nearest)
+        env.service
+            .create_reminder("Near Reminder", None, 2000)
+            .await
+            .unwrap();
+        assert!(env.service.has_active_wake_up());
+
+        // Advance time to 2100
+        env.current_time.store(2100, Ordering::SeqCst);
+        env.service.process_due_reminders();
+
+        // Near reminder fires, Far reminder is still scheduled
+        assert_eq!(env.mock_platform.notification_count(), 1);
+        let notif = env.mock_platform.last_notification().unwrap();
+        assert_eq!(notif.title, "Near Reminder");
+
+        // Wakeup task is now scheduled for Far Reminder
+        assert!(env.service.has_active_wake_up());
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_stop_twice_idempotent() {
+        let env = create_test_env(1000);
+        env.service
+            .create_reminder("Task C", None, 5000)
+            .await
+            .unwrap();
+        assert!(env.service.has_active_wake_up());
+
+        assert!(env.service.stop().await.is_ok());
+        assert!(!env.service.has_active_wake_up());
+
+        // Repeated stop is safe and idempotent
+        assert!(env.service.stop().await.is_ok());
+        assert!(!env.service.has_active_wake_up());
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_empty_reminder_set_no_unnecessary_worker() {
+        let env = create_test_env(1000);
+        // Initially empty
+        assert!(
+            !env.service.has_active_wake_up(),
+            "Empty service must not spawn wake-up worker"
+        );
+
+        env.service.schedule_nearest();
+        assert!(
+            !env.service.has_active_wake_up(),
+            "schedule_nearest on empty reminders must not spawn worker"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_lifecycle_reschedule_after_cancellation_works() {
+        let env = create_test_env(1000);
+        let rem1 = env
+            .service
+            .create_reminder("Task 1", None, 2000)
+            .await
+            .unwrap();
+        assert!(env.service.has_active_wake_up());
+
+        env.service.cancel_reminder(&rem1.id).await.unwrap();
+        assert!(!env.service.has_active_wake_up());
+
+        // Re-schedule with new reminder
+        let _rem2 = env
+            .service
+            .create_reminder("Task 2", None, 3000)
+            .await
+            .unwrap();
+        assert!(
+            env.service.has_active_wake_up(),
+            "New reminder after cancellation must spawn new wake up"
+        );
+
+        // Advance time to 3100
+        env.current_time.store(3100, Ordering::SeqCst);
+        env.service.process_due_reminders();
+
+        assert_eq!(env.mock_platform.notification_count(), 1);
+        let notif = env.mock_platform.last_notification().unwrap();
+        assert_eq!(notif.title, "Task 2");
     }
 }

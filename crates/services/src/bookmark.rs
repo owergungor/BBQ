@@ -15,6 +15,9 @@ pub trait BookmarkServiceTrait: Service {
     fn list_bookmarks(&self) -> BbqResult<Vec<BookmarkItem>>;
 }
 
+/// BookmarkService serves as an intentionally reserved architectural marker service
+/// within the BBQ ServiceRegistry (slot 15) for planned bookmark HUD functionality.
+/// It maintains ServiceState::Inactive until full implementation.
 #[derive(Debug, Default)]
 pub struct BookmarkService;
 

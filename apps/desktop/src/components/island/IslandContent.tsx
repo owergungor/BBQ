@@ -19,6 +19,44 @@ import { DropWidget } from "../widgets/DropWidget.tsx";
 import { SettingsWidget } from "../widgets/SettingsWidget.tsx";
 import { useSettingsState, initSettingsState } from "../../state/settingsState.ts";
 import { resolveEffectiveIndicatorOrder } from "../../island/compactOrder.ts";
+import { subscribeToDatabaseRecovered } from "../../ipc/events.ts";
+import { Icon } from "../common/Icon.tsx";
+
+export interface WidgetRendererProps {
+  onSelectWidget: (widgetId: string) => void;
+  onCollapse: () => void;
+}
+
+export type WidgetRenderer = React.FC<WidgetRendererProps>;
+
+export const WIDGET_RENDERERS: Record<string, WidgetRenderer> = {
+  drop: () => <DropWidget />,
+  files: () => <FileWorkspaceWidget />,
+  clipboard: () => <ClipboardWidget />,
+  media: () => <MediaWidget />,
+  system: () => <SystemWidget />,
+  launcher: ({ onSelectWidget, onCollapse }) => (
+    <LauncherWidget onSelectWidget={onSelectWidget} onCollapse={onCollapse} />
+  ),
+  timer: () => <TimerWidget />,
+  reminder: () => <ReminderWidget />,
+  settings: () => <SettingsWidget />,
+};
+
+export function renderWidgetComponent(
+  widgetId: string,
+  props: WidgetRendererProps
+): React.ReactNode {
+  const Renderer = WIDGET_RENDERERS[widgetId];
+  if (Renderer) {
+    return <Renderer {...props} />;
+  }
+  return (
+    <div style={{ padding: "20px", textAlign: "center", color: "var(--text-secondary)" }}>
+      Widget {widgetId} content ready.
+    </div>
+  );
+}
 
 interface IslandContentProps {
   state: IslandMachineState;
@@ -35,6 +73,21 @@ export const IslandContent: React.FC<IslandContentProps> = ({
   onSelectWidget,
   onCollapse,
 }) => {
+  const [dbRecoveryWarning, setDbRecoveryWarning] = React.useState<string | null>(null);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    subscribeToDatabaseRecovered((payload) => {
+      if (payload.recovered) {
+        setDbRecoveryWarning("Database was safely recovered from quarantine.");
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
   // Selector subscriptions for navigation badges only in expanded mode
   const fileCount = useFileState((s) => s.entries.length);
   const clipboardCount = useClipboardState((s) => s.entries.length);
@@ -49,126 +102,6 @@ export const IslandContent: React.FC<IslandContentProps> = ({
   useEffect(() => {
     widgetRegistry.setDisabledWidgets(disabledWidgets);
   }, [disabledWidgets]);
-
-  // Register widgets into widgetRegistry
-  useEffect(() => {
-    try {
-      widgetRegistry.register({
-        id: "drop",
-        title: "Drop Zone",
-        icon: "📥",
-        priority: 90,
-        canActivate: () => true,
-        lifecycle: "ready",
-      });
-    } catch {
-      // Already registered
-    }
-
-    try {
-      widgetRegistry.register({
-        id: "files",
-        title: "Files",
-        icon: "📁",
-        priority: 85,
-        canActivate: () => true,
-        lifecycle: "ready",
-      });
-    } catch {
-      // Already registered
-    }
-
-    try {
-      widgetRegistry.register({
-        id: "clipboard",
-        title: "Clipboard",
-        icon: "📋",
-        priority: 80,
-        canActivate: () => true,
-        lifecycle: "ready",
-      });
-    } catch {
-      // Already registered
-    }
-
-    try {
-      widgetRegistry.register({
-        id: "media",
-        title: "Media",
-        icon: "🎵",
-        priority: 70,
-        canActivate: () => true,
-        lifecycle: "ready",
-      });
-    } catch {
-      // Already registered
-    }
-
-    try {
-      widgetRegistry.register({
-        id: "system",
-        title: "System",
-        icon: "⚙️",
-        priority: 50,
-        canActivate: () => true,
-        lifecycle: "ready",
-      });
-    } catch {
-      // Already registered
-    }
-
-    try {
-      widgetRegistry.register({
-        id: "launcher",
-        title: "Launcher",
-        icon: "🚀",
-        priority: 45,
-        canActivate: () => true,
-        lifecycle: "ready",
-      });
-    } catch {
-      // Already registered
-    }
-
-    try {
-      widgetRegistry.register({
-        id: "timer",
-        title: "Timer",
-        icon: "⏱️",
-        priority: 40,
-        canActivate: () => true,
-        lifecycle: "ready",
-      });
-    } catch {
-      // Already registered
-    }
-
-    try {
-      widgetRegistry.register({
-        id: "reminder",
-        title: "Reminders",
-        icon: "🔔",
-        priority: 35,
-        canActivate: () => true,
-        lifecycle: "ready",
-      });
-    } catch {
-      // Already registered
-    }
-
-    try {
-      widgetRegistry.register({
-        id: "settings",
-        title: "Settings",
-        icon: "⚙️",
-        priority: 15,
-        canActivate: () => true,
-        lifecycle: "ready",
-      });
-    } catch {
-      // Already registered
-    }
-  }, []);
 
   // Idle, Hovering, DraggingOver compact pill representations
   if (state !== "Expanded") {
@@ -211,35 +144,54 @@ export const IslandContent: React.FC<IslandContentProps> = ({
         />
 
         <div className="bbq-expanded-body">
+          {dbRecoveryWarning && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="bbq-recovery-banner"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "6px 12px",
+                margin: "0 12px 8px 12px",
+                borderRadius: "6px",
+                backgroundColor: "var(--surface-sunken, rgba(255, 200, 0, 0.1))",
+                border: "1px solid var(--accent-amber, #e5a50a)",
+                color: "var(--text-primary, #ffffff)",
+                fontSize: "12px",
+                lineHeight: "1.3",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Icon name="refresh" size={14} />
+                <span>{dbRecoveryWarning}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDbRecoveryWarning(null)}
+                aria-label="Dismiss recovery notice"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--text-secondary, #a0a0a0)",
+                  cursor: "pointer",
+                  padding: "2px 6px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <Icon name="close" size={12} />
+              </button>
+            </div>
+          )}
           {currentWidgetId ? (
             <WidgetContainer
               widgetId={currentWidgetId}
               widgetTitle={activeDef?.title ?? currentWidgetId}
               lifecycle={activeDef?.lifecycle ?? "ready"}
             >
-              {currentWidgetId === "drop" ? (
-                <DropWidget />
-              ) : currentWidgetId === "files" ? (
-                <FileWorkspaceWidget />
-              ) : currentWidgetId === "clipboard" ? (
-                <ClipboardWidget />
-              ) : currentWidgetId === "media" ? (
-                <MediaWidget />
-              ) : currentWidgetId === "system" ? (
-                <SystemWidget />
-              ) : currentWidgetId === "launcher" ? (
-                <LauncherWidget onSelectWidget={onSelectWidget} onCollapse={onCollapse} />
-              ) : currentWidgetId === "timer" ? (
-                <TimerWidget />
-              ) : currentWidgetId === "reminder" ? (
-                <ReminderWidget />
-              ) : currentWidgetId === "settings" ? (
-                <SettingsWidget />
-              ) : (
-                <div style={{ padding: "20px", textAlign: "center", color: "var(--text-secondary)" }}>
-                  Widget {currentWidgetId} content ready.
-                </div>
-              )}
+              {renderWidgetComponent(currentWidgetId, { onSelectWidget, onCollapse })}
             </WidgetContainer>
           ) : (
             <div
