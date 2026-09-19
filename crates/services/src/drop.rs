@@ -498,6 +498,15 @@ mod tests {
         fn get_max_entries(&self) -> usize {
             100
         }
+        async fn set_retention_days(&self, _days: u32) -> BbqResult<usize> {
+            Ok(0)
+        }
+        fn get_retention_days(&self) -> u32 {
+            30
+        }
+        async fn prune_retention(&self) -> BbqResult<usize> {
+            Ok(0)
+        }
     }
 
     #[tokio::test]

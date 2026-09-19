@@ -94,3 +94,69 @@ fn test_storage_wal_and_pragmas_configured() {
         .expect("query foreign keys");
     assert_eq!(foreign_keys, 1, "foreign_keys pragma must be enabled (1)");
 }
+
+#[test]
+fn test_sqlite_freelist_and_vacuum_measurement() {
+    let tmp = std::env::temp_dir().join(format!(
+        "bbq_test_vacuum_meas_{}_{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("time")
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&tmp).expect("create temp dir");
+    let db_path = tmp.join("meas.db");
+
+    let db = DatabaseManager::open(&db_path).expect("open db");
+    let repo = db.clipboard_repository();
+
+    let conn = db.connection();
+    let conn_guard = conn.lock().expect("mutex lock");
+
+    // Verify auto_vacuum is currently 0 (deferred per discovery findings)
+    let auto_vacuum: i32 = conn_guard
+        .query_row("PRAGMA auto_vacuum", [], |r| r.get(0))
+        .expect("query auto_vacuum");
+    assert_eq!(
+        auto_vacuum, 0,
+        "auto_vacuum is 0 as intentionally deferred in M14"
+    );
+
+    drop(conn_guard);
+
+    // Insert 500 items
+    for i in 0..500 {
+        let entry = ClipboardEntry {
+            id: format!("meas_{:04}", i),
+            content_type: ClipboardContentType::Text,
+            content: Some("Sample measurement string for database pages".to_string()),
+            preview: "Sample".to_string(),
+            size_bytes: 44,
+            created_at: 1000 + i,
+            source: None,
+            possible_sensitive: false,
+        };
+        repo.insert_entry(&entry, 500).expect("insert");
+    }
+
+    // Prune entries older than cutoff
+    let pruned = repo.prune_older_than(1400).expect("prune");
+    assert_eq!(pruned, 400);
+
+    let conn_guard = conn.lock().expect("mutex lock");
+    let freelist_count: i32 = conn_guard
+        .query_row("PRAGMA freelist_count", [], |r| r.get(0))
+        .expect("query freelist");
+    let page_count: i32 = conn_guard
+        .query_row("PRAGMA page_count", [], |r| r.get(0))
+        .expect("query page_count");
+
+    // The freelist absorbs deleted pages for reuse by subsequent SQLite inserts
+    assert!(freelist_count >= 0);
+    assert!(page_count >= freelist_count);
+
+    drop(conn_guard);
+    drop(db);
+    let _ = std::fs::remove_dir_all(&tmp);
+}

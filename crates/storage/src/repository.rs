@@ -88,6 +88,7 @@ pub trait ClipboardRepository: Send + Sync {
     fn clear_history(&self) -> BbqResult<()>;
     fn count(&self) -> BbqResult<usize>;
     fn get_latest_text(&self) -> BbqResult<Option<String>>;
+    fn prune_older_than(&self, cutoff_ms: u64) -> BbqResult<usize>;
 }
 
 pub struct SqliteClipboardRepository {
@@ -264,6 +265,20 @@ impl ClipboardRepository for SqliteClipboardRepository {
         } else {
             Ok(None)
         }
+    }
+
+    fn prune_older_than(&self, cutoff_ms: u64) -> BbqResult<usize> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| BbqError::Storage(format!("DB lock error: {}", e)))?;
+        let count = conn
+            .execute(
+                "DELETE FROM clipboard_entries WHERE created_at < ?1",
+                params![cutoff_ms as i64],
+            )
+            .map_err(|e| BbqError::Storage(e.to_string()))?;
+        Ok(count)
     }
 }
 
@@ -516,6 +531,7 @@ pub trait ReminderRepository: Send + Sync {
     fn list_scheduled(&self) -> BbqResult<Vec<Reminder>>;
     fn delete(&self, id: &str) -> BbqResult<()>;
     fn clear_fired(&self) -> BbqResult<()>;
+    fn prune_historical(&self, cutoff_ms: u64, max_history: usize) -> BbqResult<usize>;
 }
 
 pub struct SqliteReminderRepository {
@@ -734,6 +750,38 @@ impl ReminderRepository for SqliteReminderRepository {
             .map_err(|e| BbqError::Storage(format!("Failed to clear fired reminders: {}", e)))?;
 
         Ok(())
+    }
+
+    fn prune_historical(&self, cutoff_ms: u64, max_history: usize) -> BbqResult<usize> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| BbqError::Storage(format!("DB lock error: {}", e)))?;
+
+        let count = conn
+            .execute(
+                r#"
+                DELETE FROM reminders
+                WHERE state IN ('Fired', 'Cancelled')
+                  AND (
+                    due_at < ?1
+                    OR (
+                        ?2 > 0 AND id NOT IN (
+                            SELECT id FROM reminders
+                            WHERE state IN ('Fired', 'Cancelled')
+                            ORDER BY due_at DESC
+                            LIMIT ?2
+                        )
+                    )
+                  )
+                "#,
+                params![cutoff_ms as i64, max_history as i64],
+            )
+            .map_err(|e| {
+                BbqError::Storage(format!("Failed to prune historical reminders: {}", e))
+            })?;
+
+        Ok(count)
     }
 }
 

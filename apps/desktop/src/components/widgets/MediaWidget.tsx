@@ -17,8 +17,19 @@ export const MediaWidget: React.FC = () => {
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPosMs, setSeekPosMs] = useState<number | null>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
+  const settlingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const meta = useMemo(() => normalizeMediaSession(currentSession), [currentSession]);
+
+  // Clean up any pending seek settling timer on unmount
+  useEffect(() => {
+    return () => {
+      if (settlingTimeoutRef.current) {
+        clearTimeout(settlingTimeoutRef.current);
+        settlingTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Lazily query latest media session on widget activation
   useEffect(() => {
@@ -49,6 +60,19 @@ export const MediaWidget: React.FC = () => {
     };
   }, [meta?.albumArt, artError]);
 
+  // Clear seek settling if backend event position catches up to within 1500ms of target
+  useEffect(() => {
+    if (!isSeeking && seekPosMs !== null && meta) {
+      if (Math.abs(meta.positionMs - seekPosMs) <= 1500) {
+        if (settlingTimeoutRef.current) {
+          clearTimeout(settlingTimeoutRef.current);
+          settlingTimeoutRef.current = null;
+        }
+        setSeekPosMs(null);
+      }
+    }
+  }, [meta?.positionMs, isSeeking, seekPosMs]);
+
   const handleTogglePlayPause = useCallback(async (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     await bbqCommands.mediaTogglePlayPause();
@@ -64,45 +88,37 @@ export const MediaWidget: React.FC = () => {
     await bbqCommands.mediaPrevious();
   }, []);
 
-  // Calculate current display position (user drag or event-driven metadata)
+  // Calculate current display position (user drag, settling optimistic position, or event-driven metadata)
   const currentPosMs = useMemo(() => {
-    if (isSeeking && seekPosMs !== null) return seekPosMs;
+    if (seekPosMs !== null) return seekPosMs;
     return meta ? meta.positionMs : 0;
-  }, [isSeeking, seekPosMs, meta]);
+  }, [seekPosMs, meta]);
 
   const currentPercent = useMemo(() => {
     if (!meta || meta.durationMs <= 0) return 0;
     return Math.max(0, Math.min(100, (currentPosMs / meta.durationMs) * 100));
   }, [currentPosMs, meta]);
 
-  // Seek bar interaction: click or pointer drag
-  const performSeek = useCallback(
-    async (clientX: number) => {
-      if (!seekBarRef.current || !meta || !meta.canSeek || meta.durationMs <= 0) return;
-      const rect = seekBarRef.current.getBoundingClientRect();
-      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      const targetPosMs = Math.round(ratio * meta.durationMs);
-      setSeekPosMs(targetPosMs);
-      const ok = await bbqCommands.mediaSeek(targetPosMs);
-      if (!ok) {
-        setSeekPosMs(null);
-      }
-    },
-    [meta]
-  );
-
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!meta || !meta.canSeek || meta.durationMs <= 0) return;
       e.preventDefault();
       e.stopPropagation();
+      if (settlingTimeoutRef.current) {
+        clearTimeout(settlingTimeoutRef.current);
+        settlingTimeoutRef.current = null;
+      }
       setIsSeeking(true);
-      performSeek(e.clientX);
+      const rect = seekBarRef.current?.getBoundingClientRect();
+      if (rect) {
+        const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        setSeekPosMs(Math.round(ratio * meta.durationMs));
+      }
 
       const onPointerMove = (moveEvt: PointerEvent) => {
         if (!seekBarRef.current || !meta) return;
-        const rect = seekBarRef.current.getBoundingClientRect();
-        const ratio = Math.max(0, Math.min(1, (moveEvt.clientX - rect.left) / rect.width));
+        const r = seekBarRef.current.getBoundingClientRect();
+        const ratio = Math.max(0, Math.min(1, (moveEvt.clientX - r.left) / r.width));
         setSeekPosMs(Math.round(ratio * meta.durationMs));
       };
 
@@ -111,18 +127,32 @@ export const MediaWidget: React.FC = () => {
         window.removeEventListener("pointerup", onPointerUp);
         setIsSeeking(false);
         if (seekBarRef.current && meta) {
-          const rect = seekBarRef.current.getBoundingClientRect();
-          const ratio = Math.max(0, Math.min(1, (upEvt.clientX - rect.left) / rect.width));
+          const r = seekBarRef.current.getBoundingClientRect();
+          const ratio = Math.max(0, Math.min(1, (upEvt.clientX - r.left) / r.width));
           const finalPosMs = Math.round(ratio * meta.durationMs);
-          setSeekPosMs(null);
-          await bbqCommands.mediaSeek(finalPosMs);
+          setSeekPosMs(finalPosMs);
+          if (settlingTimeoutRef.current) {
+            clearTimeout(settlingTimeoutRef.current);
+          }
+          settlingTimeoutRef.current = setTimeout(() => {
+            setSeekPosMs(null);
+            settlingTimeoutRef.current = null;
+          }, 500);
+          const ok = await bbqCommands.mediaSeek(finalPosMs);
+          if (!ok) {
+            if (settlingTimeoutRef.current) {
+              clearTimeout(settlingTimeoutRef.current);
+              settlingTimeoutRef.current = null;
+            }
+            setSeekPosMs(null);
+          }
         }
       };
 
       window.addEventListener("pointermove", onPointerMove);
       window.addEventListener("pointerup", onPointerUp);
     },
-    [meta, performSeek]
+    [meta]
   );
 
   // Keyboard navigation for seek slider
@@ -155,9 +185,22 @@ export const MediaWidget: React.FC = () => {
       e.preventDefault();
       e.stopPropagation();
       if (target !== null) {
+        if (settlingTimeoutRef.current) {
+          clearTimeout(settlingTimeoutRef.current);
+        }
         setSeekPosMs(target);
-        await bbqCommands.mediaSeek(target);
-        setSeekPosMs(null);
+        settlingTimeoutRef.current = setTimeout(() => {
+          setSeekPosMs(null);
+          settlingTimeoutRef.current = null;
+        }, 500);
+        const ok = await bbqCommands.mediaSeek(target);
+        if (!ok) {
+          if (settlingTimeoutRef.current) {
+            clearTimeout(settlingTimeoutRef.current);
+            settlingTimeoutRef.current = null;
+          }
+          setSeekPosMs(null);
+        }
       }
     },
     [meta, currentPosMs]

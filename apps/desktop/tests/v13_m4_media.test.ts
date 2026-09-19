@@ -233,5 +233,25 @@ describe("BBQ v1.3 - Milestone 4: Media Presentation & Ambient Glow", () => {
       assert.match(cssContent, /prefers-reduced-motion[\s\S]*?\.bbq-media-ambient-wash/, "Reduced motion rule must exist for media");
       assert.match(cssContent, /data-reduced-motion="true"[\s\S]*?\.bbq-media-ambient-wash/, "data-reduced-motion rule must exist for media");
     });
+
+    it("ensures media seek settling timeout and optimistic position latching", () => {
+      const mediaWidgetContent = fs.readFileSync(mediaWidgetPath, "utf8");
+      
+      // Settling timeout ref exists
+      assert.match(mediaWidgetContent, /settlingTimeoutRef\s*=\s*useRef/, "settlingTimeoutRef must be declared");
+      
+      // One-shot settling timeout duration is ~500ms
+      assert.match(mediaWidgetContent, /setTimeout\s*\([^,]+,\s*500\)/, "Settling timeout must be 500ms bounded");
+
+      // Backend proximity settling within 1500ms threshold
+      assert.match(mediaWidgetContent, /Math\.abs\(\s*meta\.positionMs\s*-\s*seekPosMs\s*\)\s*<=\s*1500/, "Backend proximity settling check must be <= 1500ms");
+
+      // Timeout cleared on unmount
+      assert.match(mediaWidgetContent, /clearTimeout\(\s*settlingTimeoutRef\.current\s*\)/, "settlingTimeoutRef must be cleared on unmount/re-seek");
+
+      // Zero recursive setTimeout, zero setInterval, zero rAF
+      assert.doesNotMatch(mediaWidgetContent, /setInterval/, "No setInterval allowed in MediaWidget");
+      assert.doesNotMatch(mediaWidgetContent, /requestAnimationFrame/, "No rAF allowed in MediaWidget");
+    });
   });
 });

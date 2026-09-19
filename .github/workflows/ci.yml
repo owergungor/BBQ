@@ -81,5 +81,48 @@ jobs:
       - name: Cargo test
         run: cargo test --workspace
 
-      - name: Release Build Check
-        run: cargo build --release --workspace
+      - name: Package Verification (Linux deb/AppImage)
+        if: runner.os == 'Linux'
+        run: |
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          pnpm --filter @bbq/desktop tauri build --bundles deb,appimage --ci --no-sign || pnpm --filter @bbq/desktop tauri build --bundles deb --ci --no-sign
+          DEB=$(ls target/release/bundle/deb/*.deb 2>/dev/null | head -n 1)
+          if [ -z "$DEB" ]; then echo "Expected .deb package was not generated!"; exit 1; fi
+          echo "Generated Debian package: $DEB"
+          dpkg-deb -I "$DEB"
+          dpkg-deb -I "$DEB" | grep -i "Package:"
+          dpkg-deb -I "$DEB" | grep -i "libwebkit2gtk"
+          if dpkg-deb -c "$DEB" | grep -E '\.(pdb|log)$'; then
+            echo "Forbidden debug/log artifacts found in deb package!"; exit 1
+          fi
+          APPIMAGE=$(ls target/release/bundle/appimage/*.AppImage 2>/dev/null | head -n 1 || true)
+          if [ -n "$APPIMAGE" ]; then
+            echo "Generated Linux AppImage: $APPIMAGE"
+          else
+            echo "AppImage packaging not available on this runner (requires FUSE mount / runtime privileges)"
+          fi
+
+      - name: Package Verification (macOS bundle & DMG)
+        if: runner.os == 'macOS'
+        run: |
+          pnpm --filter @bbq/desktop tauri build --bundles app,dmg --ci --no-sign
+          APP=$(ls -d target/release/bundle/macos/*.app 2>/dev/null | head -n 1)
+          if [ -z "$APP" ]; then echo "Expected macOS .app bundle was not generated!"; exit 1; fi
+          echo "Generated macOS bundle: $APP"
+          if find "$APP" -name "*.pdb" -o -name "*.log" | grep .; then
+            echo "Forbidden debug/log artifacts found in macOS bundle!"; exit 1
+          fi
+          DMG=$(ls target/release/bundle/dmg/*.dmg 2>/dev/null | head -n 1 || true)
+          if [ -n "$DMG" ]; then
+            echo "Generated macOS DMG: $DMG"
+          fi
+
+      - name: Package Verification (Windows NSIS)
+        if: runner.os == 'Windows'
+        run: |
+          pnpm --filter @bbq/desktop tauri build --bundles nsis --ci --no-sign
+          $installers = Get-ChildItem -Path target/release/bundle/nsis/*.exe
+          if ($installers.Count -eq 0) { throw "Expected NSIS installer was not generated!" }
+          Write-Host "Generated Windows NSIS installer: $($installers[0].FullName) ($($installers[0].Length) bytes)"
+          $badFiles = Get-ChildItem -Path target/release/bundle/nsis/ -Include *.pdb,*.log -Recurse
+          if ($badFiles.Count -gt 0) { throw "Forbidden debug/log artifacts found in Windows bundle: $badFiles" }

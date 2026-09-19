@@ -5,8 +5,15 @@ use bbq_core::{
 };
 use bbq_platform::{ClipboardEventSink, PlatformClipboard, PlatformClipboardEvent};
 use bbq_storage::{ClipboardRepository, SettingsRepository};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+
+fn system_time_now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
 
 pub type ClipboardEntrySink = Arc<dyn Fn(ClipboardEntry) + Send + Sync>;
 
@@ -24,6 +31,9 @@ pub trait ClipboardServiceTrait: Service {
     async fn subscribe_events(&self, sink: ClipboardEntrySink) -> BbqResult<()>;
     fn set_max_entries(&self, max: usize);
     fn get_max_entries(&self) -> usize;
+    async fn set_retention_days(&self, days: u32) -> BbqResult<usize>;
+    fn get_retention_days(&self) -> u32;
+    async fn prune_retention(&self) -> BbqResult<usize>;
 }
 
 #[derive(Clone)]
@@ -33,10 +43,12 @@ pub struct ClipboardService {
     settings_repo: Option<Arc<dyn SettingsRepository>>,
     history_enabled: Arc<AtomicBool>,
     max_entries: Arc<AtomicUsize>,
+    retention_days: Arc<AtomicU32>,
     last_text: Arc<Mutex<Option<String>>>,
     subscribers: Arc<Mutex<Vec<ClipboardEntrySink>>>,
     service_state: Arc<Mutex<ServiceState>>,
     platform_subscribed: Arc<AtomicBool>,
+    time_provider: Arc<dyn Fn() -> u64 + Send + Sync>,
 }
 
 impl std::fmt::Debug for ClipboardService {
@@ -55,9 +67,11 @@ impl std::fmt::Debug for ClipboardService {
 impl ClipboardService {
     pub const SETTING_HISTORY_ENABLED: &'static str = "clipboard_history_enabled";
     pub const SETTING_MAX_ENTRIES: &'static str = "clipboard_max_entries";
+    pub const SETTING_RETENTION_DAYS: &'static str = "clipboard_retention_days";
     pub const LEGACY_SETTING_HISTORY_ENABLED: &'static str = "clipboard.history.enabled";
     pub const LEGACY_SETTING_MAX_ENTRIES: &'static str = "clipboard.history.max_entries";
     pub const DEFAULT_MAX_ENTRIES: usize = 100;
+    pub const DEFAULT_RETENTION_DAYS: u32 = 30;
 
     pub fn new(
         platform: Arc<dyn PlatformClipboard>,
@@ -70,10 +84,33 @@ impl ClipboardService {
             settings_repo,
             history_enabled: Arc::new(AtomicBool::new(false)),
             max_entries: Arc::new(AtomicUsize::new(Self::DEFAULT_MAX_ENTRIES)),
+            retention_days: Arc::new(AtomicU32::new(Self::DEFAULT_RETENTION_DAYS)),
             last_text: Arc::new(Mutex::new(None)),
             subscribers: Arc::new(Mutex::new(Vec::new())),
             service_state: Arc::new(Mutex::new(ServiceState::Sleeping)),
             platform_subscribed: Arc::new(AtomicBool::new(false)),
+            time_provider: Arc::new(system_time_now_ms),
+        }
+    }
+
+    pub fn with_time_provider(
+        platform: Arc<dyn PlatformClipboard>,
+        repository: Option<Arc<dyn ClipboardRepository>>,
+        settings_repo: Option<Arc<dyn SettingsRepository>>,
+        time_provider: Arc<dyn Fn() -> u64 + Send + Sync>,
+    ) -> Self {
+        Self {
+            platform,
+            repository,
+            settings_repo,
+            history_enabled: Arc::new(AtomicBool::new(false)),
+            max_entries: Arc::new(AtomicUsize::new(Self::DEFAULT_MAX_ENTRIES)),
+            retention_days: Arc::new(AtomicU32::new(Self::DEFAULT_RETENTION_DAYS)),
+            last_text: Arc::new(Mutex::new(None)),
+            subscribers: Arc::new(Mutex::new(Vec::new())),
+            service_state: Arc::new(Mutex::new(ServiceState::Sleeping)),
+            platform_subscribed: Arc::new(AtomicBool::new(false)),
+            time_provider,
         }
     }
 
@@ -220,9 +257,25 @@ impl Service for ClipboardService {
                     self.max_entries.store(clamped, Ordering::SeqCst);
                 }
             }
+
+            let retention_val = settings.get(Self::SETTING_RETENTION_DAYS).ok().flatten();
+            if let Some(val) = retention_val {
+                if let Ok(days) = val.trim().parse::<u32>() {
+                    let clamped = days.clamp(
+                        bbq_core::MIN_CLIPBOARD_RETENTION_DAYS,
+                        bbq_core::MAX_CLIPBOARD_RETENTION_DAYS,
+                    );
+                    self.retention_days.store(clamped, Ordering::SeqCst);
+                }
+            }
         }
 
-        // 2. Only initialize platform clipboard provider if history is enabled
+        // 2. Perform startup retention pruning
+        if self.repository.is_some() {
+            let _ = self.prune_retention().await;
+        }
+
+        // 3. Only initialize platform clipboard provider if history is enabled
         if self.history_enabled.load(Ordering::SeqCst) {
             self.ensure_platform_subscribed().await?;
             let mut state = self.service_state.lock().unwrap_or_else(|e| e.into_inner());
@@ -377,6 +430,42 @@ impl ClipboardServiceTrait for ClipboardService {
     fn get_max_entries(&self) -> usize {
         self.max_entries.load(Ordering::Relaxed)
     }
+
+    async fn set_retention_days(&self, days: u32) -> BbqResult<usize> {
+        let clamped = days.clamp(
+            bbq_core::MIN_CLIPBOARD_RETENTION_DAYS,
+            bbq_core::MAX_CLIPBOARD_RETENTION_DAYS,
+        );
+        self.retention_days.store(clamped, Ordering::SeqCst);
+        if let Some(ref settings) = self.settings_repo {
+            let _ = settings.set(Self::SETTING_RETENTION_DAYS, &clamped.to_string());
+        }
+        self.prune_retention().await
+    }
+
+    fn get_retention_days(&self) -> u32 {
+        self.retention_days.load(Ordering::Relaxed)
+    }
+
+    async fn prune_retention(&self) -> BbqResult<usize> {
+        let days = self.retention_days.load(Ordering::Relaxed) as u64;
+        let retention_ms = days.saturating_mul(24 * 60 * 60 * 1000);
+        let now = (self.time_provider)();
+        let cutoff_ms = now.saturating_sub(retention_ms);
+        if let Some(ref repo) = self.repository {
+            let pruned = repo.prune_older_than(cutoff_ms)?;
+            if pruned > 0 {
+                tracing::info!(
+                    pruned_count = pruned,
+                    cutoff_ms = cutoff_ms,
+                    "Pruned expired clipboard entries"
+                );
+            }
+            Ok(pruned)
+        } else {
+            Ok(0)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -479,5 +568,182 @@ mod tests {
         let history = service.get_history().await.unwrap();
         assert_eq!(history.len(), 1);
         assert!(history[0].possible_sensitive);
+    }
+
+    #[tokio::test]
+    async fn test_clipboard_retention_prunes_old_entries_and_preserves_recent() {
+        use std::sync::atomic::AtomicU64;
+        let mock_platform = Arc::new(MockClipboard::default());
+        let db = DatabaseManager::open_in_memory().unwrap();
+        let repo = db.clipboard_repository();
+        let settings = db.settings_repository();
+
+        let current_time = Arc::new(AtomicU64::new(100_000_000_000));
+        let time_clone = current_time.clone();
+        let time_provider = Arc::new(move || time_clone.load(Ordering::SeqCst));
+
+        let service = ClipboardService::with_time_provider(
+            mock_platform.clone(),
+            Some(repo.clone()),
+            Some(settings),
+            time_provider,
+        );
+        service.init().await.unwrap();
+        service.set_history_enabled(true).await.unwrap();
+
+        // Configure retention to 7 days
+        service.set_retention_days(7).await.unwrap();
+        assert_eq!(service.get_retention_days(), 7);
+
+        let seven_days_ms = 7 * 24 * 60 * 60 * 1000;
+        let base_time = current_time.load(Ordering::SeqCst);
+
+        // Insert directly into repo with specific timestamps
+        // Entry 1: 10 days old (older than retention period)
+        let old_entry = bbq_core::ClipboardEntry {
+            id: "old-1".to_string(),
+            content_type: bbq_core::ClipboardContentType::Text,
+            content: Some("Old Entry".to_string()),
+            preview: "Old Entry".to_string(),
+            size_bytes: 9,
+            created_at: (base_time - (10 * 24 * 60 * 60 * 1000)) as i64,
+            source: None,
+            possible_sensitive: false,
+        };
+        repo.insert_entry(&old_entry, 100).unwrap();
+
+        // Entry 2: Right at the retention boundary (7 days + 1 ms ago -> expired)
+        let boundary_old_entry = bbq_core::ClipboardEntry {
+            id: "boundary-old".to_string(),
+            content_type: bbq_core::ClipboardContentType::Text,
+            content: Some("Boundary Old".to_string()),
+            preview: "Boundary Old".to_string(),
+            size_bytes: 12,
+            created_at: (base_time - seven_days_ms - 1) as i64,
+            source: None,
+            possible_sensitive: false,
+        };
+        repo.insert_entry(&boundary_old_entry, 100).unwrap();
+
+        // Entry 3: Recent entry (3 days old -> should be preserved)
+        let recent_entry = bbq_core::ClipboardEntry {
+            id: "recent-1".to_string(),
+            content_type: bbq_core::ClipboardContentType::Text,
+            content: Some("Recent Entry".to_string()),
+            preview: "Recent Entry".to_string(),
+            size_bytes: 12,
+            created_at: (base_time - (3 * 24 * 60 * 60 * 1000)) as i64,
+            source: None,
+            possible_sensitive: false,
+        };
+        repo.insert_entry(&recent_entry, 100).unwrap();
+
+        assert_eq!(repo.count().unwrap(), 3);
+
+        // Run retention pruning
+        let pruned = service.prune_retention().await.unwrap();
+        assert_eq!(pruned, 2);
+
+        // Only recent entry survives
+        let history = service.get_history().await.unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].id, "recent-1");
+
+        // Verify count limit still works alongside retention
+        let recent_entry2 = bbq_core::ClipboardEntry {
+            id: "recent-2".to_string(),
+            content_type: bbq_core::ClipboardContentType::Text,
+            content: Some("Recent 2".to_string()),
+            preview: "Recent 2".to_string(),
+            size_bytes: 8,
+            created_at: (base_time - 1000) as i64,
+            source: None,
+            possible_sensitive: false,
+        };
+        let recent_entry3 = bbq_core::ClipboardEntry {
+            id: "recent-3".to_string(),
+            content_type: bbq_core::ClipboardContentType::Text,
+            content: Some("Recent 3".to_string()),
+            preview: "Recent 3".to_string(),
+            size_bytes: 8,
+            created_at: base_time as i64,
+            source: None,
+            possible_sensitive: false,
+        };
+        repo.insert_entry(&recent_entry2, 2).unwrap();
+        repo.insert_entry(&recent_entry3, 2).unwrap();
+        // Since max_entries is 2, only recent-3 and recent-2 should remain
+        assert_eq!(repo.count().unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_clipboard_retention_enforced_on_setting_update_and_startup() {
+        use std::sync::atomic::AtomicU64;
+        let mock_platform = Arc::new(MockClipboard::default());
+        let db = DatabaseManager::open_in_memory().unwrap();
+        let repo = db.clipboard_repository();
+        let settings = db.settings_repository();
+
+        let current_time = Arc::new(AtomicU64::new(100_000_000_000));
+        let time_clone = current_time.clone();
+        let time_provider = Arc::new(move || time_clone.load(Ordering::SeqCst));
+
+        let base_time = current_time.load(Ordering::SeqCst);
+
+        // Seed with entries of varying ages: 2 days old, 15 days old
+        let entry_2d = bbq_core::ClipboardEntry {
+            id: "entry-2d".to_string(),
+            content_type: bbq_core::ClipboardContentType::Text,
+            content: Some("2 days old".to_string()),
+            preview: "2 days old".to_string(),
+            size_bytes: 10,
+            created_at: (base_time - (2 * 24 * 60 * 60 * 1000)) as i64,
+            source: None,
+            possible_sensitive: false,
+        };
+        let entry_15d = bbq_core::ClipboardEntry {
+            id: "entry-15d".to_string(),
+            content_type: bbq_core::ClipboardContentType::Text,
+            content: Some("15 days old".to_string()),
+            preview: "15 days old".to_string(),
+            size_bytes: 11,
+            created_at: (base_time - (15 * 24 * 60 * 60 * 1000)) as i64,
+            source: None,
+            possible_sensitive: false,
+        };
+        repo.insert_entry(&entry_2d, 100).unwrap();
+        repo.insert_entry(&entry_15d, 100).unwrap();
+
+        // 1. Startup with default 30 days retention -> both 2d and 15d are preserved
+        let service = ClipboardService::with_time_provider(
+            mock_platform.clone(),
+            Some(repo.clone()),
+            Some(settings.clone()),
+            time_provider.clone(),
+        );
+        service.init().await.unwrap();
+        service.set_history_enabled(true).await.unwrap();
+        assert_eq!(repo.count().unwrap(), 2);
+
+        // 2. Change setting to 7 days -> 15d entry should be pruned immediately!
+        let pruned = service.set_retention_days(7).await.unwrap();
+        assert_eq!(pruned, 1);
+        assert_eq!(repo.count().unwrap(), 1);
+        let remaining = service.get_history().await.unwrap();
+        assert_eq!(remaining[0].id, "entry-2d");
+
+        // 3. New startup maintenance with persisted 7 days setting -> runs prune on init
+        let service2 = ClipboardService::with_time_provider(
+            mock_platform.clone(),
+            Some(repo.clone()),
+            Some(settings),
+            time_provider,
+        );
+        // Advance time by 6 days (entry_2d is now 8 days old)
+        current_time.fetch_add(6 * 24 * 60 * 60 * 1000, Ordering::SeqCst);
+        service2.init().await.unwrap();
+        assert_eq!(service2.get_retention_days(), 7);
+        // On init, entry_2d (now 8 days old) should have been pruned
+        assert_eq!(repo.count().unwrap(), 0);
     }
 }

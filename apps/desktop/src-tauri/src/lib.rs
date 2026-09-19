@@ -264,6 +264,12 @@ async fn sync_runtime_services_with_settings(
             .clipboard
             .set_max_entries(current.clipboard_max_entries);
     }
+    if prev.map(|p| p.clipboard_retention_days) != Some(current.clipboard_retention_days) {
+        let _ = state
+            .clipboard
+            .set_retention_days(current.clipboard_retention_days)
+            .await;
+    }
 
     // 2. Hotkey runtime synchronization
     if prev.map(|p| p.hotkey_enabled) != Some(current.hotkey_enabled) {

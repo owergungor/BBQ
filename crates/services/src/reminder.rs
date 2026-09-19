@@ -13,6 +13,9 @@ use std::time::Duration;
 use tokio::sync::oneshot;
 
 pub const MAX_STARTUP_OVERDUE_NOTIFICATIONS: usize = 10;
+pub const HISTORICAL_RETENTION_DAYS: u64 = 7;
+pub const HISTORICAL_RETENTION_MS: u64 = HISTORICAL_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+pub const MAX_HISTORICAL_REMINDERS: usize = 50;
 
 pub type ReminderEventSink = Arc<dyn Fn(BbqEvent) + Send + Sync>;
 pub type TimeProvider = Arc<dyn Fn() -> u64 + Send + Sync>;
@@ -215,6 +218,39 @@ impl ReminderService {
         // Recalculate and schedule the next nearest reminder
         self.schedule_nearest();
     }
+
+    /// Prune expired historical reminders (Fired or Cancelled) older than cutoff or exceeding count bound.
+    pub fn prune_historical(&self, cutoff_ms: u64, max_history: usize) -> BbqResult<usize> {
+        let pruned = if let Some(ref storage) = self.storage {
+            storage.prune_historical(cutoff_ms, max_history)?
+        } else {
+            0
+        };
+
+        if let Ok(mut guard) = self.reminders.lock() {
+            let mut historical: Vec<(String, u64)> = guard
+                .values()
+                .filter(|r| r.state == ReminderState::Fired || r.state == ReminderState::Cancelled)
+                .map(|r| (r.id.clone(), r.due_at))
+                .collect();
+
+            historical.sort_by_key(|a| std::cmp::Reverse(a.1));
+
+            let mut to_remove = std::collections::HashSet::new();
+            for (idx, (id, due_at)) in historical.into_iter().enumerate() {
+                if due_at < cutoff_ms || (max_history > 0 && idx >= max_history) {
+                    to_remove.insert(id);
+                }
+            }
+            let mem_pruned = to_remove.len();
+            guard.retain(|id, _| !to_remove.contains(id));
+            if self.storage.is_none() {
+                return Ok(mem_pruned);
+            }
+        }
+
+        Ok(pruned)
+    }
 }
 
 #[async_trait]
@@ -236,8 +272,12 @@ impl Service for ReminderService {
             }
         }
 
-        // 2. Bounded Overdue Startup Policy
+        // 2. Perform startup historical retention pruning (Fired/Cancelled)
         let now = self.now();
+        let cutoff = now.saturating_sub(HISTORICAL_RETENTION_MS);
+        let _ = self.prune_historical(cutoff, MAX_HISTORICAL_REMINDERS);
+
+        // 3. Bounded Overdue Startup Policy
         let mut overdue = Vec::new();
 
         if let Ok(guard) = self.reminders.lock() {
@@ -279,7 +319,7 @@ impl Service for ReminderService {
             }
         }
 
-        // 3. Schedule the nearest future reminder
+        // 4. Schedule the nearest future reminder
         self.schedule_nearest();
 
         Ok(())
@@ -711,5 +751,117 @@ mod tests {
         assert_eq!(env.mock_platform.notification_count(), 1);
         let notif = env.mock_platform.last_notification().unwrap();
         assert_eq!(notif.title, "Task 2");
+    }
+
+    #[tokio::test]
+    async fn test_reminder_historical_retention_and_startup_cleanup() {
+        use bbq_storage::DatabaseManager;
+
+        let db = DatabaseManager::open_in_memory().unwrap();
+        let repo = db.reminder_repository();
+
+        let base_time = 1_000_000_000u64;
+        let seven_days_ms = 7 * 24 * 60 * 60 * 1000;
+
+        // 1. Old Fired reminder (> 7 days ago)
+        let old_fired = Reminder {
+            id: "old-fired".to_string(),
+            title: "Old Fired".to_string(),
+            body: None,
+            due_at: base_time - seven_days_ms - 10_000,
+            state: ReminderState::Fired,
+            created_at: base_time - seven_days_ms - 20_000,
+        };
+        repo.insert(&old_fired).unwrap();
+
+        // 2. Old Cancelled reminder (> 7 days ago)
+        let old_cancelled = Reminder {
+            id: "old-cancelled".to_string(),
+            title: "Old Cancelled".to_string(),
+            body: None,
+            due_at: base_time - seven_days_ms - 5_000,
+            state: ReminderState::Cancelled,
+            created_at: base_time - seven_days_ms - 30_000,
+        };
+        repo.insert(&old_cancelled).unwrap();
+
+        // 3. Recent Fired reminder (2 days ago -> preserve)
+        let recent_fired = Reminder {
+            id: "recent-fired".to_string(),
+            title: "Recent Fired".to_string(),
+            body: None,
+            due_at: base_time - (2 * 24 * 60 * 60 * 1000),
+            state: ReminderState::Fired,
+            created_at: base_time - (3 * 24 * 60 * 60 * 1000),
+        };
+        repo.insert(&recent_fired).unwrap();
+
+        // 4. Recent Cancelled reminder (1 day ago -> preserve)
+        let recent_cancelled = Reminder {
+            id: "recent-cancelled".to_string(),
+            title: "Recent Cancelled".to_string(),
+            body: None,
+            due_at: base_time - (24 * 60 * 60 * 1000),
+            state: ReminderState::Cancelled,
+            created_at: base_time - (2 * 24 * 60 * 60 * 1000),
+        };
+        repo.insert(&recent_cancelled).unwrap();
+
+        // 5. Active Scheduled reminder (future -> preserve)
+        let active_future = Reminder {
+            id: "active-future".to_string(),
+            title: "Active Future".to_string(),
+            body: None,
+            due_at: base_time + 100_000,
+            state: ReminderState::Scheduled,
+            created_at: base_time - 1000,
+        };
+        repo.insert(&active_future).unwrap();
+
+        assert_eq!(repo.list_all().unwrap().len(), 5);
+
+        // Initialize ReminderService pointing to storage and time provider
+        let mock_platform = Arc::new(MockNotification::default());
+        let notif_service = Arc::new(NotificationService::new(mock_platform, None));
+        let service = ReminderService::with_time_provider(
+            Some(repo.clone()),
+            notif_service,
+            Arc::new(move || base_time),
+        );
+
+        // Run startup init -> triggers retention pruning
+        service.init().await.unwrap();
+
+        let remaining = repo.list_all().unwrap();
+        assert_eq!(remaining.len(), 3);
+        let ids: Vec<String> = remaining.into_iter().map(|r| r.id).collect();
+        assert!(
+            !ids.contains(&"old-fired".to_string()),
+            "Old fired reminder must be pruned"
+        );
+        assert!(
+            !ids.contains(&"old-cancelled".to_string()),
+            "Old cancelled reminder must be pruned"
+        );
+        assert!(
+            ids.contains(&"recent-fired".to_string()),
+            "Recent fired reminder must be preserved"
+        );
+        assert!(
+            ids.contains(&"recent-cancelled".to_string()),
+            "Recent cancelled reminder must be preserved"
+        );
+        assert!(
+            ids.contains(&"active-future".to_string()),
+            "Active scheduled reminder must be preserved"
+        );
+
+        // Idempotence: calling prune_historical again with same cutoff yields 0 deletions
+        let cutoff = base_time.saturating_sub(seven_days_ms);
+        let second_run = service
+            .prune_historical(cutoff, MAX_HISTORICAL_REMINDERS)
+            .unwrap();
+        assert_eq!(second_run, 0);
+        assert_eq!(repo.list_all().unwrap().len(), 3);
     }
 }
