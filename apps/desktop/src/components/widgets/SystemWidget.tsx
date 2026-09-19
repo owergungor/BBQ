@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useState } from "react";
+import React, { useEffect, useCallback, useMemo, useState, useRef } from "react";
 import { useSystemState, refreshSystemState } from "../../state/systemState.ts";
 import { Icon } from "../common/Icon.tsx";
 import {
@@ -12,6 +12,18 @@ export const SystemWidget: React.FC = () => {
   const { system, capabilities, isLoading } = useSystemState();
   const [trendHistory, setTrendHistory] = useState<TrendSample[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCoolingDown, setIsCoolingDown] = useState(false);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear any active one-shot cooldown timer upon unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current !== null) {
+        clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const stats = useMemo(
     () => normalizeStats(system, capabilities),
@@ -38,10 +50,32 @@ export const SystemWidget: React.FC = () => {
 
   const handleManualRefresh = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isRefreshing || isCoolingDown || isLoading) return;
+
+    const startTime = Date.now();
     setIsRefreshing(true);
-    await refreshSystemState();
-    setIsRefreshing(false);
-  }, []);
+    setIsCoolingDown(true);
+
+    try {
+      await refreshSystemState();
+    } finally {
+      setIsRefreshing(false);
+      const elapsed = Date.now() - startTime;
+      const remainingCooldown = Math.max(0, 1000 - elapsed);
+
+      if (remainingCooldown > 0) {
+        if (cooldownTimerRef.current !== null) {
+          clearTimeout(cooldownTimerRef.current);
+        }
+        cooldownTimerRef.current = setTimeout(() => {
+          setIsCoolingDown(false);
+          cooldownTimerRef.current = null;
+        }, remainingCooldown);
+      } else {
+        setIsCoolingDown(false);
+      }
+    }
+  }, [isRefreshing, isCoolingDown, isLoading]);
 
   // Gauge geometries (radius 36)
   const cpuGauge = useMemo(() => calculateGaugeDash(36, stats.cpu.usagePercent), [stats.cpu.usagePercent]);
@@ -84,12 +118,12 @@ export const SystemWidget: React.FC = () => {
           type="button"
           className="bbq-stats-refresh-btn"
           onClick={handleManualRefresh}
-          disabled={isRefreshing || isLoading}
-          title="Refresh hardware metrics on demand"
-          aria-label="Refresh hardware metrics"
+          disabled={isRefreshing || isLoading || isCoolingDown}
+          title={isCoolingDown ? "Refresh cooldown active (1s)" : "Refresh hardware metrics on demand"}
+          aria-label={isCoolingDown ? "Refresh cooldown active" : "Refresh hardware metrics"}
         >
           <Icon name="search" size={11} className={isRefreshing ? "spin" : ""} aria-hidden="true" />
-          <span>{isRefreshing ? "Refreshing..." : "Snapshot"}</span>
+          <span>{isRefreshing ? "Refreshing..." : isCoolingDown ? "Cooldown..." : "Snapshot"}</span>
         </button>
       </div>
 

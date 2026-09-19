@@ -160,9 +160,11 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
         handleExecute(selected);
       }
     } else if (e.key === "Escape") {
-      e.preventDefault();
-      if (query) {
+      if (query.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
         setQuery("");
+        setSelectedIndex(0);
       } else if (onCollapse) {
         onCollapse();
       }

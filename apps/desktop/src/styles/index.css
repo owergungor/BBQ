@@ -167,17 +167,28 @@
 
   --bbq-text-primary: #1c1c1e;
   --bbq-text-secondary: #6e6e73;
-  --bbq-text-muted: #8e8e93;
+  --bbq-text-muted: #64748b;
   --bbq-text: var(--bbq-text-primary);
 
   --bbq-shadow-idle: none;
   --bbq-shadow-expanded: none;
   --bbq-shadow: none;
 
-  --bbq-danger-bg: rgba(239, 68, 68, 0.1);
-  --bbq-warning-bg: rgba(245, 158, 11, 0.1);
-  --bbq-success-bg: rgba(16, 185, 129, 0.1);
-  --bbq-info-bg: rgba(59, 130, 246, 0.1);
+  --bbq-danger: #b91c1c;
+  --bbq-danger-bg: rgba(185, 28, 28, 0.12);
+  --bbq-danger-border: rgba(185, 28, 28, 0.28);
+
+  --bbq-warning: #92400e;
+  --bbq-warning-bg: rgba(146, 64, 14, 0.12);
+  --bbq-warning-border: rgba(146, 64, 14, 0.28);
+
+  --bbq-success: #047857;
+  --bbq-success-bg: rgba(4, 120, 87, 0.12);
+  --bbq-success-border: rgba(4, 120, 87, 0.28);
+
+  --bbq-info: #1d4ed8;
+  --bbq-info-bg: rgba(29, 78, 216, 0.12);
+  --bbq-info-border: rgba(29, 78, 216, 0.28);
 
   --bbq-accent: #007AFF;
   --bbq-accent-hover: rgb(0, 107, 224);
@@ -216,17 +227,28 @@
 
     --bbq-text-primary: #1c1c1e;
     --bbq-text-secondary: #6e6e73;
-    --bbq-text-muted: #8e8e93;
+    --bbq-text-muted: #64748b;
     --bbq-text: var(--bbq-text-primary);
 
     --bbq-shadow-idle: none;
     --bbq-shadow-expanded: none;
     --bbq-shadow: none;
 
-    --bbq-danger-bg: rgba(239, 68, 68, 0.1);
-    --bbq-warning-bg: rgba(245, 158, 11, 0.1);
-    --bbq-success-bg: rgba(16, 185, 129, 0.1);
-    --bbq-info-bg: rgba(59, 130, 246, 0.1);
+    --bbq-danger: #b91c1c;
+    --bbq-danger-bg: rgba(185, 28, 28, 0.12);
+    --bbq-danger-border: rgba(185, 28, 28, 0.28);
+
+    --bbq-warning: #92400e;
+    --bbq-warning-bg: rgba(146, 64, 14, 0.12);
+    --bbq-warning-border: rgba(146, 64, 14, 0.28);
+
+    --bbq-success: #047857;
+    --bbq-success-bg: rgba(4, 120, 87, 0.12);
+    --bbq-success-border: rgba(4, 120, 87, 0.28);
+
+    --bbq-info: #1d4ed8;
+    --bbq-info-bg: rgba(29, 78, 216, 0.12);
+    --bbq-info-border: rgba(29, 78, 216, 0.28);
 
     --bbq-accent: #007AFF;
     --bbq-accent-hover: rgb(0, 107, 224);
@@ -3881,3 +3903,46 @@ html, body {
   align-items: center;
   gap: var(--bbq-space-4);
 }
+
+/* Capability Status Badges — WCAG 2.1 AA Compliant */
+.bbq-capability-badge {
+  font-family: var(--bbq-font-mono, ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--bbq-radius-xs, 4px);
+  line-height: 1.4;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  box-shadow: none;
+  text-shadow: none;
+  filter: none;
+  transition: color var(--bbq-duration-fast), background-color var(--bbq-duration-fast);
+}
+
+.bbq-capability-badge[data-status="supported"] {
+  color: var(--bbq-success, #10b981);
+  background: var(--bbq-success-bg, rgba(16, 185, 129, 0.15));
+  border-color: var(--bbq-success-border, rgba(16, 185, 129, 0.25));
+}
+
+.bbq-capability-badge[data-status="passive"],
+.bbq-capability-badge[data-status="permissionRequired"] {
+  color: var(--bbq-warning, #f59e0b);
+  background: var(--bbq-warning-bg, rgba(245, 158, 11, 0.15));
+  border-color: var(--bbq-warning-border, rgba(245, 158, 11, 0.25));
+}
+
+.bbq-capability-badge[data-status="compositorDependent"] {
+  color: var(--bbq-info, #3b82f6);
+  background: var(--bbq-info-bg, rgba(59, 130, 246, 0.15));
+  border-color: var(--bbq-info-border, rgba(59, 130, 246, 0.25));
+}
+
+.bbq-capability-badge[data-status="unavailable"] {
+  color: var(--bbq-text-muted, #9ca3af);
+  background: var(--bbq-surface, rgba(255, 255, 255, 0.05));
+  border-color: var(--bbq-border-subtle, rgba(255, 255, 255, 0.08));
+}
+

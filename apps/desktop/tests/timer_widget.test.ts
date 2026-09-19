@@ -399,18 +399,18 @@ describe("Countdown Presets Specification", () => {
 
     const labelMatches = [...presetsMatch[1].matchAll(/label:\s*"([^"]+)"/g)].map((m) => m[1]);
     assert.deepEqual(labelMatches, [
-      "1 dk",
-      "5 dk",
-      "10 dk",
-      "15 dk",
-      "30 dk",
-      "45 dk",
-      "60 dk",
+      "1m",
+      "5m",
+      "10m",
+      "15m",
+      "30m",
+      "45m",
+      "60m",
     ]);
 
     // Explicit check that 3m and 25m are removed
-    assert.equal(labelMatches.includes("3 dk"), false, "3 dk preset must be removed");
-    assert.equal(labelMatches.includes("25 dk"), false, "25 dk preset must be removed");
+    assert.equal(labelMatches.includes("3m"), false, "3m preset must be removed");
+    assert.equal(labelMatches.includes("25m"), false, "25m preset must be removed");
     assert.equal(presetsMatch[1].includes("3 * 60 * 1000"), false, "3 min ms must be removed");
     assert.equal(presetsMatch[1].includes("25 * 60 * 1000"), false, "25 min ms must be removed");
   });

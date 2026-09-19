@@ -30,10 +30,10 @@ export function calculateReminderPresets(now: number = Date.now()): ReminderPres
   tomorrow.setHours(9, 0, 0, 0);
 
   return [
-    { id: "10m", label: "+10 dk", dueAt: now + 10 * 60 * 1000 },
-    { id: "30m", label: "+30 dk", dueAt: now + 30 * 60 * 1000 },
-    { id: "1h", label: "+1 saat", dueAt: now + 60 * 60 * 1000 },
-    { id: "tomorrow_9am", label: "Yarın 09:00", dueAt: tomorrow.getTime() },
+    { id: "10m", label: "+10m", dueAt: now + 10 * 60 * 1000 },
+    { id: "30m", label: "+30m", dueAt: now + 30 * 60 * 1000 },
+    { id: "1h", label: "+1h", dueAt: now + 60 * 60 * 1000 },
+    { id: "tomorrow_9am", label: "Tomorrow 9:00 AM", dueAt: tomorrow.getTime() },
   ];
 }
 
@@ -42,33 +42,33 @@ export function calculateReminderPresets(now: number = Date.now()): ReminderPres
  */
 export function formatReminderDue(dueAt: number, now: number = Date.now()): string {
   if (typeof dueAt !== "number" || isNaN(dueAt)) {
-    return "Belirtilmemiş";
+    return "Unspecified";
   }
 
   const diffMs = dueAt - now;
 
   if (diffMs <= 0) {
-    return "Süresi doldu";
+    return "Overdue";
   }
 
   const diffSec = Math.floor(diffMs / 1000);
   if (diffSec < 60) {
-    return "< 1 dk içinde";
+    return "in < 1m";
   }
 
   const diffMin = Math.floor(diffSec / 60);
   if (diffMin < 60) {
-    return `${diffMin} dk içinde`;
+    return `in ${diffMin}m`;
   }
 
   const diffHours = Math.floor(diffMin / 60);
   if (diffHours < 24) {
     const remainMin = diffMin % 60;
-    return remainMin > 0 ? `${diffHours} sa ${remainMin} dk` : `${diffHours} saat içinde`;
+    return remainMin > 0 ? `in ${diffHours}h ${remainMin}m` : `in ${diffHours}h`;
   }
 
   const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} gün içinde`;
+  return `in ${diffDays}d`;
 }
 
 /**
@@ -80,27 +80,27 @@ export function validateReminderInput(
   now: number = Date.now()
 ): { valid: true; title: string; dueAt: number } | { valid: false; reason: string } {
   if (!title || typeof title !== "string") {
-    return { valid: false, reason: "Lütfen bir hatırlatıcı başlığı girin" };
+    return { valid: false, reason: "Please enter a reminder title" };
   }
 
   const cleanTitle = title.trim();
   if (cleanTitle.length === 0) {
-    return { valid: false, reason: "Lütfen bir hatırlatıcı başlığı girin" };
+    return { valid: false, reason: "Please enter a reminder title" };
   }
 
   if (cleanTitle.length > MAX_REMINDER_TITLE_LENGTH) {
     return {
       valid: false,
-      reason: `Başlık en fazla ${MAX_REMINDER_TITLE_LENGTH} karakter olabilir`,
+      reason: `Title cannot exceed ${MAX_REMINDER_TITLE_LENGTH} characters`,
     };
   }
 
   if (typeof dueAt !== "number" || isNaN(dueAt) || !Number.isFinite(dueAt)) {
-    return { valid: false, reason: "Geçerli bir tarih ve saat seçin" };
+    return { valid: false, reason: "Please select a valid date and time" };
   }
 
   if (dueAt <= now) {
-    return { valid: false, reason: "Hatırlatıcı gelecekteki bir zamana ayarlanmalıdır" };
+    return { valid: false, reason: "Reminder time must be in the future" };
   }
 
   return { valid: true, title: cleanTitle, dueAt };

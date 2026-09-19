@@ -250,25 +250,25 @@ describe("BBQ v1.3 - Milestone 7: Quick Launcher & Reminders HUD Tests", () => {
       const now = 1700000000000;
 
       // Overdue
-      assert.strictEqual(formatReminderDue(now - 5000, now), "Süresi doldu");
-      assert.strictEqual(formatReminderDue(now, now), "Süresi doldu");
+      assert.strictEqual(formatReminderDue(now - 5000, now), "Overdue");
+      assert.strictEqual(formatReminderDue(now, now), "Overdue");
 
       // Under 1 minute
-      assert.strictEqual(formatReminderDue(now + 45000, now), "< 1 dk içinde");
+      assert.strictEqual(formatReminderDue(now + 45000, now), "in < 1m");
 
       // Minutes
-      assert.strictEqual(formatReminderDue(now + 15 * 60 * 1000, now), "15 dk içinde");
+      assert.strictEqual(formatReminderDue(now + 15 * 60 * 1000, now), "in 15m");
 
       // Hours & minutes
-      assert.strictEqual(formatReminderDue(now + 90 * 60 * 1000, now), "1 sa 30 dk");
-      assert.strictEqual(formatReminderDue(now + 120 * 60 * 1000, now), "2 saat içinde");
+      assert.strictEqual(formatReminderDue(now + 90 * 60 * 1000, now), "in 1h 30m");
+      assert.strictEqual(formatReminderDue(now + 120 * 60 * 1000, now), "in 2h");
 
       // Days
-      assert.strictEqual(formatReminderDue(now + 48 * 3600 * 1000, now), "2 gün içinde");
+      assert.strictEqual(formatReminderDue(now + 48 * 3600 * 1000, now), "in 2d");
 
       // Invalid / NaN / negative
-      assert.strictEqual(formatReminderDue(NaN, now), "Belirtilmemiş");
-      assert.strictEqual(formatReminderDue("invalid" as unknown as number, now), "Belirtilmemiş");
+      assert.strictEqual(formatReminderDue(NaN, now), "Unspecified");
+      assert.strictEqual(formatReminderDue("invalid" as unknown as number, now), "Unspecified");
     });
 
     it("validates reminder inputs strictly and guards against invalid dates and overflows", () => {

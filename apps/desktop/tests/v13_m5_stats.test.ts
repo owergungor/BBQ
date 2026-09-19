@@ -208,5 +208,14 @@ describe("BBQ v1.3 - Milestone 5: Hardware Telemetry & Stats HUD", () => {
       assert.match(cssContent, /prefers-reduced-motion[\s\S]*?\.bbq-stats-gauge-fill/, "Reduced motion rule must exist for stats gauge fill");
       assert.match(cssContent, /data-reduced-motion="true"[\s\S]*?\.bbq-stats-gauge-fill/, "data-reduced-motion rule must exist for stats gauge fill");
     });
+
+    it("ensures SystemWidget snapshot action implements a >=1000ms cooldown and cleanup", () => {
+      const systemWidgetContent = fs.readFileSync(systemWidgetPath, "utf8");
+      assert.match(systemWidgetContent, /isCoolingDown/, "SystemWidget must track isCoolingDown state");
+      assert.match(systemWidgetContent, /1000\s*-\s*elapsed/, "SystemWidget must enforce a 1000ms minimum cooldown window");
+      assert.match(systemWidgetContent, /clearTimeout\s*\(/, "SystemWidget must clear active cooldown timers on unmount");
+      assert.doesNotMatch(systemWidgetContent, /setInterval/, "SystemWidget must never use setInterval");
+    });
   });
 });
+

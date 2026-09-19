@@ -321,11 +321,11 @@ export function formatCapabilityStatus(status: CapabilityStatus): {
     case "supported":
       return { label: "Supported", color: "var(--bbq-success, #10b981)" };
     case "passive":
-      return { label: "Passive / On-Demand", color: "#f59e0b" };
+      return { label: "Passive / On-Demand", color: "var(--bbq-warning, #f59e0b)" };
     case "permissionRequired":
-      return { label: "Permission Required", color: "#f59e0b" };
+      return { label: "Permission Required", color: "var(--bbq-warning, #f59e0b)" };
     case "compositorDependent":
-      return { label: "Compositor Dependent", color: "#3b82f6" };
+      return { label: "Compositor Dependent", color: "var(--bbq-info, #3b82f6)" };
     case "unavailable":
     default:
       return { label: "Unavailable", color: "var(--bbq-text-muted, #9ca3af)" };

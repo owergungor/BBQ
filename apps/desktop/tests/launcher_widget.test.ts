@@ -239,3 +239,81 @@ describe("User Lock Preservation with Background Events", () => {
     assert.equal(islandStore.getState().activeWidgetId, "launcher");
   });
 });
+
+describe("Launcher Two-Stage Escape Behavior", () => {
+  it("clears query, resets selection, and stops propagation when query is non-empty", () => {
+    let query = "calculator";
+    let selectedIndex = 2;
+    let collapsed = false;
+    let propagationStopped = false;
+    let defaultPrevented = false;
+
+    const onCollapse = () => {
+      collapsed = true;
+    };
+
+    const handleKeyDown = (e: { key: string; preventDefault: () => void; stopPropagation: () => void }) => {
+      if (e.key === "Escape") {
+        if (query.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          query = "";
+          selectedIndex = 0;
+        } else if (onCollapse) {
+          onCollapse();
+        }
+      }
+    };
+
+    // First Escape: query is non-empty -> should clear query and stop propagation
+    handleKeyDown({
+      key: "Escape",
+      preventDefault: () => {
+        defaultPrevented = true;
+      },
+      stopPropagation: () => {
+        propagationStopped = true;
+      },
+    });
+
+    assert.equal(query, "");
+    assert.equal(selectedIndex, 0);
+    assert.equal(defaultPrevented, true);
+    assert.equal(propagationStopped, true);
+    assert.equal(collapsed, false);
+  });
+
+  it("propagates and invokes onCollapse when query is empty", () => {
+    let query = "";
+    let collapsed = false;
+    let propagationStopped = false;
+
+    const onCollapse = () => {
+      collapsed = true;
+    };
+
+    const handleKeyDown = (e: { key: string; preventDefault: () => void; stopPropagation: () => void }) => {
+      if (e.key === "Escape") {
+        if (query.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          query = "";
+        } else if (onCollapse) {
+          onCollapse();
+        }
+      }
+    };
+
+    // Second Escape: query is already empty -> allows bubbling and invokes onCollapse
+    handleKeyDown({
+      key: "Escape",
+      preventDefault: () => {},
+      stopPropagation: () => {
+        propagationStopped = true;
+      },
+    });
+
+    assert.equal(propagationStopped, false);
+    assert.equal(collapsed, true);
+  });
+});

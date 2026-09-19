@@ -517,6 +517,15 @@ async fn clipboard_get_status(state: State<'_, AppState>) -> Result<ClipboardSta
 }
 
 #[tauri::command]
+async fn clipboard_write_text(state: State<'_, AppState>, text: String) -> Result<(), String> {
+    state
+        .clipboard
+        .copy_text(&text)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn file_get_workspace(state: State<'_, AppState>) -> Result<Vec<FileEntry>, String> {
     state
         .file_service
@@ -1076,6 +1085,7 @@ pub fn run() {
             clipboard_delete_entry,
             clipboard_set_history_enabled,
             clipboard_get_status,
+            clipboard_write_text,
             file_get_workspace,
             file_add,
             file_open,

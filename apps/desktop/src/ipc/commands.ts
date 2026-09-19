@@ -268,6 +268,16 @@ export const bbqCommands = {
     }
   },
 
+  clipboardWriteText: async (text: string): Promise<boolean> => {
+    try {
+      await invoke("clipboard_write_text", { text });
+      return true;
+    } catch (err) {
+      console.warn("Failed to write to clipboard via native IPC:", err);
+      return false;
+    }
+  },
+
   fileGetWorkspace: async (): Promise<FileEntry[]> => {
     try {
       return await invoke<FileEntry[]>("file_get_workspace");

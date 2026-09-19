@@ -418,3 +418,204 @@ fn test_display_dpi_and_multi_monitor_determinism() {
         );
     }
 }
+
+#[tokio::test]
+async fn test_displays_changed_heterogeneous_dpi_transition_invariants() {
+    // Heterogeneous 3-monitor layout:
+    // Monitor 1 (Left, negative coords, 1.0x standard DPI)
+    let left_display = DisplayInfo {
+        id: "disp_left_100".to_string(),
+        name: "Standard Secondary Monitor".to_string(),
+        is_primary: false,
+        scale_factor: 1.0,
+        bounds: DisplayRect {
+            x: -1920,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        },
+        work_area: DisplayRect {
+            x: -1920,
+            y: 0,
+            width: 1920,
+            height: 1040,
+        },
+    };
+
+    // Monitor 2 (Center, primary, 1.5x scaling 1440p)
+    let center_primary = DisplayInfo {
+        id: "disp_center_150".to_string(),
+        name: "Primary High-DPI QHD Monitor".to_string(),
+        is_primary: true,
+        scale_factor: 1.5,
+        bounds: DisplayRect {
+            x: 0,
+            y: 0,
+            width: 2560,
+            height: 1440,
+        },
+        work_area: DisplayRect {
+            x: 0,
+            y: 0,
+            width: 2560,
+            height: 1400,
+        },
+    };
+
+    // Monitor 3 (Right, 2.0x Retina scaling 4K/HiDPI)
+    let right_display = DisplayInfo {
+        id: "disp_right_200".to_string(),
+        name: "Retina 4K Monitor".to_string(),
+        is_primary: false,
+        scale_factor: 2.0,
+        bounds: DisplayRect {
+            x: 2560,
+            y: 0,
+            width: 1440,
+            height: 900,
+        },
+        work_area: DisplayRect {
+            x: 2560,
+            y: 25,
+            width: 1440,
+            height: 875,
+        },
+    };
+
+    let initial_displays = vec![
+        left_display.clone(),
+        center_primary.clone(),
+        right_display.clone(),
+    ];
+
+    let mock_display = Arc::new(MockDisplay {
+        displays: Arc::new(std::sync::Mutex::new(initial_displays.clone())),
+        active_display_id: Arc::new(std::sync::Mutex::new(Some("disp_center_150".to_string()))),
+        subscribers: Arc::new(std::sync::Mutex::new(Vec::new())),
+    });
+    let mock_window = Arc::new(MockWindow::default());
+
+    let display_service = DisplayService::new(mock_display.clone());
+    let window_service = WindowService::new(mock_window.clone());
+
+    // Verify geometry invariants on all 3 heterogeneous displays
+    let layout_states = [
+        IslandLayoutState::Idle,
+        IslandLayoutState::Hovering,
+        IslandLayoutState::Expanded,
+    ];
+
+    for disp in &initial_displays {
+        for state in &layout_states {
+            let geo = calculate_island_geometry(
+                disp,
+                *state,
+                Some(WidgetDimensions {
+                    preferred_width: Some(300),
+                    preferred_height: Some(200),
+                }),
+                IslandAnchor::TopCenter,
+            );
+
+            // 1. Invariant: Strict horizontal centering on target display's work area
+            let expected_center_x = disp.work_area.x + (disp.work_area.width as i32) / 2;
+            let actual_center_x = geo.x + (geo.width as i32) / 2;
+            assert_eq!(
+                actual_center_x, expected_center_x,
+                "Center invariant violated on display {} for state {:?}",
+                disp.id, state
+            );
+
+            // 2. Invariant: Window strictly within display horizontal work area bounds
+            assert!(
+                geo.x >= disp.work_area.x,
+                "Window left edge ({}) < work_area.x ({}) on display {}",
+                geo.x,
+                disp.work_area.x,
+                disp.id
+            );
+            assert!(
+                geo.x + geo.width as i32 <= disp.work_area.x + disp.work_area.width as i32,
+                "Window right edge ({}) > work_area right boundary on display {}",
+                geo.x + geo.width as i32,
+                disp.id
+            );
+
+            // 3. Invariant: Top pinned within work area (no negative y drift relative to work area)
+            assert!(
+                geo.y >= disp.work_area.y,
+                "Window top ({}) < work_area.y ({}) on display {}",
+                geo.y,
+                disp.work_area.y,
+                disp.id
+            );
+            assert!(
+                geo.y + geo.height as i32 <= disp.work_area.y + disp.work_area.height as i32,
+                "Window bottom ({}) exceeds work area height on display {}",
+                geo.y + geo.height as i32,
+                disp.id
+            );
+        }
+    }
+
+    // Simulate DisplaysChanged transition: Primary changes to the negative coordinate display (left_display)
+    // and right_display is disconnected
+    let mut updated_left = left_display.clone();
+    updated_left.is_primary = true;
+    let mut updated_center = center_primary.clone();
+    updated_center.is_primary = false;
+
+    let updated_displays = vec![updated_left.clone(), updated_center.clone()];
+
+    display_service
+        .init()
+        .await
+        .expect("DisplayService init should succeed");
+
+    // Trigger display change event subscription
+    let fired_events = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let fired_events_clone = fired_events.clone();
+    display_service
+        .subscribe_events(Arc::new(move |event| {
+            if let Ok(mut g) = fired_events_clone.lock() {
+                g.push(event);
+            }
+        }))
+        .await
+        .expect("Subscription should succeed");
+
+    // Broadcast DisplaysChanged through mock display
+    mock_display.set_displays(updated_displays.clone());
+    if let Ok(mut g) = mock_display.active_display_id.lock() {
+        *g = Some("disp_left_100".to_string());
+    }
+
+    assert_eq!(fired_events.lock().unwrap().len(), 1);
+
+    // Verify that primary display is now the left display in negative coordinates
+    let current_primary = display_service
+        .get_primary_display()
+        .await
+        .expect("Primary display must be resolvable");
+    assert_eq!(current_primary.id, "disp_left_100");
+    assert_eq!(current_primary.scale_factor, 1.0);
+    assert_eq!(current_primary.work_area.x, -1920);
+
+    // Position island on newly primary negative coordinate display
+    window_service
+        .position_island(&current_primary, 240, 38)
+        .await
+        .expect("Positioning must succeed");
+
+    let (win_x, win_y) = *mock_window.position.lock().unwrap();
+    let (win_w, win_h) = *mock_window.size.lock().unwrap();
+
+    assert_eq!(win_w, 240);
+    assert_eq!(win_h, 38);
+    assert_eq!(win_x, -1920 + (1920 - 240) / 2);
+    assert_eq!(win_y, current_primary.work_area.y);
+    assert_eq!(
+        win_x + (win_w as i32) / 2,
+        current_primary.work_area.x + (current_primary.work_area.width as i32) / 2
+    );
+}

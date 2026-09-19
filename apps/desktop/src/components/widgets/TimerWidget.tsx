@@ -19,13 +19,13 @@ import {
 export { formatTimeDisplay };
 
 const COUNTDOWN_PRESETS = [
-  { label: "1 dk", ms: 1 * 60 * 1000 },
-  { label: "5 dk", ms: 5 * 60 * 1000 },
-  { label: "10 dk", ms: 10 * 60 * 1000 },
-  { label: "15 dk", ms: 15 * 60 * 1000 },
-  { label: "30 dk", ms: 30 * 60 * 1000 },
-  { label: "45 dk", ms: 45 * 60 * 1000 },
-  { label: "60 dk", ms: 60 * 60 * 1000 },
+  { label: "1m", ms: 1 * 60 * 1000 },
+  { label: "5m", ms: 5 * 60 * 1000 },
+  { label: "10m", ms: 10 * 60 * 1000 },
+  { label: "15m", ms: 15 * 60 * 1000 },
+  { label: "30m", ms: 30 * 60 * 1000 },
+  { label: "45m", ms: 45 * 60 * 1000 },
+  { label: "60m", ms: 60 * 60 * 1000 },
 ];
 
 export const TimerWidget: React.FC = () => {
@@ -331,7 +331,7 @@ export const TimerWidget: React.FC = () => {
               min="0.5"
               max="1440"
               step="any"
-              placeholder="Özel dk"
+              placeholder="Custom min"
               value={customMinutes}
               onChange={(e) => setCustomMinutes(e.target.value)}
               className="bbq-timer-custom-input"
@@ -344,7 +344,7 @@ export const TimerWidget: React.FC = () => {
               disabled={!customMinutes.trim()}
               onClick={(e) => handleCustomSubmit(e)}
             >
-              Kur
+              Set
             </button>
           </form>
         </div>

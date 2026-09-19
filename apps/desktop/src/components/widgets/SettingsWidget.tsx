@@ -1097,15 +1097,8 @@ export const SettingsWidget: React.FC = () => {
                       <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ color: "var(--bbq-text-muted)" }}>{label}:</span>
                         <span
-                          style={{
-                            fontWeight: 600,
-                            color: formatted.color,
-                            fontFamily: "monospace",
-                            fontSize: "10px",
-                            padding: "1px 5px",
-                            borderRadius: "3px",
-                            background: "rgba(255, 255, 255, 0.04)",
-                          }}
+                          className="bbq-capability-badge"
+                          data-status={status}
                         >
                           {formatted.label}
                         </span>

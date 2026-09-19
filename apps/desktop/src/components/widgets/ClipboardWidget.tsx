@@ -56,10 +56,13 @@ export const ClipboardWidget: React.FC = () => {
     async (e: React.MouseEvent, entry: ClipboardEntry) => {
       e.stopPropagation();
       if (entry.content) {
-        try {
-          await navigator.clipboard.writeText(entry.content);
-        } catch {
-          // Fallback if browser permission is restricted
+        const ok = await bbqCommands.clipboardWriteText(entry.content);
+        if (!ok && typeof navigator !== "undefined" && navigator.clipboard) {
+          try {
+            await navigator.clipboard.writeText(entry.content);
+          } catch {
+            // Fallback if browser permission is restricted
+          }
         }
       }
     },

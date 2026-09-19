@@ -178,14 +178,14 @@ export const ReminderWidget: React.FC = () => {
             onClick={() => setShowCustomDateTime(!showCustomDateTime)}
           >
             <Icon name="calendar" size={11} style={{ marginRight: "4px" }} />
-            Özel...
+            Custom...
           </button>
         </div>
 
         {/* Custom Datetime Input */}
         {showCustomDateTime && (
           <div className="bbq-reminder-custom-datetime">
-            <label htmlFor="custom-due-at">Tarih & Saat:</label>
+            <label htmlFor="custom-due-at">Date & Time:</label>
             <input
               id="custom-due-at"
               type="datetime-local"
@@ -197,7 +197,7 @@ export const ReminderWidget: React.FC = () => {
 
         {/* Due Target Indicator */}
         <div className="bbq-reminder-due-preview">
-          Hedef: {formatReminderDue(selectedDueAt)} (
+          Target: {formatReminderDue(selectedDueAt)} (
           {new Date(selectedDueAt).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
@@ -208,10 +208,10 @@ export const ReminderWidget: React.FC = () => {
 
       {/* Active Reminders List */}
       <div className="bbq-reminder-list-container">
-        <div className="bbq-reminder-section-title">Yaklaşanlar</div>
+        <div className="bbq-reminder-section-title">Upcoming</div>
         {scheduledReminders.length === 0 ? (
           <div className="bbq-reminder-empty">
-            {isLoading ? "Yükleniyor..." : "Aktif hatırlatıcı yok. Yukarıdan bir tane ekleyin!"}
+            {isLoading ? "Loading..." : "No active reminders. Add one above!"}
           </div>
         ) : (
           <ul className="bbq-reminder-list">
@@ -231,7 +231,7 @@ export const ReminderWidget: React.FC = () => {
                     type="button"
                     className="bbq-reminder-cancel-btn"
                     onClick={(e) => handleCancelReminder(rem.id, e)}
-                    title="İptal et"
+                    title="Cancel"
                     aria-label={`Cancel reminder ${rem.title}`}
                   >
                     <Icon name="close" size={12} />
