@@ -1,5 +1,6 @@
 use crate::AppState;
 use bbq_core::IslandMode;
+use bbq_services::{DisplayServiceTrait, WindowServiceTrait};
 use tauri::{AppHandle, Manager, State};
 
 #[tauri::command]

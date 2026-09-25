@@ -1,5 +1,6 @@
 use crate::AppState;
 use bbq_core::FileEntry;
+use bbq_services::FileServiceTrait;
 use tauri::State;
 
 #[tauri::command]

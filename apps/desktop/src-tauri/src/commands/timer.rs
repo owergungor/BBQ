@@ -1,5 +1,6 @@
 use crate::AppState;
 use bbq_core::{TimerMode, TimerSession};
+use bbq_services::TimerServiceTrait;
 use tauri::State;
 
 #[tauri::command]

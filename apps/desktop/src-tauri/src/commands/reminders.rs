@@ -1,5 +1,6 @@
 use crate::AppState;
 use bbq_core::Reminder;
+use bbq_services::ReminderServiceTrait;
 use tauri::State;
 
 #[tauri::command]

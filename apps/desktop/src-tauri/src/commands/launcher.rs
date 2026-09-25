@@ -1,5 +1,6 @@
 use crate::AppState;
 use bbq_core::{LauncherCapabilities, LauncherItem};
+use bbq_services::LauncherServiceTrait;
 use tauri::State;
 
 #[tauri::command]

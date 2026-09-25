@@ -1,5 +1,6 @@
 use crate::AppState;
 use bbq_core::{ClipboardEntry, ClipboardStatus};
+use bbq_services::ClipboardServiceTrait;
 use tauri::State;
 
 #[tauri::command]

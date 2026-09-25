@@ -1,5 +1,6 @@
 use crate::AppState;
 use bbq_platform::DisplayInfo;
+use bbq_services::DisplayServiceTrait;
 use tauri::State;
 
 #[tauri::command]

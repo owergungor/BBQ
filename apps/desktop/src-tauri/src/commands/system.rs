@@ -1,6 +1,6 @@
 use crate::AppState;
 use bbq_core::{NotificationCapabilities, PlatformCapabilities, SystemCapabilities, SystemState};
-use bbq_services::ServiceStatus;
+use bbq_services::{NotificationServiceTrait, ServiceStatus, SystemServiceTrait};
 use tauri::State;
 
 #[tauri::command]

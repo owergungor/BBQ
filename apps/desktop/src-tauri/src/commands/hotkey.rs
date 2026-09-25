@@ -1,5 +1,6 @@
 use crate::AppState;
 use bbq_platform::{HotkeyCapabilities, HotkeyDefinition};
+use bbq_services::HotkeyServiceTrait;
 use tauri::State;
 
 #[tauri::command]

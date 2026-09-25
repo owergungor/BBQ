@@ -1,5 +1,6 @@
 use crate::AppState;
 use bbq_core::{DropAction, DropActionResult, DropBatch};
+use bbq_services::DropServiceTrait;
 use tauri::State;
 
 #[tauri::command]
