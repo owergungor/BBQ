@@ -207,7 +207,7 @@ describe("BBQ v2 — Milestone 16 Production Hardening & GA Polish Tests", () =>
         mockSettings as unknown as Parameters<typeof generateSanitizedDiagnostics>[0],
         mockCaps,
         {
-          appVersion: "1.2.0",
+          appVersion: "2.0.0",
           displayCount: 2,
           buildMode: "production",
           timestamp: "2026-09-25T12:00:00.000Z",
@@ -226,7 +226,7 @@ describe("BBQ v2 — Milestone 16 Production Hardening & GA Polish Tests", () =>
 
       // Verify allowed safe fields are present
       assert.equal(diagnostics.app.name, "BBQ Desktop");
-      assert.equal(diagnostics.app.version, "1.2.0");
+      assert.equal(diagnostics.app.version, "2.0.0");
       assert.equal(diagnostics.platform.os, "linux");
       assert.equal(diagnostics.platform.displayCount, 2);
       assert.equal(diagnostics.platform.scaleFactor, 1.25);

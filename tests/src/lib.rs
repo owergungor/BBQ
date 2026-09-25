@@ -1146,32 +1146,32 @@ mod tests {
         let root_cargo =
             std::fs::read_to_string(root.join("Cargo.toml")).expect("Should read root Cargo.toml");
         assert!(
-            root_cargo.contains("version = \"1.2.0\""),
-            "Root Cargo.toml must declare version 1.2.0"
+            root_cargo.contains("version = \"2.0.0\""),
+            "Root Cargo.toml must declare version 2.0.0"
         );
 
         // 2. Root package.json
         let root_pkg = std::fs::read_to_string(root.join("package.json"))
             .expect("Should read root package.json");
         assert!(
-            root_pkg.contains("\"version\": \"1.2.0\""),
-            "Root package.json must declare version 1.2.0"
+            root_pkg.contains("\"version\": \"2.0.0\""),
+            "Root package.json must declare version 2.0.0"
         );
 
         // 3. Desktop package.json
         let desktop_pkg = std::fs::read_to_string(root.join("apps/desktop/package.json"))
             .expect("Should read apps/desktop/package.json");
         assert!(
-            desktop_pkg.contains("\"version\": \"1.2.0\""),
-            "apps/desktop/package.json must declare version 1.2.0"
+            desktop_pkg.contains("\"version\": \"2.0.0\""),
+            "apps/desktop/package.json must declare version 2.0.0"
         );
 
         // 4. Types package.json
         let types_pkg = std::fs::read_to_string(root.join("packages/types/package.json"))
             .expect("Should read packages/types/package.json");
         assert!(
-            types_pkg.contains("\"version\": \"1.2.0\""),
-            "packages/types/package.json must declare version 1.2.0"
+            types_pkg.contains("\"version\": \"2.0.0\""),
+            "packages/types/package.json must declare version 2.0.0"
         );
 
         // 5. tauri.conf.json
@@ -1179,8 +1179,8 @@ mod tests {
             std::fs::read_to_string(root.join("apps/desktop/src-tauri/tauri.conf.json"))
                 .expect("Should read tauri.conf.json");
         assert!(
-            tauri_conf.contains("\"version\": \"1.2.0\""),
-            "tauri.conf.json must declare version 1.2.0"
+            tauri_conf.contains("\"version\": \"2.0.0\""),
+            "tauri.conf.json must declare version 2.0.0"
         );
         assert!(
             tauri_conf.contains("\"active\": true"),

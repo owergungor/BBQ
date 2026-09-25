@@ -135,10 +135,10 @@ describe("BBQ — Milestone 18: Production Packaging, Onboarding & First-Run Exp
       );
     });
 
-    it("displays version 1.2.0 and MIT License in About section", () => {
+    it("displays version 2.0.0 and MIT License in About section", () => {
       assert.ok(
-        settingsCode.includes("Version 1.2.0 (Production Edition)"),
-        "SettingsWidget missing version 1.2.0 badge"
+        settingsCode.includes("Version 2.0.0 (Production Edition)"),
+        "SettingsWidget missing version 2.0.0 badge"
       );
       assert.ok(
         settingsCode.includes("MIT License (Open Source)"),

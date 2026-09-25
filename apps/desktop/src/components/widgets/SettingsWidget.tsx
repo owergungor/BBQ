@@ -1069,7 +1069,7 @@ export const SettingsWidget: React.FC = () => {
               <div>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>BBQ Desktop</h3>
                 <span style={{ fontSize: "12px", color: "var(--bbq-accent)", fontWeight: 600 }}>
-                  Version 1.2.0 (Production Edition)
+                  Version 2.0.0 (Production Edition)
                 </span>
                 <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--bbq-text-muted)" }}>
                   Lightweight, hardware-accelerated desktop productivity island.

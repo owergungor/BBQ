@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.0.0] - 2026-09-26
+
+### Added
+- Official General Availability (GA) release of BBQ desktop productivity island.
+- Cross-platform support across Windows 10/11, macOS 12+, and Linux (X11 & Wayland).
+- Full suite of 9 HUD widgets: Drop Shelf, File Workspace, Clipboard, Media, System, Quick Launcher, Timer/Pomodoro, Reminders, and Settings.
+- Truthful platform capability model with graceful degradation for compositor-dependent or permission-restricted environments.
+- Comprehensive privacy-first diagnostics export tool with zero sensitive data leakage.
+- Strict Content Security Policy (CSP) and modular Tauri IPC command handlers.
+
+### Improved
+- Memory working set bounded to <= 60 MB RAM (typically ~46 MB) with 0% idle CPU utilization.
+- Zero-polling architecture eliminating all periodic intervals in favor of native push event streams.
+- Database recovery and quarantine pipeline for SQLite WAL reliability.
+- WCAG 2.1 AA accessibility contrast and screen-reader status announcements across all widgets.
+
+---
+
 ## [1.2.0] - 2026-09-15
 
 ### Added

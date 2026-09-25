@@ -476,7 +476,7 @@ export function generateSanitizedDiagnostics(
   return {
     app: {
       name: "BBQ Desktop",
-      version: extra?.appVersion ?? "1.2.0",
+      version: extra?.appVersion ?? "2.0.0",
       buildMode: extra?.buildMode ?? "production",
     },
     platform: {
