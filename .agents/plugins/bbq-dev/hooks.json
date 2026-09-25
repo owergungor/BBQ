@@ -1,0 +1,17 @@
+{
+  "bbq-safety-guard": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./scripts/safety-guard.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

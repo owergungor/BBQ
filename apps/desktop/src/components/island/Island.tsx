@@ -31,22 +31,22 @@ export const Island: React.FC = () => {
   );
 
   useEffect(() => {
-    let unlistenIsland: (() => void) | undefined;
-    let unlistenMedia: (() => void) | undefined;
-    let unlistenClipboard: (() => void) | undefined;
-    let unlistenFiles: (() => void) | undefined;
-    let unlistenSystem: (() => void) | undefined;
-    let unlistenTimer: (() => void) | undefined;
-    let unlistenHotkey: (() => void) | undefined;
-    let unlistenHotkeyTrigger: (() => void) | undefined;
-    let unlistenOpenSettings: (() => void) | undefined;
-    let unlistenWindowBlur: (() => void) | undefined;
-    let unlistenShowIsland: (() => void) | undefined;
+    let isMounted = true;
+    const cleanupFns: Array<() => void> = [];
+
+    const registerCleanup = (fn: () => void) => {
+      if (!isMounted) {
+        fn();
+      } else {
+        cleanupFns.push(fn);
+      }
+    };
 
     (async () => {
       await islandRuntime.init();
+      if (!isMounted) return;
 
-      unlistenIsland = await subscribeToIslandMode((newMode) => {
+      const unlistenIsland = await subscribeToIslandMode((newMode) => {
         if (newMode === "EXPANDED") {
           islandRuntime.transitionTo("Expanded", "event");
         } else if (newMode === "ACTIVE") {
@@ -55,43 +55,47 @@ export const Island: React.FC = () => {
           islandRuntime.transitionTo("Idle", "event");
         }
       });
+      registerCleanup(unlistenIsland);
 
-      unlistenMedia = await initializeMediaStore();
-      unlistenClipboard = await initializeClipboardStore();
-      unlistenFiles = await initializeFileStore();
-      unlistenSystem = await initializeSystemStore();
-      unlistenTimer = await initializeTimerStore();
-      unlistenHotkey = await initHotkeyStore();
-      unlistenHotkeyTrigger = await subscribeToHotkeyTriggered(async () => {
-        await islandRuntime.handleHotkeyTriggered();
-      });
-      unlistenOpenSettings = await subscribeToOpenSettings(async () => {
-        setActiveWidget("settings");
-        await islandRuntime.transitionTo("Expanded", "none");
-      });
-      unlistenWindowBlur = await subscribeToWindowBlur(async () => {
-        if (islandStore.getState().state === "Expanded") {
-          await islandRuntime.handleEvent({ type: "CLICK_OUTSIDE" });
-        }
-      });
-      unlistenShowIsland = await subscribeToShowIsland(async () => {
-        await islandRuntime.transitionTo("Expanded", "none");
-      });
+      registerCleanup(await initializeMediaStore());
+      registerCleanup(await initializeClipboardStore());
+      registerCleanup(await initializeFileStore());
+      registerCleanup(await initializeSystemStore());
+      registerCleanup(await initializeTimerStore());
+      registerCleanup(await initHotkeyStore());
+
+      registerCleanup(
+        await subscribeToHotkeyTriggered(async () => {
+          await islandRuntime.handleHotkeyTriggered();
+        })
+      );
+      registerCleanup(
+        await subscribeToOpenSettings(async () => {
+          setActiveWidget("settings");
+          await islandRuntime.transitionTo("Expanded", "none");
+        })
+      );
+      registerCleanup(
+        await subscribeToWindowBlur(async () => {
+          if (islandStore.getState().state === "Expanded") {
+            await islandRuntime.handleEvent({ type: "CLICK_OUTSIDE" });
+          }
+        })
+      );
+      registerCleanup(
+        await subscribeToShowIsland(async () => {
+          await islandRuntime.transitionTo("Expanded", "none");
+        })
+      );
     })();
 
     return () => {
+      isMounted = false;
       islandRuntime.destroy();
-      if (unlistenIsland) unlistenIsland();
-      if (unlistenMedia) unlistenMedia();
-      if (unlistenClipboard) unlistenClipboard();
-      if (unlistenFiles) unlistenFiles();
-      if (unlistenSystem) unlistenSystem();
-      if (unlistenTimer) unlistenTimer();
-      if (unlistenHotkey) unlistenHotkey();
-      if (unlistenHotkeyTrigger) unlistenHotkeyTrigger();
-      if (unlistenOpenSettings) unlistenOpenSettings();
-      if (unlistenWindowBlur) unlistenWindowBlur();
-      if (unlistenShowIsland) unlistenShowIsland();
+      while (cleanupFns.length > 0) {
+        const fn = cleanupFns.pop();
+        if (fn) fn();
+      }
     };
   }, []);
 

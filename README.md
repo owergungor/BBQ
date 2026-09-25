@@ -2,93 +2,141 @@
 
 > **Lightweight, Privacy-First Desktop Productivity Island**
 
-BBQ brings the ambient, reactive ergonomics of a dynamic island to your desktop. Anchored unobtrusively at the top-center of your display, BBQ rests in a sleek compact pill and fluidly expands into a rich productivity command surface—featuring focus timers, quick application launching, system preferences, file workspace targets, reminders, and media controls—without interrupting your workflow.
+BBQ brings the ambient, reactive ergonomics of a dynamic island to your desktop. Anchored unobtrusively at the top-center of your display, BBQ rests in a sleek compact pill and fluidly expands into a rich productivity command surface—featuring focus timers, quick application launching, system preferences, file workspace targets, reminders, clipboard history, Drop Shelf file staging, and media controls—without interrupting your workflow.
 
-BBQ is built with **Tauri 2.x**, **Rust**, and **React 19**, engineered from the ground up for instantaneous response times, low memory consumption (< 60 MB), zero background battery drain, and uncompromised local-first privacy.
+BBQ is built with **Tauri 2.x**, **Rust**, and **React 19**, engineered from the ground up for instantaneous response times, low working set memory (<= 60 MB), zero background battery drain, and uncompromised local-first privacy.
 
 ---
 
 ## What is BBQ?
 
 BBQ transforms the unused top margin of your screen into an ambient multi-tool:
-- **Dynamic Island Concept for Desktop**: An unobtrusive pill anchored at the top-center of your monitor displaying real-time status (timer countdown, media playback, or reminders).
+- **Dynamic Island Concept for Desktop**: An unobtrusive pill anchored at the top-center of your primary display presenting real-time status (timer countdowns, media playback, clipboard staging, or reminders).
 - **Hardware-Accelerated Expansion**: Expands symmetrically on hover or click into an intuitive widget dashboard with 60 FPS transitions.
-- **Privacy-First Architecture**: 100% offline and local-first. Zero telemetry, zero tracking, zero remote network calls, and all preferences stored locally in an embedded SQLite database.
-- **Cross-Platform Target**: First-class support for Windows 10/11, macOS, and Linux desktop environments through native Rust platform abstractions.
-- **Resource Efficiency & Lightweight**: Idle memory footprint under 60 MB, zero idle CPU usage, and zero polling loops.
+- **Privacy-First Architecture**: 100% offline and local-first. Zero telemetry, zero tracking, zero remote network calls, and all preferences stored locally in an embedded SQLite database (WAL mode).
+- **Cross-Platform Target**: First-class support for Windows 10/11, macOS, and Linux desktop environments through truthful Rust platform abstractions.
+- **Strict Performance Invariants**: Working set RAM target <= 60 MB, ~0% idle CPU utilization, and a strict zero-polling policy across both native and web layers.
 
 ---
 
-## v1.2.0 Features
+## BBQ v2.0 Feature Set
 
-BBQ v1.2.0 delivers deep customization, modern controls, interaction polish, and rock-solid persistence:
+BBQ v2.0 delivers production hardening, deep customization, modular IPC architecture, and reliable system integration:
 
-- **Timer: Countdown / Stopwatch / Pomodoro**: Full timer suite with explicit start/pause/resume/reset controls and idle mode switching guarantees (never auto-runs unexpectedly).
-- **Custom Timer Presets**: Quick-select presets for 1m, 5m, 10m, 15m, 25m, 45m, and 60m focus sessions.
-- **Global Hotkey**: Summon or dismiss the island instantly from any application across your operating system.
-- **Custom Hotkey Recorder**: Interactive recorder in Settings supporting multi-modifier shortcuts (e.g. `Ctrl+Shift+B`, `Ctrl+Alt+Space`, `Alt+Shift+B`, `Win+Shift+B`).
-- **Mouse Wheel Tab Navigation**: Effortless widget switching by scrolling the mouse wheel over the island header, with debounced boundary clamping.
-- **Launcher 2x2 Quick Actions**: Streamlined 2x2 grid for essential system targets (Files & Workspace, Downloads, Home Directory, Lock Screen) engineered to fit without overflow.
-- **Theme Switcher**: Instant switching between **Light**, **Dark**, and **System** appearance modes with real-time DOM token updates.
-- **Light / Dark / System**: Dynamic theme detection synchronizing with your operating system preferences.
-- **Modern Switch Controls**: Smooth, accessible toggle controls replacing legacy checkbox elements.
-- **Compact Size Sliders**: Real-time slider controls for compact island width (180px–480px) and height (36px–54px).
-- **11 System Accent Colors**: System Blue (default), Red, Green, Orange, Yellow, Pink, Purple, Indigo, Teal, Mint, and Cyan.
-- **Custom Accent Color Picker**: Real-time hex color input and dynamic picker calculating complementary hover, glow, and subtle opacity tokens.
-- **Light/Dark Accent Mapping**: All 11 system presets map directly to platform-accurate Light and Dark hex values.
-- **Persistent Settings**: Synchronous `localStorage` caching paired with an asynchronous SQLite database guarantees zero flash on startup and complete persistence across app restarts.
-- **Onboarding Persistence**: Completed welcome tours are remembered permanently; the app immediately opens to the normal idle island on subsequent launches.
-- **System Tray**: Native tray icon with quick actions (Show/Hide, Preferences, Restart, Quit).
-- **Hover / Interaction Improvements**: Symmetrical 4-directional hover expansion around the visual center, zero cursor jitter, zero outer halos/shadows, and deterministic outside-click dismissal via `composedPath()`.
+### 1. Drop Shelf & Single-Instance File Forwarding
+- **Drag-and-Drop Staging**: Stage files and folders onto the island for immediate workflow operations (reveal in file manager, open with default app, inspect metadata).
+- **Single-Instance Forwarding**: Opening or dropping files onto secondary instances of BBQ safely forwards path arguments to the running primary island without duplicate processes.
+- **Metadata-Only & Safe Storage**: Only bounded filesystem paths and metadata are retained (`MAX_DROP_ITEMS = 50`); underlying user files are never duplicated, altered, or moved unexpectedly.
+
+### 2. Privacy-First Clipboard History
+- **Disabled by Default**: Clipboard history recording is strictly opt-in, preserving user privacy out of the box.
+- **Bounded Storage Retention**: FIFO history capped at configurable limits (`MAX_CLIPBOARD_MAX_ENTRIES = 100`) and automatic retention pruning (1–90 days).
+- **Sensitive Content Masking**: Automatic regex detection for API tokens, private keys, passwords, and secrets with masked preview cards and protected visual indicators.
+- **Zero Outbound Leaks**: No remote syncing, analytics, or logging of clipboard contents.
+
+### 3. Focus Timer & Pomodoro
+- **Modes**: Countdown, Stopwatch, and Pomodoro cycles with work/break phases.
+- **Idle Invariant**: Mode switching never auto-starts sessions unexpectedly.
+- **Quick Presets**: 1m, 5m, 10m, 15m, 25m, 45m, and 60m focus sessions, plus custom minute input.
+- **Accessible Alerts**: Visual state badges and polite screen-reader announcements (`aria-live="polite"`) upon countdown completion.
+
+### 4. Application & Workflow Launcher
+- **Quick Actions Grid**: Fast access to Workspace, Downloads, Home, and system targets.
+- **Fuzzy Search & Indexing**: Instant sub-millisecond search across applications and pinned targets.
+- **Favorites & Recents**: Pin high-frequency tools with persistent ordering.
+
+### 5. Media Controls & System HUD
+- **Now Playing Display**: Native media track info and transport controls (Play/Pause, Next, Previous, Seek).
+- **System Audio & Volume**: Master volume sliders with mute toggles and battery/network status indicators.
+
+### 6. Personalization & Settings HUD
+- **Appearance Modes**: Real-time switching between **Light**, **Dark**, and **System** themes.
+- **Accent Colors**: 11 curated platform presets plus custom HEX input with dynamic WCAG 2.1 AA/AAA contrast verification.
+- **Geometry Customization**: Real-time slider controls for compact island width (180px–640px) and height (36px–520px).
+- **Deterministic Diagnostic Export**: "Copy Diagnostic Info" button generates sanitized, privacy-safe system metadata (OS, architecture, capabilities, layout dimensions) strictly excluding usernames, file paths, tokens, and clipboard text.
+- **Strict Content Security Policy (CSP)**: Hardened production CSP restricting script, style, image, and IPC origins.
 
 ---
 
 ## Architecture Overview
 
-BBQ follows a strict layered, decoupled architecture ensuring separation of concerns, high testability, and maintainability:
+BBQ follows a strict layered, decoupled architecture with zero cross-layer leakage:
 
 ```
 ┌────────────────────────────────────────────────────────┐
 │                   React 19 Frontend                    │
 │   (Domain State Stores, SVG Icons, CSS Token Theming)  │
+│   Strict CSP: default-src 'self', script-src 'self'   │
 └───────────────────────────┬────────────────────────────┘
-                            │ Tauri 2 IPC (Commands & Events)
+                            │ Tauri 2 IPC (Commands & BbqEvent Streams)
 ┌───────────────────────────▼────────────────────────────┐
-│                    Rust Service Layer                  │
-│  (Window, Display, Timer, Hotkey, Settings, Launcher)  │
+│              Modular Tauri Command Layer               │
+│  (commands/{island, display, settings, media, ...})   │
+├────────────────────────────────────────────────────────┤
+│                   Rust Core Services                   │
+│  (Window, Display, Timer, Hotkey, Drop, Clipboard)     │
 ├───────────────────────────┬────────────────────────────┤
 │   Platform Abstractions   │       SQLite Storage       │
-│  (Win32, Cocoa, X11/XDG)  │      (WAL Mode, Bundled)   │
+│  (Win32, Cocoa, X11/XDG)  │      (WAL Mode, Pruning)   │
 └───────────────────────────┴────────────────────────────┘
 ```
 
-- **Frontend (`apps/desktop`)**: React 19 + TypeScript + Vite. Standalone CSS custom properties for theming; zero heavy styling frameworks.
-- **Desktop Runtime (`apps/desktop/src-tauri`)**: Tauri 2 application bootstrap, system tray management, transparent frameless window creation.
-- **Services (`crates/services`)**: Domain business logic and lifecycle management for all desktop features.
-- **Platform Abstraction (`crates/platform`)**: Clean Rust traits (`PlatformWindow`, `PlatformDisplay`, `PlatformHotkey`, `PlatformAutostart`, `PlatformMedia`, `PlatformNotification`) abstracting OS differences.
-- **Storage (`crates/storage`)**: Bundled SQLite database with automated migration runner and typed repositories.
-- **Core (`crates/core`)**: Domain models, error handling, layout geometry calculators, and DPI-aware coordinate math.
+- **Frontend (`apps/desktop`)**: React 19 + TypeScript + Vite. Exclusively uses centralized CSS tokens from `src/styles/index.css`. Zero Tailwind, zero CSS-in-JS, zero external state libraries.
+- **IPC Modularization (`apps/desktop/src-tauri/src/commands/`)**: 69 commands partitioned into domain modules (`island.rs`, `display.rs`, `settings.rs`, `media.rs`, `clipboard.rs`, `files.rs`, `drop.rs`, `system.rs`, `timer.rs`, `reminders.rs`, `launcher.rs`, `hotkey.rs`).
+- **Core Engine (`crates/core`)**: Pure domain models, geometry calculation, bounding invariants, and error definitions.
+- **Platform Layer (`crates/platform`)**: Platform implementations isolated in OS-guarded modules (`windows.rs`, `macos.rs`, `linux.rs`, `mock.rs`) exposing uniform traits (`PlatformProvider`).
+- **Services (`crates/services`)**: Business logic, bounded state, event emission, and lifecycle orchestration.
+- **Storage (`crates/storage`)**: Bundled SQLite database in WAL mode with auto-migrations, corruption quarantine recovery, and transactional FIFO bounds.
 
 ---
 
-## System Requirements
+## Platform Support & Truthful Capability Matrix
 
-| Operating System | Requirements |
-| :--- | :--- |
-| **Windows** | Windows 10 (version 1809+) or Windows 11 (x64 / ARM64). WebView2 Runtime (standard on Windows 10/11). |
-| **macOS** | macOS 12 Monterey or later (Apple Silicon & Intel). |
-| **Linux** | Modern 64-bit Linux distribution with `glibc >= 2.31`, `WebKitGTK 4.1`, and `libayatana-appindicator3`. |
+BBQ queries platform capabilities at startup and communicates availability truthfully:
+
+| Capability | Windows (10/11) | macOS (12+) | Linux (X11) | Linux (Wayland) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Window Positioning** | Supported | Supported | Supported | Compositor Dependent |
+| **Global Hotkey** | Supported | Permission Required | Supported | Compositor Dependent |
+| **Clipboard Live Events** | Supported | Passive / On-Demand | Supported | Supported |
+| **Clipboard History** | Supported | Supported | Supported | Supported |
+| **Media Controls** | Supported (SMTC) | Supported (NowPlaying) | Supported (MPRIS) | Supported (MPRIS) |
+| **Native Notifications** | Supported | Supported | Supported (libnotify) | Supported (libnotify) |
+| **Multi-Monitor DPI** | Supported | Supported | Supported | Supported |
+| **Launch at Login** | Supported (Registry) | Supported (LaunchAgent)| Supported (Autostart)| Supported (Autostart)|
+
+### Platform-Specific Limitations & Permissions
+
+- **Linux (Wayland)**: Absolute window positioning and global hotkeys are compositor-dependent under Wayland protocols (`xdg-shell` / `wlr-layer-shell`). When running under GNOME Wayland or Sway, window placement relies on compositor placement rules.
+- **macOS Permissions**: Global hotkey registration requires Accessibility permissions (`AXIsProcessTrusted`). Media controls may require System Events permissions depending on target playback clients.
+- **Code Signing**: Nightly and open-source builds do not include proprietary Apple Developer ID notarization or Windows EV code-signing certificates. On Windows, SmartScreen warnings can be bypassed via "More info -> Run anyway". On macOS, gatekeeper quarantine can be cleared via `xattr -cr /Applications/BBQ.app`.
 
 ---
 
-## Development Setup
+## Resource & Performance Invariants
+
+BBQ enforces strict architectural invariants verified in automated test suites:
+- **RAM Budget**: <= 60 MB practical working set RAM during compact idle state.
+- **CPU Budget**: ~0% idle CPU utilization.
+- **Zero-Polling Policy**: Strict prohibition against `setInterval`, continuous `requestAnimationFrame` loops, and recursive `setTimeout` polling. Updates are strictly event-driven.
+- **Storage Bounds**: FIFO bounds strictly enforce `MAX_DROP_ITEMS = 50` and `MAX_CLIPBOARD_MAX_ENTRIES = 100` to prevent database bloat over time.
+- **Reduced Motion**: Respects `prefers-reduced-motion` across all CSS transitions and animations.
+
+---
+
+## Development & Build Instructions
 
 ### Prerequisites
-- **Node.js**: `>= 22.6.0`
+- **Node.js**: `>= 22.0.0`
 - **pnpm**: `>= 9.0.0`
-- **Rust**: `>= 1.85.0` (`stable-x86_64-pc-windows-msvc` on Windows)
+- **Rust**: `>= 1.85.0` (`stable`)
+- **Platform Dependencies**:
+  - *Linux (Ubuntu/Debian)*: `libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev`
+  - *Linux (Fedora)*: `webkit2gtk4.1-devel openssl-devel libayatana-appindicator-devel libdbus-devel`
+  - *macOS*: Xcode Command Line Tools
+  - *Windows*: Visual Studio C++ Build Tools
 
-### Installation
+### Installation & Local Run
 ```bash
 # Clone repository
 git clone https://github.com/owergungor/bbq.git
@@ -96,11 +144,8 @@ cd bbq
 
 # Install frontend dependencies
 pnpm install
-```
 
-### Running Locally (Development Mode)
-```bash
-# Start frontend dev server and Tauri application
+# Run frontend + desktop app in development mode
 pnpm dev
 ```
 
@@ -108,49 +153,51 @@ pnpm dev
 
 ## Testing & Quality Verification
 
-BBQ adheres to rigorous automated testing across the entire stack:
+Run the full verification suite across frontend and Rust crates:
 
 ```bash
-# Run all frontend tests (181 passed across 80 suites)
-pnpm test
+# 1. Frontend automated tests (382 tests passing across 80 suites)
+pnpm --filter @bbq/desktop test
 
-# Run TypeScript typechecks (0 errors)
-pnpm typecheck
+# 2. TypeScript typecheck
+pnpm --filter @bbq/desktop typecheck
 
-# Run all Rust unit and integration tests (91 passed)
-cargo test
+# 3. Production frontend build
+pnpm --filter @bbq/desktop build
 
-# Run Rust linter with strict warning policy (0 warnings)
-cargo clippy --all-targets -- -D warnings
+# 4. Rust code formatting check
+cargo fmt --all -- --check
 
-# Check Rust code formatting (PASS)
-cargo fmt -- --check
+# 5. Rust clippy with zero warnings denied
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+# 6. Rust workspace tests (214 tests passing)
+cargo test --workspace
 ```
 
 ---
 
-## Production Build
+## Packaging & Releases
 
-To build the standalone release executable without dev server dependencies:
+BBQ uses standard Tauri 2 bundle tooling to generate production artifacts:
 
 ```bash
-# Build desktop production binary (embedded web assets, no localhost dependency)
-pnpm build:desktop
+# Package production installer/bundle for the current platform
+pnpm --filter @bbq/desktop tauri build
 ```
 
-The production executable is generated at:
-```
-target/release/bbq-desktop.exe
-```
+Generated production bundle formats:
+- **Windows**: NSIS Single-User Installer (`.exe`) in `apps/desktop/src-tauri/target/release/bundle/nsis/`
+- **macOS**: Application bundle (`.app`) and Apple Disk Image (`.dmg`) in `target/release/bundle/dmg/`
+- **Linux**: Debian package (`.deb`) and AppImage in `target/release/bundle/deb/` and `target/release/bundle/appimage/`
 
----
+### Continuous Integration (CI) Matrix
 
-## Privacy & Resource Efficiency
-
-- **Zero Outbound Telemetry**: No analytics libraries, crash reporters, or tracking beacons.
-- **Zero Polling Loops**: Timers and animations rely strictly on system clock deltas and event triggers; zero idle CPU spin.
-- **Minimal Memory Footprint**: Typically runs under 60 MB RAM in compact idle state.
-- **Local Storage**: All user settings, clipboard entries, and reminders remain exclusively on your local machine in `%LOCALAPPDATA%/BBQ/bbq.db`.
+Every push and pull request to `main` executes the full GitHub Actions CI matrix:
+- **Frontend / Lint**: Node 22, pnpm test, TypeScript typecheck, production frontend build.
+- **Ubuntu 22.04**: Linux packaging (`.deb`, `.AppImage`), Rust format check, Clippy, workspace tests.
+- **macOS 14 (Apple Silicon)**: macOS packaging (`.dmg`, `.app`), workspace tests.
+- **Windows 2022**: Windows packaging (NSIS installer), workspace tests.
 
 ---
 

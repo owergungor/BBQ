@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState, useRef, useEffect } from "react";
 import { clipboardStore, useClipboardState } from "../../state/clipboardState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import type { ClipboardEntry } from "@bbq/types";
@@ -11,6 +11,16 @@ import {
 
 export const ClipboardWidget: React.FC = () => {
   const { enabled, entries, status } = useClipboardState();
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimerRef.current) {
+        clearTimeout(copyFeedbackTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleToggleEnabled = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -64,6 +74,14 @@ export const ClipboardWidget: React.FC = () => {
             // Fallback if browser permission is restricted
           }
         }
+        if (copyFeedbackTimerRef.current) {
+          clearTimeout(copyFeedbackTimerRef.current);
+        }
+        setCopyFeedback("Copied clipping to clipboard");
+        copyFeedbackTimerRef.current = setTimeout(() => {
+          setCopyFeedback(null);
+          copyFeedbackTimerRef.current = null;
+        }, 2000);
       }
     },
     []
@@ -90,6 +108,16 @@ export const ClipboardWidget: React.FC = () => {
           {enabled && (
             <span className="bbq-clipboard-badge">
               {entries.length} / {status?.max_entries ?? MAX_CLIPBOARD_HISTORY_ENTRIES}
+            </span>
+          )}
+          {copyFeedback && (
+            <span
+              className="bbq-clipboard-feedback"
+              role="status"
+              aria-live="polite"
+              style={{ fontSize: "11px", color: "var(--bbq-accent, #0A84FF)", fontWeight: 500 }}
+            >
+              {copyFeedback}
             </span>
           )}
         </div>

@@ -37,8 +37,6 @@ export class WidgetRegistry {
       { id: "launcher", title: "Launcher", icon: "launcher", priority: 45 },
       { id: "timer", title: "Timer", icon: "timer", priority: 40 },
       { id: "reminder", title: "Reminders", icon: "reminders", priority: 35 },
-      { id: "notes", title: "Notes", icon: "file-text", priority: 30 },
-      { id: "bookmarks", title: "Bookmarks", icon: "pin", priority: 25 },
       { id: "network", title: "Network", icon: "network", priority: 20 },
       { id: "settings", title: "Settings", icon: "settings", priority: 15 },
     ];

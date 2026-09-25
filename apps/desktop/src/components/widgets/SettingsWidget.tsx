@@ -33,6 +33,7 @@ import {
   formatCapabilityStatus,
   isHotkeySupported,
   isClipboardLiveSupported,
+  generateSanitizedDiagnostics,
 } from "./settingsModel.ts";
 
 type SettingsTab = "appearance" | "island" | "hotkey" | "privacy" | "notifications" | "widgets" | "about";
@@ -88,9 +89,25 @@ export const SettingsWidget: React.FC = () => {
     setDraftHotkey(settings.global_hotkey);
   }, [settings.global_hotkey]);
 
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (statusTimerRef.current) {
+        clearTimeout(statusTimerRef.current);
+      }
+    };
+  }, []);
+
   const showStatus = (msg: string) => {
+    if (statusTimerRef.current) {
+      clearTimeout(statusTimerRef.current);
+    }
     setStatusMessage(msg);
-    setTimeout(() => setStatusMessage(null), 2500);
+    statusTimerRef.current = setTimeout(() => {
+      setStatusMessage(null);
+      statusTimerRef.current = null;
+    }, 2500);
   };
 
   const handleThemeChange = async (theme: ThemePreference) => {
@@ -101,6 +118,21 @@ export const SettingsWidget: React.FC = () => {
   const handleAccentColorChange = async (accentColor: AccentColor) => {
     await updateSettingsBatch({ accent_color: accentColor });
     showStatus(`Accent color set to ${accentColor}`);
+  };
+
+  const handleCopyDiagnostics = async () => {
+    const diag = generateSanitizedDiagnostics(settings, capabilities);
+    const json = JSON.stringify(diag, null, 2);
+    let copied = await bbqCommands.clipboardWriteText(json);
+    if (!copied && typeof navigator !== "undefined" && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(json);
+        copied = true;
+      } catch {
+        // Fallback
+      }
+    }
+    showStatus("Diagnostic info copied to clipboard");
   };
 
   const handleCustomAccentChange = async (hex: string) => {
@@ -1101,7 +1133,26 @@ export const SettingsWidget: React.FC = () => {
               </div>
             )}
 
-            <div style={{ paddingTop: "8px", borderTop: "1px solid var(--bbq-border)" }}>
+            <div style={{ paddingTop: "8px", borderTop: "1px solid var(--bbq-border)", display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                id="bbq-copy-diagnostics-btn"
+                onClick={handleCopyDiagnostics}
+                style={{
+                  flex: 1,
+                  padding: "8px 14px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--bbq-border)",
+                  background: "var(--bbq-surface)",
+                  color: "var(--bbq-text)",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+                aria-label="Copy sanitized diagnostic information"
+              >
+                Copy Diagnostics
+              </button>
               <button
                 type="button"
                 onClick={async () => {
@@ -1109,7 +1160,7 @@ export const SettingsWidget: React.FC = () => {
                   showStatus("Welcome tour activated");
                 }}
                 style={{
-                  width: "100%",
+                  flex: 1,
                   padding: "8px 14px",
                   borderRadius: "6px",
                   border: "1px solid var(--bbq-accent)",

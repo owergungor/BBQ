@@ -299,6 +299,11 @@ export const TimerWidget: React.FC = () => {
             <span className={"bbq-timer-state-indicator " + session.state.toLowerCase()}>
               {session.state}
             </span>
+            {session.state === "Completed" && (
+              <span className="bbq-sr-only" role="status" aria-live="polite">
+                Timer completed
+              </span>
+            )}
           </div>
         </div>
       </div>

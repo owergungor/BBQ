@@ -4,7 +4,7 @@
  * Interaction-driven refresh, category filtering, search, and sequential execution.
  */
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useFileState } from "../../state/fileState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon } from "../common/Icon.tsx";
@@ -24,14 +24,29 @@ export const FileWorkspaceWidget: React.FC = () => {
   const [sortBy, setSortBy] = useState<"date" | "name" | "size">("date");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isOpeningAll, setIsOpeningAll] = useState(false);
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (statusTimerRef.current) {
+        clearTimeout(statusTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleCycleSort = useCallback(() => {
     setSortBy((prev) => (prev === "date" ? "name" : prev === "name" ? "size" : "date"));
   }, []);
 
   const showStatus = (msg: string) => {
+    if (statusTimerRef.current) {
+      clearTimeout(statusTimerRef.current);
+    }
     setStatusMessage(msg);
-    setTimeout(() => setStatusMessage(null), 2500);
+    statusTimerRef.current = setTimeout(() => {
+      setStatusMessage(null);
+      statusTimerRef.current = null;
+    }, 2500);
   };
 
   const handleRefresh = useCallback(async (e: React.MouseEvent) => {

@@ -575,7 +575,7 @@ unsafe extern "system" fn clipboard_wndproc(
 }
 
 #[cfg(windows)]
-fn spawn_clipboard_listener_thread() {
+fn spawn_clipboard_listener_thread() -> BbqResult<()> {
     std::thread::Builder::new()
         .name("bbq-clipboard-listener".to_string())
         .spawn(|| unsafe {
@@ -626,7 +626,13 @@ fn spawn_clipboard_listener_thread() {
                 let _ = DispatchMessageW(&msg);
             }
         })
-        .expect("Failed to spawn Windows clipboard listener thread");
+        .map_err(|e| {
+            BbqError::Platform(format!(
+                "Failed to spawn Windows clipboard listener thread: {}",
+                e
+            ))
+        })?;
+    Ok(())
 }
 
 #[derive(Clone, Default)]
@@ -648,7 +654,10 @@ impl PlatformClipboard for WindowsClipboard {
         #[cfg(windows)]
         {
             if !self.initialized.swap(true, Ordering::SeqCst) {
-                spawn_clipboard_listener_thread();
+                if let Err(e) = spawn_clipboard_listener_thread() {
+                    self.initialized.store(false, Ordering::SeqCst);
+                    return Err(e);
+                }
             }
         }
         Ok(())

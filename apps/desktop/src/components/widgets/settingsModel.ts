@@ -347,3 +347,133 @@ export function isClipboardLiveSupported(capabilities: PlatformCapabilities | nu
   if (!capabilities) return true;
   return capabilities.clipboardLiveEvents === "supported";
 }
+
+export interface SanitizedDiagnostics {
+  app: {
+    name: string;
+    version: string;
+    buildMode: string;
+  };
+  platform: {
+    os: string;
+    arch: string;
+    displayCount?: number;
+    scaleFactor?: number;
+  };
+  capabilities: Record<string, string>;
+  settingsSummary: {
+    theme: string;
+    accentColor: string;
+    islandDimensions: string;
+    clipboardEnabled: boolean;
+    clipboardMaxEntries: number;
+    clipboardRetentionDays: number;
+    compactModeAuto: boolean;
+    alwaysOnTop: boolean;
+    pinned: boolean;
+    onboardingCompleted: boolean;
+    activeWidgetsCount: number;
+  };
+  storage: {
+    schemaVersion: number;
+    type: string;
+    mode: string;
+  };
+  exportedAt: string;
+}
+
+/**
+ * Generates deterministic, strictly sanitized diagnostic metadata for support / issue reporting.
+ * PRIVACY GUARANTEE:
+ * Must NOT contain clipboard contents, file paths, usernames, home directories, URLs, secrets, tokens,
+ * personal document names, or arbitrary environment variables.
+ */
+export function generateSanitizedDiagnostics(
+  settings: {
+    theme?: string;
+    accent_color?: string;
+    island_width?: number;
+    island_height?: number;
+    clipboard_enabled?: boolean;
+    clipboard_max_entries?: number;
+    clipboard_retention_days?: number;
+    compact_mode_auto?: boolean;
+    always_on_top?: boolean;
+    pinned?: boolean;
+    onboarding_completed?: boolean;
+    disabled_widget_ids?: string[];
+    scale_factor?: number;
+  },
+  capabilities: PlatformCapabilities | null,
+  extra?: {
+    appVersion?: string;
+    displayCount?: number;
+    buildMode?: string;
+    timestamp?: string;
+  }
+): SanitizedDiagnostics {
+  const os = capabilities?.platform ?? (
+    typeof navigator !== "undefined" && navigator.userAgent.includes("Win")
+      ? "windows"
+      : typeof navigator !== "undefined" && navigator.userAgent.includes("Mac")
+      ? "macos"
+      : "linux"
+  );
+
+  const rawCaps: Record<string, string> = capabilities
+    ? {
+        globalHotkey: capabilities.globalHotkey,
+        clipboardLiveEvents: capabilities.clipboardLiveEvents,
+        clipboardHistory: capabilities.clipboardHistory,
+        mediaControl: capabilities.mediaControl,
+        mediaEvents: capabilities.mediaEvents,
+        notifications: capabilities.notifications,
+        displayChangeEvents: capabilities.displayChangeEvents,
+        windowAbsolutePositioning: capabilities.windowAbsolutePositioning,
+      }
+    : {
+        platform: os,
+        status: "unloaded",
+      };
+
+  const disabledSet = new Set(settings.disabled_widget_ids ?? []);
+  const availableDeclared = ["drop", "launcher", "timer", "reminder", "network", "settings"];
+  const activeCount = availableDeclared.filter((id) => !disabledSet.has(id)).length;
+
+  return {
+    app: {
+      name: "BBQ Desktop",
+      version: extra?.appVersion ?? "1.2.0",
+      buildMode: extra?.buildMode ?? "production",
+    },
+    platform: {
+      os,
+      arch:
+        typeof globalThis !== "undefined" && "process" in globalThis
+          ? ((globalThis as unknown as { process?: { arch?: string } }).process?.arch ?? "x86_64")
+          : "x86_64",
+      displayCount: extra?.displayCount ?? 1,
+      scaleFactor: settings.scale_factor ?? 1.0,
+    },
+    capabilities: rawCaps,
+    settingsSummary: {
+      theme: settings.theme ?? "system",
+      accentColor: settings.accent_color ?? "system",
+      islandDimensions: `${settings.island_width ?? DEFAULT_ISLAND_WIDTH}x${settings.island_height ?? DEFAULT_ISLAND_HEIGHT}`,
+      clipboardEnabled: Boolean(settings.clipboard_enabled),
+      clipboardMaxEntries: settings.clipboard_max_entries ?? DEFAULT_CLIPBOARD_CAPACITY,
+      clipboardRetentionDays: settings.clipboard_retention_days ?? DEFAULT_CLIPBOARD_RETENTION_DAYS,
+      compactModeAuto: Boolean(settings.compact_mode_auto),
+      alwaysOnTop: Boolean(settings.always_on_top),
+      pinned: Boolean(settings.pinned),
+      onboardingCompleted: Boolean(settings.onboarding_completed),
+      activeWidgetsCount: activeCount,
+    },
+    storage: {
+      schemaVersion: 1,
+      type: "SQLite 3",
+      mode: "WAL",
+    },
+    exportedAt: extra?.timestamp ?? "2026-01-01T00:00:00.000Z",
+  };
+}
