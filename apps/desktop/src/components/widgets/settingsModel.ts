@@ -3,6 +3,19 @@
  * Pure, side-effect-free domain functions for BBQ v1.3 Milestone 8 Settings & Personalization HUD.
  */
 import type { CapabilityStatus, PlatformCapabilities } from "@bbq/types";
+import { widgetRegistry } from "../../island/widgetRegistry.ts";
+
+export const ACTIVE_HUD_WIDGET_IDS: readonly string[] = [
+  "drop",
+  "files",
+  "clipboard",
+  "media",
+  "system",
+  "launcher",
+  "timer",
+  "reminder",
+  "settings",
+];
 
 export const MIN_ISLAND_WIDTH = 180;
 export const MAX_ISLAND_WIDTH = 640;
@@ -401,6 +414,7 @@ export function generateSanitizedDiagnostics(
     always_on_top?: boolean;
     pinned?: boolean;
     onboarding_completed?: boolean;
+    disabled_widgets?: string[];
     disabled_widget_ids?: string[];
     scale_factor?: number;
   },
@@ -410,6 +424,7 @@ export function generateSanitizedDiagnostics(
     displayCount?: number;
     buildMode?: string;
     timestamp?: string;
+    activeWidgetsCount?: number;
   }
 ): SanitizedDiagnostics {
   const os = capabilities?.platform ?? (
@@ -436,9 +451,27 @@ export function generateSanitizedDiagnostics(
         status: "unloaded",
       };
 
-  const disabledSet = new Set(settings.disabled_widget_ids ?? []);
-  const availableDeclared = ["drop", "launcher", "timer", "reminder", "network", "settings"];
-  const activeCount = availableDeclared.filter((id) => !disabledSet.has(id)).length;
+  const rawDisabled =
+    (settings.disabled_widgets as unknown[] | undefined) ??
+    (settings.disabled_widget_ids as unknown[] | undefined) ??
+    [];
+  const disabledSet = new Set(Array.isArray(rawDisabled) ? (rawDisabled as string[]) : []);
+
+  // Truthfully derive active HUD widgets: query registered non-declared widgets if available,
+  // otherwise fallback to canonical 9 HUD widget IDs.
+  const registeredActive = widgetRegistry
+    .getAll()
+    .filter((w) => !w.isDeclaredOnly && w.lifecycle !== "unavailable");
+
+  const canonicalActiveIds =
+    registeredActive.length > 0
+      ? registeredActive.map((w) => w.id)
+      : ACTIVE_HUD_WIDGET_IDS;
+
+  const activeCount =
+    typeof extra?.activeWidgetsCount === "number"
+      ? extra.activeWidgetsCount
+      : canonicalActiveIds.filter((id) => !disabledSet.has(id)).length;
 
   return {
     app: {

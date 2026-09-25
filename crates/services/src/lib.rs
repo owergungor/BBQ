@@ -1,6 +1,5 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::panic))]
 
-pub mod bookmark;
 pub mod clipboard;
 pub mod display;
 pub mod drop;
@@ -9,7 +8,6 @@ pub mod hotkey;
 pub mod launcher;
 pub mod media;
 pub mod network;
-pub mod notes;
 pub mod notification;
 pub mod registry;
 pub mod reminder;
@@ -21,7 +19,6 @@ pub mod timer;
 pub mod traits;
 pub mod window;
 
-pub use bookmark::{BookmarkItem, BookmarkService, BookmarkServiceTrait};
 pub use clipboard::{ClipboardService, ClipboardServiceTrait};
 pub use display::{DisplayService, DisplayServiceTrait};
 pub use drop::{DropEventSink, DropService, DropServiceTrait};
@@ -30,7 +27,6 @@ pub use hotkey::{HotkeyService, HotkeyServiceEventSink, HotkeyServiceTrait};
 pub use launcher::{LauncherEventSink, LauncherService, LauncherServiceTrait};
 pub use media::{MediaService, MediaServiceTrait};
 pub use network::{NetworkService, NetworkServiceTrait};
-pub use notes::{NotesService, NotesServiceTrait, QuickNote};
 pub use notification::{NotificationService, NotificationServiceTrait};
 pub use registry::ServiceRegistry;
 pub use reminder::{ReminderService, ReminderServiceTrait, MAX_STARTUP_OVERDUE_NOTIFICATIONS};
@@ -124,13 +120,7 @@ pub fn create_service_registry(
     ));
     registry.register(launcher_service);
 
-    // 14. NotesService
-    registry.register(Arc::new(NotesService));
-
-    // 15. BookmarkService
-    registry.register(Arc::new(BookmarkService));
-
-    // 16. DropService
+    // 14. DropService
     let drop_service = Arc::new(DropService::new(
         platform.file(),
         clipboard_service.clone(),
@@ -138,7 +128,7 @@ pub fn create_service_registry(
     ));
     registry.register(drop_service);
 
-    // 17. HotkeyService
+    // 15. HotkeyService
     let hotkey_service = Arc::new(HotkeyService::new(
         platform.hotkey(),
         Some(settings_service.clone()),

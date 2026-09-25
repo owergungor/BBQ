@@ -114,8 +114,6 @@ pub fn run() {
         platform.launcher(),
         Some(launcher_repo),
     ));
-    let notes_service = Arc::new(bbq_services::NotesService);
-    let bookmark_service = Arc::new(bbq_services::BookmarkService);
     let drop_service = Arc::new(DropService::new(
         platform.file(),
         clipboard.clone(),
@@ -140,8 +138,6 @@ pub fn run() {
     services.register(timer_service.clone());
     services.register(file_service.clone());
     services.register(launcher_service.clone());
-    services.register(notes_service);
-    services.register(bookmark_service);
     services.register(drop_service.clone());
     services.register(hotkey_service.clone());
 

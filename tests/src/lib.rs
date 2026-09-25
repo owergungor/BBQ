@@ -29,7 +29,7 @@ mod tests {
 
         // 5. Verify all services registered and have active/sleeping states
         let statuses = registry.get_statuses();
-        assert_eq!(statuses.len(), 17, "Expected 17 registered core services");
+        assert_eq!(statuses.len(), 15, "Expected 15 registered core services");
 
         for status in &statuses {
             assert_ne!(
