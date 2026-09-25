@@ -523,14 +523,6 @@ export const SettingsWidget: React.FC = () => {
               label="Auto-Expand on Incoming Event"
               description="Expand the island when timers fire, media changes, or drop events occur."
             />
-
-            <Switch
-              id="start-login-toggle"
-              checked={settings.start_at_login}
-              onChange={(checked) => handleToggle("start_at_login", checked)}
-              label="Start at Login"
-              description="Launch BBQ automatically in background when system boots."
-            />
           </div>
         )}
 

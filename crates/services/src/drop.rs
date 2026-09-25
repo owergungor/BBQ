@@ -421,6 +421,140 @@ impl DropServiceTrait for DropService {
     }
 }
 
+/// Safely filters and canonicalizes CLI arguments passed to a single-instance invocation,
+/// accepting only valid existing filesystem paths (files or directories), rejecting flags,
+/// arbitrary commands, URLs, and nonexistent paths, and bounding to `MAX_DROP_ITEMS`.
+pub fn filter_cli_paths<P: AsRef<std::path::Path>>(
+    args: &[String],
+    base_dir: Option<P>,
+) -> Vec<String> {
+    if args.is_empty() {
+        return Vec::new();
+    }
+
+    let mut accepted_paths = Vec::new();
+    let mut seen_canonical = HashSet::new();
+
+    // Determine if the first argument is likely the binary invocation itself (argv[0]).
+    let start_idx = if args.len() > 1 {
+        let first = args[0].trim();
+        let first_path = std::path::Path::new(first);
+        let is_binary = first_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(|name| {
+                let lower = name.to_lowercase();
+                lower == "bbq"
+                    || lower == "bbq-desktop"
+                    || lower == "bbq_desktop"
+                    || lower == "app"
+                    || lower == "main"
+            })
+            .unwrap_or(false);
+
+        let matches_current_exe = std::env::current_exe()
+            .ok()
+            .map(|exe| exe == first_path || exe.file_name() == first_path.file_name())
+            .unwrap_or(false);
+
+        if is_binary || matches_current_exe {
+            1
+        } else {
+            0
+        }
+    } else {
+        let first = args[0].trim();
+        let first_path = std::path::Path::new(first);
+        let is_binary = first_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(|name| {
+                let lower = name.to_lowercase();
+                lower == "bbq"
+                    || lower == "bbq-desktop"
+                    || lower == "bbq_desktop"
+                    || lower == "app"
+                    || lower == "main"
+            })
+            .unwrap_or(false);
+
+        let matches_current_exe = std::env::current_exe()
+            .ok()
+            .map(|exe| exe == first_path || exe.file_name() == first_path.file_name())
+            .unwrap_or(false);
+
+        if is_binary || matches_current_exe {
+            return Vec::new();
+        }
+        0
+    };
+
+    for arg in &args[start_idx..] {
+        let trimmed = arg.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // 1. Reject flags and switches (e.g. -f, --flag)
+        if trimmed.starts_with('-') {
+            continue;
+        }
+
+        // 2. Reject arbitrary URLs (http://, https://, ftp://, file://)
+        if trimmed.contains("://")
+            || trimmed.starts_with("http:")
+            || trimmed.starts_with("https:")
+            || trimmed.starts_with("ftp:")
+            || trimmed.starts_with("file:")
+        {
+            continue;
+        }
+
+        // 3. Resolve path relative to base_dir if relative
+        let candidate_path = std::path::Path::new(trimmed);
+        let resolved = if candidate_path.is_relative() {
+            if let Some(ref base) = base_dir {
+                base.as_ref().join(candidate_path)
+            } else {
+                candidate_path.to_path_buf()
+            }
+        } else {
+            candidate_path.to_path_buf()
+        };
+
+        // 4. Must exist on the filesystem
+        if !resolved.exists() {
+            continue;
+        }
+
+        // 5. Must be a file or directory (Drop Shelf supports files and directories)
+        if !resolved.is_file() && !resolved.is_dir() {
+            continue;
+        }
+
+        // 6. Safely canonicalize path to resolve symlinks and '..' traversals
+        let canonical_str = if let Ok(canon) = std::fs::canonicalize(&resolved) {
+            let s = canon.to_string_lossy().to_string();
+            #[cfg(windows)]
+            let s = s.strip_prefix(r"\\?\").unwrap_or(&s).to_string();
+            s
+        } else {
+            resolved.to_string_lossy().to_string()
+        };
+
+        // 7. Deduplicate while preserving order
+        if seen_canonical.insert(canonical_str.clone()) {
+            accepted_paths.push(canonical_str);
+            // 8. Bounded capacity enforcement
+            if accepted_paths.len() >= MAX_DROP_ITEMS {
+                break;
+            }
+        }
+    }
+
+    accepted_paths
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -612,5 +746,150 @@ mod tests {
 
         assert_eq!(result.success_count, 2);
         assert_eq!(result.failure_count, 0);
+    }
+
+    #[test]
+    fn test_filter_cli_paths_valid_file_and_directory() {
+        let temp_dir = std::env::temp_dir().join(format!("bbq_drop_test_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let temp_file = temp_dir.join("test_sample.txt");
+        std::fs::write(&temp_file, "sample content").unwrap();
+
+        let sub_dir = temp_dir.join("subfolder");
+        let _ = std::fs::create_dir_all(&sub_dir);
+
+        let args = vec![
+            temp_file.to_string_lossy().to_string(),
+            sub_dir.to_string_lossy().to_string(),
+        ];
+
+        let filtered = filter_cli_paths(&args, None::<&std::path::Path>);
+        assert_eq!(filtered.len(), 2);
+        assert!(filtered.iter().any(|p| p.contains("test_sample.txt")));
+        assert!(filtered.iter().any(|p| p.contains("subfolder")));
+
+        let _ = std::fs::remove_file(temp_file);
+        let _ = std::fs::remove_dir(sub_dir);
+        let _ = std::fs::remove_dir(temp_dir);
+    }
+
+    #[test]
+    fn test_filter_cli_paths_rejects_nonexistent_and_flags() {
+        let args = vec![
+            "-f".to_string(),
+            "--flag".to_string(),
+            "--minimized".to_string(),
+            "-v".to_string(),
+            "/definitely/nonexistent/file/path/bbq_123456789.xyz".to_string(),
+            "relative/nonexistent/file.txt".to_string(),
+        ];
+
+        let filtered = filter_cli_paths(&args, None::<&std::path::Path>);
+        assert!(
+            filtered.is_empty(),
+            "Flags and nonexistent paths must be rejected"
+        );
+    }
+
+    #[test]
+    fn test_filter_cli_paths_rejects_arbitrary_urls() {
+        let args = vec![
+            "https://malicious.site/script.sh".to_string(),
+            "http://example.com/payload.exe".to_string(),
+            "ftp://files.example.com/archive.zip".to_string(),
+            "file:///etc/passwd".to_string(),
+            "bbq://command/action".to_string(),
+        ];
+
+        let filtered = filter_cli_paths(&args, None::<&std::path::Path>);
+        assert!(filtered.is_empty(), "Arbitrary URLs must be rejected");
+    }
+
+    #[test]
+    fn test_filter_cli_paths_deduplication() {
+        let temp_file =
+            std::env::temp_dir().join(format!("bbq_dedup_test_{}.txt", std::process::id()));
+        std::fs::write(&temp_file, "data").unwrap();
+        let path_str = temp_file.to_string_lossy().to_string();
+
+        let args = vec![path_str.clone(), path_str.clone(), path_str.clone()];
+
+        let filtered = filter_cli_paths(&args, None::<&std::path::Path>);
+        assert_eq!(
+            filtered.len(),
+            1,
+            "Duplicate paths must be deduplicated to exactly one"
+        );
+
+        let _ = std::fs::remove_file(temp_file);
+    }
+
+    #[test]
+    fn test_filter_cli_paths_capacity_bounded() {
+        let temp_dir = std::env::temp_dir().join(format!("bbq_bound_test_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&temp_dir);
+
+        let mut args = Vec::new();
+        let mut created_files = Vec::new();
+        // Create 60 temp files (exceeding MAX_DROP_ITEMS = 50)
+        for i in 0..60 {
+            let f = temp_dir.join(format!("file_{}.txt", i));
+            std::fs::write(&f, "content").unwrap();
+            args.push(f.to_string_lossy().to_string());
+            created_files.push(f);
+        }
+
+        let filtered = filter_cli_paths(&args, None::<&std::path::Path>);
+        assert_eq!(
+            filtered.len(),
+            MAX_DROP_ITEMS,
+            "Capacity must be bounded to MAX_DROP_ITEMS"
+        );
+
+        for f in created_files {
+            let _ = std::fs::remove_file(f);
+        }
+        let _ = std::fs::remove_dir(temp_dir);
+    }
+
+    #[test]
+    fn test_filter_cli_paths_no_shell_execution() {
+        let dangerous_args = vec![
+            "$(calc.exe)".to_string(),
+            "; rm -rf /".to_string(),
+            "| cat /etc/shadow".to_string(),
+            "`whoami`".to_string(),
+            "& notepad.exe".to_string(),
+        ];
+
+        let filtered = filter_cli_paths(&dangerous_args, None::<&std::path::Path>);
+        assert!(
+            filtered.is_empty(),
+            "Shell metacharacters and injected commands must be rejected as nonexistent paths"
+        );
+    }
+
+    #[test]
+    fn test_filter_cli_paths_skips_binary_invocation() {
+        let temp_file =
+            std::env::temp_dir().join(format!("forward_sample_{}.txt", std::process::id()));
+        std::fs::write(&temp_file, "data").unwrap();
+        let valid_str = temp_file.to_string_lossy().to_string();
+
+        // 1. When argv[0] is the binary name and second arg is a file
+        let args_with_bin = vec!["bbq".to_string(), valid_str.clone()];
+        let filtered = filter_cli_paths(&args_with_bin, None::<&std::path::Path>);
+        assert_eq!(filtered.len(), 1);
+        assert!(filtered[0].contains("forward_sample_"));
+
+        // 2. When argv[0] is bbq-desktop.exe with no additional arguments
+        let args_bin_only = vec!["bbq-desktop.exe".to_string()];
+        let filtered_empty = filter_cli_paths(&args_bin_only, None::<&std::path::Path>);
+        assert!(
+            filtered_empty.is_empty(),
+            "Binary invocation without files yields 0 paths"
+        );
+
+        let _ = std::fs::remove_file(temp_file);
     }
 }

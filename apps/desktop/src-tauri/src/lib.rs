@@ -1037,12 +1037,32 @@ pub fn run() {
     services.register(hotkey_service.clone());
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             tracing::info!("Single-instance check triggered: focusing existing BBQ instance");
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.unminimize();
                 let _ = window.show();
                 let _ = window.set_focus();
+            }
+
+            let valid_paths = bbq_services::drop::filter_cli_paths(&args, Some(&cwd));
+            if !valid_paths.is_empty() {
+                tracing::info!(
+                    "Single-instance forwarding {} validated path(s) to Drop Shelf",
+                    valid_paths.len()
+                );
+                let app_handle = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    use bbq_services::DropServiceTrait;
+                    if let Some(state) = app_handle.try_state::<AppState>() {
+                        if let Err(e) = state.drop_service.inspect(&valid_paths).await {
+                            tracing::warn!(
+                                "Failed to forward single-instance paths to Drop Shelf: {}",
+                                e
+                            );
+                        }
+                    }
+                });
             }
         }))
         .manage(AppState {
