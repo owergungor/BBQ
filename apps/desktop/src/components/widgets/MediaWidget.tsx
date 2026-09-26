@@ -5,6 +5,7 @@ import { Icon } from "../common/Icon.tsx";
 import {
   normalizeMediaSession,
   formatTime,
+  calculateInterpolatedPosition,
   extractAmbientColor,
   DEFAULT_AMBIENT_PALETTE,
   type AmbientPalette,
@@ -20,6 +21,7 @@ export const MediaWidget: React.FC = () => {
   const settlingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const meta = useMemo(() => normalizeMediaSession(currentSession), [currentSession]);
+  const [interpolatedMs, setInterpolatedMs] = useState<number>(() => calculateInterpolatedPosition(meta));
 
   // Clean up any pending seek settling timer on unmount
   useEffect(() => {
@@ -40,6 +42,41 @@ export const MediaWidget: React.FC = () => {
   useEffect(() => {
     setArtError(false);
   }, [meta?.albumArt]);
+
+  // Synchronize interpolated position when meta changes (rebased on timeline event, pause, resume, track change)
+  useEffect(() => {
+    setInterpolatedMs(calculateInterpolatedPosition(meta));
+  }, [meta]);
+
+  // Bounded, cancelable one-shot timeout scheduling strictly targeting the next second boundary while actively playing
+  useEffect(() => {
+    if (!meta || !meta.isPlaying || isSeeking || meta.durationMs <= 0) {
+      return;
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let isCancelled = false;
+
+    const scheduleNextTick = () => {
+      if (isCancelled) return;
+      const now = Date.now();
+      setInterpolatedMs(calculateInterpolatedPosition(meta, now));
+
+      // Target the next whole second boundary for energy-efficient, smooth seconds progression
+      const delay = Math.max(100, 1000 - (now % 1000));
+      timeoutId = setTimeout(scheduleNextTick, delay);
+    };
+
+    scheduleNextTick();
+
+    return () => {
+      isCancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+  }, [meta?.id, meta?.title, meta?.positionMs, meta?.lastUpdatedTime, meta?.isPlaying, meta?.durationMs, isSeeking]);
 
   // Ambient color extraction: single-shot per artwork URL change
   useEffect(() => {
@@ -88,11 +125,11 @@ export const MediaWidget: React.FC = () => {
     await bbqCommands.mediaPrevious();
   }, []);
 
-  // Calculate current display position (user drag, settling optimistic position, or event-driven metadata)
+  // Calculate current display position (user drag, settling optimistic position, or monotonic timeline position)
   const currentPosMs = useMemo(() => {
     if (seekPosMs !== null) return seekPosMs;
-    return meta ? meta.positionMs : 0;
-  }, [seekPosMs, meta]);
+    return interpolatedMs;
+  }, [seekPosMs, interpolatedMs]);
 
   const currentPercent = useMemo(() => {
     if (!meta || meta.durationMs <= 0) return 0;

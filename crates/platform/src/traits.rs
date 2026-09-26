@@ -165,6 +165,10 @@ pub trait PlatformFile: Send + Sync {
     async fn validate_path(&self, path: &str) -> BbqResult<FileMetadataInfo>;
     async fn open(&self, path: &str) -> BbqResult<()>;
     async fn reveal(&self, path: &str) -> BbqResult<()>;
+    async fn start_drag(&self, paths: &[String]) -> BbqResult<()>;
+    fn can_drag_out(&self) -> bool {
+        false
+    }
 }
 
 pub use crate::hotkey::{HotkeyCapabilities, HotkeyDefinition, HotkeyEventSink, PlatformHotkey};

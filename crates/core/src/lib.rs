@@ -27,8 +27,9 @@ pub use settings::{
 };
 
 pub use geometry::{
-    calculate_island_geometry, DisplayCapabilities, DisplayGeometrySupport, DisplayInfo,
-    DisplayRect, IslandAnchor, IslandGeometry, IslandLayoutState, WidgetDimensions,
+    calculate_island_geometry, clamp_geometry_to_display, ContentPolicy, DisplayCapabilities,
+    DisplayGeometrySupport, DisplayInfo, DisplayRect, IslandAnchor, IslandGeometry,
+    IslandLayoutState, WidgetDimensions, WidgetSizingConstraints, WidgetSizingContract,
     DEFAULT_DROP_HEIGHT, DEFAULT_DROP_WIDTH, DEFAULT_HOVER_HEIGHT, DEFAULT_HOVER_WIDTH,
     DEFAULT_IDLE_HEIGHT, DEFAULT_IDLE_WIDTH, DEFAULT_TOP_MARGIN, MAX_ISLAND_HEIGHT,
     MAX_ISLAND_WIDTH, MIN_ISLAND_HEIGHT, MIN_ISLAND_WIDTH,

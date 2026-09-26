@@ -713,19 +713,113 @@ use windows::Foundation::TypedEventHandler;
 use windows::Media::Control::{
     CurrentSessionChangedEventArgs, GlobalSystemMediaTransportControlsSession,
     GlobalSystemMediaTransportControlsSessionManager,
+    GlobalSystemMediaTransportControlsSessionMediaProperties,
     GlobalSystemMediaTransportControlsSessionPlaybackStatus, MediaPropertiesChangedEventArgs,
     PlaybackInfoChangedEventArgs, TimelinePropertiesChangedEventArgs,
 };
 
+#[cfg(windows)]
+struct ActiveSessionGuard {
+    session: GlobalSystemMediaTransportControlsSession,
+    prop_token: i64,
+    playback_token: i64,
+    timeline_token: i64,
+}
+
+#[cfg(windows)]
+impl Drop for ActiveSessionGuard {
+    fn drop(&mut self) {
+        let _ = self.session.RemoveMediaPropertiesChanged(self.prop_token);
+        let _ = self.session.RemovePlaybackInfoChanged(self.playback_token);
+        let _ = self
+            .session
+            .RemoveTimelinePropertiesChanged(self.timeline_token);
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct WindowsMedia {
     pub subscribers: Arc<Mutex<Vec<MediaEventSink>>>,
+    #[cfg(windows)]
+    active_guard: Arc<Mutex<Option<ActiveSessionGuard>>>,
 }
 
 impl std::fmt::Debug for WindowsMedia {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WindowsMedia").finish()
     }
+}
+
+#[cfg(windows)]
+fn base64_encode(bytes: &[u8]) -> String {
+    const CHARSET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut result = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = chunk[0] as usize;
+        let b1 = if chunk.len() > 1 {
+            chunk[1] as usize
+        } else {
+            0
+        };
+        let b2 = if chunk.len() > 2 {
+            chunk[2] as usize
+        } else {
+            0
+        };
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        result.push(CHARSET[(n >> 18) & 63] as char);
+        result.push(CHARSET[(n >> 12) & 63] as char);
+        if chunk.len() > 1 {
+            result.push(CHARSET[(n >> 6) & 63] as char);
+        } else {
+            result.push('=');
+        }
+        if chunk.len() > 2 {
+            result.push(CHARSET[n & 63] as char);
+        } else {
+            result.push('=');
+        }
+    }
+    result
+}
+
+#[cfg(windows)]
+fn extract_artwork(
+    props: &GlobalSystemMediaTransportControlsSessionMediaProperties,
+) -> Option<String> {
+    const MAX_THUMBNAIL_BYTES: u32 = 512 * 1024; // 512 KB memory bound
+    if let Ok(thumb_ref) = props.Thumbnail() {
+        if let Ok(op) = thumb_ref.OpenReadAsync() {
+            if let Ok(stream) = op.get() {
+                if let Ok(size) = stream.Size() {
+                    if size > 0 && size <= MAX_THUMBNAIL_BYTES as u64 {
+                        let size_u32 = size as u32;
+                        if let Ok(reader) =
+                            windows::Storage::Streams::DataReader::CreateDataReader(&stream)
+                        {
+                            if reader
+                                .LoadAsync(size_u32)
+                                .and_then(|load_op| load_op.get())
+                                .is_ok()
+                            {
+                                let mut buffer = vec![0u8; size_u32 as usize];
+                                if reader.ReadBytes(&mut buffer).is_ok() {
+                                    let b64 = base64_encode(&buffer);
+                                    let mime = if buffer.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+                                        "image/png"
+                                    } else {
+                                        "image/jpeg"
+                                    };
+                                    return Some(format!("data:{};base64,{}", mime, b64));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 #[cfg(windows)]
@@ -771,18 +865,20 @@ fn extract_session_from_smtc(
         MediaCapabilities::default()
     };
 
-    let (title, artist, album) = if let Ok(props_op) = session.TryGetMediaPropertiesAsync() {
-        if let Ok(props) = props_op.get() {
-            let t = props.Title().ok().map(|s| s.to_string());
-            let a = props.Artist().ok().map(|s| s.to_string());
-            let alb = props.AlbumTitle().ok().map(|s| s.to_string());
-            (t, a, alb)
+    let (title, artist, album, album_art) =
+        if let Ok(props_op) = session.TryGetMediaPropertiesAsync() {
+            if let Ok(props) = props_op.get() {
+                let t = props.Title().ok().map(|s| s.to_string());
+                let a = props.Artist().ok().map(|s| s.to_string());
+                let alb = props.AlbumTitle().ok().map(|s| s.to_string());
+                let art = extract_artwork(&props);
+                (t, a, alb, art)
+            } else {
+                (None, None, None, None)
+            }
         } else {
-            (None, None, None)
-        }
-    } else {
-        (None, None, None)
-    };
+            (None, None, None, None)
+        };
 
     let (duration_ms, position_ms) = if let Ok(timeline) = session.GetTimelineProperties() {
         let dur = timeline
@@ -798,15 +894,21 @@ fn extract_session_from_smtc(
         (None, None)
     };
 
+    let last_updated_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_millis() as u64);
+
     Some(MediaSession {
         id,
         state,
         title,
         artist,
         album,
-        album_art: None,
+        album_art,
         duration_ms,
         position_ms,
+        last_updated_time,
         volume: None,
         source,
         capabilities,
@@ -817,57 +919,82 @@ fn extract_session_from_smtc(
 fn attach_session_listeners(
     session: &GlobalSystemMediaTransportControlsSession,
     subs: Arc<Mutex<Vec<MediaEventSink>>>,
+    guard_slot: Arc<Mutex<Option<ActiveSessionGuard>>>,
 ) {
+    // Drop existing guard to ensure deterministic deregistration before registering new handlers
+    if let Ok(mut g) = guard_slot.lock() {
+        *g = None;
+    }
+
     let subs_props = subs.clone();
-    let _ = session.MediaPropertiesChanged(&TypedEventHandler::<
-        GlobalSystemMediaTransportControlsSession,
-        MediaPropertiesChangedEventArgs,
-    >::new(move |sender, _args| {
-        if let Some(s) = sender.as_ref() {
-            if let Some(media_session) = extract_session_from_smtc(s) {
-                if let Ok(listeners) = subs_props.lock() {
-                    for l in listeners.iter() {
-                        l(MediaEvent::SessionChanged(Some(media_session.clone())));
+    let prop_token = session
+        .MediaPropertiesChanged(&TypedEventHandler::<
+            GlobalSystemMediaTransportControlsSession,
+            MediaPropertiesChangedEventArgs,
+        >::new(move |sender, _args| {
+            if let Some(s) = sender.as_ref() {
+                if let Some(media_session) = extract_session_from_smtc(s) {
+                    if let Ok(listeners) = subs_props.lock() {
+                        for l in listeners.iter() {
+                            l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                        }
                     }
                 }
             }
-        }
-        Ok(())
-    }));
+            Ok(())
+        }))
+        .ok();
 
     let subs_playback = subs.clone();
-    let _ = session.PlaybackInfoChanged(&TypedEventHandler::<
-        GlobalSystemMediaTransportControlsSession,
-        PlaybackInfoChangedEventArgs,
-    >::new(move |sender, _args| {
-        if let Some(s) = sender.as_ref() {
-            if let Some(media_session) = extract_session_from_smtc(s) {
-                if let Ok(listeners) = subs_playback.lock() {
-                    for l in listeners.iter() {
-                        l(MediaEvent::SessionChanged(Some(media_session.clone())));
+    let playback_token = session
+        .PlaybackInfoChanged(&TypedEventHandler::<
+            GlobalSystemMediaTransportControlsSession,
+            PlaybackInfoChangedEventArgs,
+        >::new(move |sender, _args| {
+            if let Some(s) = sender.as_ref() {
+                if let Some(media_session) = extract_session_from_smtc(s) {
+                    if let Ok(listeners) = subs_playback.lock() {
+                        for l in listeners.iter() {
+                            l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                        }
                     }
                 }
             }
-        }
-        Ok(())
-    }));
+            Ok(())
+        }))
+        .ok();
 
     let subs_timeline = subs;
-    let _ = session.TimelinePropertiesChanged(&TypedEventHandler::<
-        GlobalSystemMediaTransportControlsSession,
-        TimelinePropertiesChangedEventArgs,
-    >::new(move |sender, _args| {
-        if let Some(s) = sender.as_ref() {
-            if let Some(media_session) = extract_session_from_smtc(s) {
-                if let Ok(listeners) = subs_timeline.lock() {
-                    for l in listeners.iter() {
-                        l(MediaEvent::SessionChanged(Some(media_session.clone())));
+    let timeline_token = session
+        .TimelinePropertiesChanged(&TypedEventHandler::<
+            GlobalSystemMediaTransportControlsSession,
+            TimelinePropertiesChangedEventArgs,
+        >::new(move |sender, _args| {
+            if let Some(s) = sender.as_ref() {
+                if let Some(media_session) = extract_session_from_smtc(s) {
+                    if let Ok(listeners) = subs_timeline.lock() {
+                        for l in listeners.iter() {
+                            l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                        }
                     }
                 }
             }
+            Ok(())
+        }))
+        .ok();
+
+    if let (Some(prop_token), Some(playback_token), Some(timeline_token)) =
+        (prop_token, playback_token, timeline_token)
+    {
+        if let Ok(mut g) = guard_slot.lock() {
+            *g = Some(ActiveSessionGuard {
+                session: session.clone(),
+                prop_token,
+                playback_token,
+                timeline_token,
+            });
         }
-        Ok(())
-    }));
+    }
 }
 
 #[async_trait]
@@ -876,11 +1003,12 @@ impl PlatformMedia for WindowsMedia {
         #[cfg(windows)]
         {
             let subs = self.subscribers.clone();
+            let guard = self.active_guard.clone();
             std::thread::spawn(move || {
                 if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
                     if let Ok(manager) = op.get() {
                         if let Ok(session) = manager.GetCurrentSession() {
-                            attach_session_listeners(&session, subs.clone());
+                            attach_session_listeners(&session, subs.clone(), guard.clone());
                             if let Some(media_session) = extract_session_from_smtc(&session) {
                                 if let Ok(listeners) = subs.lock() {
                                     for l in listeners.iter() {
@@ -891,6 +1019,7 @@ impl PlatformMedia for WindowsMedia {
                         }
 
                         let subs_inner = subs;
+                        let guard_inner = guard;
                         let _ = manager.CurrentSessionChanged(&TypedEventHandler::<
                             GlobalSystemMediaTransportControlsSessionManager,
                             CurrentSessionChangedEventArgs,
@@ -898,7 +1027,11 @@ impl PlatformMedia for WindowsMedia {
                             move |sender, _args| {
                                 if let Ok(mgr) = sender.ok() {
                                     if let Ok(session) = mgr.GetCurrentSession() {
-                                        attach_session_listeners(&session, subs_inner.clone());
+                                        attach_session_listeners(
+                                            &session,
+                                            subs_inner.clone(),
+                                            guard_inner.clone(),
+                                        );
                                         if let Some(media_session) =
                                             extract_session_from_smtc(&session)
                                         {
@@ -910,9 +1043,14 @@ impl PlatformMedia for WindowsMedia {
                                                 }
                                             }
                                         }
-                                    } else if let Ok(listeners) = subs_inner.lock() {
-                                        for l in listeners.iter() {
-                                            l(MediaEvent::SessionChanged(None));
+                                    } else {
+                                        if let Ok(mut g) = guard_inner.lock() {
+                                            *g = None;
+                                        }
+                                        if let Ok(listeners) = subs_inner.lock() {
+                                            for l in listeners.iter() {
+                                                l(MediaEvent::SessionChanged(None));
+                                            }
                                         }
                                     }
                                 }
@@ -971,104 +1109,208 @@ impl PlatformMedia for WindowsMedia {
     async fn play(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            let _ = tokio::task::spawn_blocking(|| {
-                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                    if let Ok(manager) = op.get() {
-                        if let Ok(session) = manager.GetCurrentSession() {
-                            let _ = session.TryPlayAsync();
-                        }
-                    }
+            tokio::task::spawn_blocking(|| {
+                let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
+                    |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
+                )?;
+                let manager = op.get().map_err(|e| {
+                    BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
+                })?;
+                let session = manager
+                    .GetCurrentSession()
+                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                let play_op = session.TryPlayAsync().map_err(|e| {
+                    BbqError::Platform(format!("TryPlayAsync invocation failed: {}", e))
+                })?;
+                let ok = play_op.get().map_err(|e| {
+                    BbqError::Platform(format!("TryPlayAsync completion failed: {}", e))
+                })?;
+                if !ok {
+                    return Err(BbqError::Platform(
+                        "TryPlayAsync rejected by media player".to_string(),
+                    ));
                 }
+                Ok(())
             })
-            .await;
+            .await
+            .map_err(|e| BbqError::Platform(format!("Play task join failed: {}", e)))?
         }
+        #[cfg(not(windows))]
         Ok(())
     }
 
     async fn pause(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            let _ = tokio::task::spawn_blocking(|| {
-                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                    if let Ok(manager) = op.get() {
-                        if let Ok(session) = manager.GetCurrentSession() {
-                            let _ = session.TryPauseAsync();
-                        }
-                    }
+            tokio::task::spawn_blocking(|| {
+                let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
+                    |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
+                )?;
+                let manager = op.get().map_err(|e| {
+                    BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
+                })?;
+                let session = manager
+                    .GetCurrentSession()
+                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                let pause_op = session.TryPauseAsync().map_err(|e| {
+                    BbqError::Platform(format!("TryPauseAsync invocation failed: {}", e))
+                })?;
+                let ok = pause_op.get().map_err(|e| {
+                    BbqError::Platform(format!("TryPauseAsync completion failed: {}", e))
+                })?;
+                if !ok {
+                    return Err(BbqError::Platform(
+                        "TryPauseAsync rejected by media player".to_string(),
+                    ));
                 }
+                Ok(())
             })
-            .await;
+            .await
+            .map_err(|e| BbqError::Platform(format!("Pause task join failed: {}", e)))?
         }
+        #[cfg(not(windows))]
         Ok(())
     }
 
     async fn toggle_play_pause(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            let _ = tokio::task::spawn_blocking(|| {
-                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                    if let Ok(manager) = op.get() {
-                        if let Ok(session) = manager.GetCurrentSession() {
-                            let _ = session.TryTogglePlayPauseAsync();
-                        }
-                    }
+            tokio::task::spawn_blocking(|| {
+                let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
+                    |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
+                )?;
+                let manager = op.get().map_err(|e| {
+                    BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
+                })?;
+                let session = manager
+                    .GetCurrentSession()
+                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                let toggle_op = session.TryTogglePlayPauseAsync().map_err(|e| {
+                    BbqError::Platform(format!("TryTogglePlayPauseAsync invocation failed: {}", e))
+                })?;
+                let ok = toggle_op.get().map_err(|e| {
+                    BbqError::Platform(format!("TryTogglePlayPauseAsync completion failed: {}", e))
+                })?;
+                if !ok {
+                    return Err(BbqError::Platform(
+                        "TryTogglePlayPauseAsync rejected by media player".to_string(),
+                    ));
                 }
+                Ok(())
             })
-            .await;
+            .await
+            .map_err(|e| BbqError::Platform(format!("Toggle play/pause task join failed: {}", e)))?
         }
+        #[cfg(not(windows))]
         Ok(())
     }
 
     async fn next(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            let _ = tokio::task::spawn_blocking(|| {
-                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                    if let Ok(manager) = op.get() {
-                        if let Ok(session) = manager.GetCurrentSession() {
-                            let _ = session.TrySkipNextAsync();
-                        }
-                    }
+            tokio::task::spawn_blocking(|| {
+                let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
+                    |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
+                )?;
+                let manager = op.get().map_err(|e| {
+                    BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
+                })?;
+                let session = manager
+                    .GetCurrentSession()
+                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                let next_op = session.TrySkipNextAsync().map_err(|e| {
+                    BbqError::Platform(format!("TrySkipNextAsync invocation failed: {}", e))
+                })?;
+                let ok = next_op.get().map_err(|e| {
+                    BbqError::Platform(format!("TrySkipNextAsync completion failed: {}", e))
+                })?;
+                if !ok {
+                    return Err(BbqError::Platform(
+                        "TrySkipNextAsync rejected by media player".to_string(),
+                    ));
                 }
+                Ok(())
             })
-            .await;
+            .await
+            .map_err(|e| BbqError::Platform(format!("Next task join failed: {}", e)))?
         }
+        #[cfg(not(windows))]
         Ok(())
     }
 
     async fn previous(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            let _ = tokio::task::spawn_blocking(|| {
-                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                    if let Ok(manager) = op.get() {
-                        if let Ok(session) = manager.GetCurrentSession() {
-                            let _ = session.TrySkipPreviousAsync();
-                        }
-                    }
+            tokio::task::spawn_blocking(|| {
+                let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
+                    |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
+                )?;
+                let manager = op.get().map_err(|e| {
+                    BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
+                })?;
+                let session = manager
+                    .GetCurrentSession()
+                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                let prev_op = session.TrySkipPreviousAsync().map_err(|e| {
+                    BbqError::Platform(format!("TrySkipPreviousAsync invocation failed: {}", e))
+                })?;
+                let ok = prev_op.get().map_err(|e| {
+                    BbqError::Platform(format!("TrySkipPreviousAsync completion failed: {}", e))
+                })?;
+                if !ok {
+                    return Err(BbqError::Platform(
+                        "TrySkipPreviousAsync rejected by media player".to_string(),
+                    ));
                 }
+                Ok(())
             })
-            .await;
+            .await
+            .map_err(|e| BbqError::Platform(format!("Previous task join failed: {}", e)))?
         }
+        #[cfg(not(windows))]
         Ok(())
     }
 
     async fn seek(&self, position_ms: u64) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            let _ = tokio::task::spawn_blocking(move || {
-                if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
-                    if let Ok(manager) = op.get() {
-                        if let Ok(session) = manager.GetCurrentSession() {
-                            // WinRT expects 100-nanosecond units (1 ms = 10,000 ticks)
-                            let pos_100ns = (position_ms as i64).saturating_mul(10_000);
-                            let _ = session.TryChangePlaybackPositionAsync(pos_100ns);
-                        }
-                    }
+            tokio::task::spawn_blocking(move || {
+                let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
+                    |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
+                )?;
+                let manager = op.get().map_err(|e| {
+                    BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
+                })?;
+                let session = manager
+                    .GetCurrentSession()
+                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                // WinRT expects 100-nanosecond units (1 ms = 10,000 ticks)
+                let pos_100ns = (position_ms as i64).saturating_mul(10_000);
+                let seek_op = session
+                    .TryChangePlaybackPositionAsync(pos_100ns)
+                    .map_err(|e| {
+                        BbqError::Platform(format!(
+                            "TryChangePlaybackPositionAsync invocation failed: {}",
+                            e
+                        ))
+                    })?;
+                let ok = seek_op.get().map_err(|e| {
+                    BbqError::Platform(format!(
+                        "TryChangePlaybackPositionAsync completion failed: {}",
+                        e
+                    ))
+                })?;
+                if !ok {
+                    return Err(BbqError::Platform(
+                        "TryChangePlaybackPositionAsync rejected by media player".to_string(),
+                    ));
                 }
+                Ok(())
             })
-            .await;
+            .await
+            .map_err(|e| BbqError::Platform(format!("Seek task join failed: {}", e)))?
         }
+        #[cfg(not(windows))]
         Ok(())
     }
 }
@@ -1238,47 +1480,52 @@ impl WindowsSystem {
         {
             use windows::Win32::Foundation::FILETIME;
             use windows::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};
-            use windows::Win32::System::Threading::GetSystemTimes;
+            use windows::Win32::System::Threading::{GetCurrentProcess, GetProcessTimes};
 
             let mut sys_info = SYSTEM_INFO::default();
             unsafe { GetSystemInfo(&mut sys_info) };
-            let core_count = sys_info.dwNumberOfProcessors;
+            let core_count = sys_info.dwNumberOfProcessors.max(1);
 
-            let mut idle = FILETIME::default();
+            let mut creation = FILETIME::default();
+            let mut exit = FILETIME::default();
             let mut kernel = FILETIME::default();
             let mut user = FILETIME::default();
 
-            if unsafe { GetSystemTimes(Some(&mut idle), Some(&mut kernel), Some(&mut user)) }
+            let handle = unsafe { GetCurrentProcess() };
+            if unsafe { GetProcessTimes(handle, &mut creation, &mut exit, &mut kernel, &mut user) }
                 .is_ok()
             {
                 let to_u64 =
                     |ft: FILETIME| ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64);
-                let idle_time = to_u64(idle);
                 let kernel_time = to_u64(kernel);
                 let user_time = to_u64(user);
-                let total_time = kernel_time.saturating_add(user_time);
+                let process_time = kernel_time.saturating_add(user_time);
 
                 use std::sync::Mutex;
-                static PREV_CPU: Mutex<Option<(u64, u64, std::time::Instant)>> = Mutex::new(None);
+                static PREV_PROCESS_CPU: Mutex<Option<(u64, std::time::Instant)>> =
+                    Mutex::new(None);
 
                 let now = std::time::Instant::now();
-                let usage_percent = if let Ok(mut lock) = PREV_CPU.lock() {
-                    let pct = if let Some((p_idle, p_total, p_inst)) = *lock {
-                        let idle_delta = idle_time.saturating_sub(p_idle);
-                        let total_delta = total_time.saturating_sub(p_total);
-                        let elapsed = now.duration_since(p_inst);
+                let usage_percent = if let Ok(mut lock) = PREV_PROCESS_CPU.lock() {
+                    let pct = if let Some((prev_process_time, prev_inst)) = *lock {
+                        let proc_delta = process_time.saturating_sub(prev_process_time);
+                        let elapsed = now.duration_since(prev_inst);
+                        let elapsed_100ns = (elapsed.as_nanos() / 100) as u64;
 
-                        if total_delta > 0 && elapsed.as_millis() >= 80 {
-                            let busy_delta = total_delta.saturating_sub(idle_delta);
-                            (busy_delta as f64 / total_delta as f64 * 100.0).clamp(0.0, 100.0)
+                        // Total available capacity across all CPU cores in 100-nanosecond units
+                        let total_capacity = elapsed_100ns.saturating_mul(core_count as u64);
+
+                        if total_capacity > 0 && elapsed.as_millis() >= 80 {
+                            ((proc_delta as f64 / total_capacity as f64) * 100.0).clamp(0.0, 100.0)
                                 as f32
                         } else {
                             0.0
                         }
                     } else {
+                        // First sample: graceful baseline
                         0.0
                     };
-                    *lock = Some((idle_time, total_time, now));
+                    *lock = Some((process_time, now));
                     pct
                 } else {
                     0.0
@@ -1537,6 +1784,141 @@ impl PlatformFile for WindowsFile {
             .spawn()
             .map_err(|e| BbqError::Platform(format!("Failed to reveal file: {}", e)))?;
         Ok(())
+    }
+
+    fn can_drag_out(&self) -> bool {
+        true
+    }
+
+    async fn start_drag(&self, raw_paths: &[String]) -> BbqResult<()> {
+        #[cfg(windows)]
+        {
+            if raw_paths.is_empty() {
+                return Err(BbqError::Validation(
+                    "No paths provided for drag-out".to_string(),
+                ));
+            }
+
+            // 1. Strict validation, existence check, and canonicalization (rejects missing, unsafe)
+            let mut canonical_paths = Vec::with_capacity(raw_paths.len());
+            for p_str in raw_paths {
+                if p_str.contains('\0') {
+                    return Err(BbqError::Validation(format!(
+                        "Invalid null byte in path: {}",
+                        p_str
+                    )));
+                }
+                let p = std::path::Path::new(p_str);
+                if !p.exists() {
+                    return Err(BbqError::Validation(format!(
+                        "File does not exist: {}",
+                        p_str
+                    )));
+                }
+                let canonical = std::fs::canonicalize(p).map_err(|e| {
+                    BbqError::Validation(format!("Cannot canonicalize path '{}': {}", p_str, e))
+                })?;
+                let s = canonical.to_string_lossy().to_string();
+                let clean = if let Some(stripped) = s.strip_prefix(r"\\?\") {
+                    stripped.to_string()
+                } else {
+                    s
+                };
+                canonical_paths.push(clean);
+            }
+
+            // 2. Offload OLE drag-out to blocking native thread so UI stays 100% responsive
+            tokio::task::spawn_blocking(move || {
+                use std::os::windows::ffi::OsStrExt;
+                use windows::core::PCWSTR;
+                use windows::Win32::System::Com::IDataObject;
+                use windows::Win32::System::Ole::{
+                    OleInitialize, OleUninitialize, DROPEFFECT_COPY, DROPEFFECT_LINK,
+                };
+                use windows::Win32::UI::Shell::{
+                    BHID_DataObject, Common::ITEMIDLIST, ILFree, IShellItem, IShellItemArray,
+                    SHCreateItemFromParsingName, SHCreateShellItemArrayFromIDLists, SHDoDragDrop,
+                    SHGetIDListFromObject,
+                };
+
+                unsafe {
+                    let _ = OleInitialize(None);
+
+                    let data_obj_res = (|| -> windows::core::Result<IDataObject> {
+                        if canonical_paths.len() == 1 {
+                            let wide: Vec<u16> = std::ffi::OsStr::new(&canonical_paths[0])
+                                .encode_wide()
+                                .chain(std::iter::once(0))
+                                .collect();
+                            let item: IShellItem =
+                                SHCreateItemFromParsingName(PCWSTR(wide.as_ptr()), None)?;
+                            item.BindToHandler(None, &BHID_DataObject)
+                        } else {
+                            let mut pidls: Vec<*mut ITEMIDLIST> =
+                                Vec::with_capacity(canonical_paths.len());
+                            for path_str in &canonical_paths {
+                                let wide: Vec<u16> = std::ffi::OsStr::new(path_str)
+                                    .encode_wide()
+                                    .chain(std::iter::once(0))
+                                    .collect();
+                                if let Ok(item) = SHCreateItemFromParsingName::<_, _, IShellItem>(
+                                    PCWSTR(wide.as_ptr()),
+                                    None,
+                                ) {
+                                    if let Ok(pidl) = SHGetIDListFromObject(&item) {
+                                        pidls.push(pidl);
+                                    }
+                                }
+                            }
+
+                            if pidls.is_empty() {
+                                return Err(windows::core::Error::from_hresult(
+                                    windows::Win32::Foundation::E_FAIL,
+                                ));
+                            }
+
+                            let pidl_consts: Vec<*const ITEMIDLIST> =
+                                pidls.iter().map(|p| *p as *const ITEMIDLIST).collect();
+                            let item_array_res = SHCreateShellItemArrayFromIDLists(&pidl_consts);
+
+                            // Free all allocated PIDLs
+                            for pidl in pidls {
+                                ILFree(Some(pidl));
+                            }
+
+                            let item_array: IShellItemArray = item_array_res?;
+                            item_array.BindToHandler(None, &BHID_DataObject)
+                        }
+                    })();
+
+                    match data_obj_res {
+                        Ok(data_obj) => {
+                            let _ = SHDoDragDrop(
+                                None,
+                                &data_obj,
+                                None,
+                                DROPEFFECT_COPY | DROPEFFECT_LINK,
+                            );
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to bind Shell DataObject: {}", e);
+                        }
+                    }
+
+                    OleUninitialize();
+                    Ok(())
+                }
+            })
+            .await
+            .map_err(|e| BbqError::Platform(format!("Drag task join failed: {}", e)))?
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = raw_paths;
+            Err(BbqError::NotSupported(
+                "Native drag-out is not supported on this platform".to_string(),
+            ))
+        }
     }
 }
 

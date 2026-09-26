@@ -654,14 +654,29 @@ impl PlatformMedia for MockMedia {
     }
 
     async fn next(&self) -> BbqResult<()> {
+        if !*self.is_available.lock().unwrap_or_else(|e| e.into_inner()) {
+            return Err(BbqError::Platform(
+                "Simulated media subsystem unavailable".to_string(),
+            ));
+        }
         Ok(())
     }
 
     async fn previous(&self) -> BbqResult<()> {
+        if !*self.is_available.lock().unwrap_or_else(|e| e.into_inner()) {
+            return Err(BbqError::Platform(
+                "Simulated media subsystem unavailable".to_string(),
+            ));
+        }
         Ok(())
     }
 
     async fn seek(&self, position_ms: u64) -> BbqResult<()> {
+        if !*self.is_available.lock().unwrap_or_else(|e| e.into_inner()) {
+            return Err(BbqError::Platform(
+                "Simulated media subsystem unavailable".to_string(),
+            ));
+        }
         if let Ok(mut s) = self.session.lock() {
             if let Some(ref mut session) = *s {
                 session.position_ms = Some(position_ms);
@@ -958,12 +973,27 @@ impl PlatformNetwork for MockNetwork {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct MockFile {
     pub files: Arc<Mutex<std::collections::HashMap<String, FileMetadataInfo>>>,
     pub opened: Arc<Mutex<Vec<String>>>,
     pub revealed: Arc<Mutex<Vec<String>>>,
+    pub dragged: Arc<Mutex<Vec<Vec<String>>>>,
     pub fail_operations: Arc<Mutex<bool>>,
+    pub can_drag_out_supported: Arc<Mutex<bool>>,
+}
+
+impl Default for MockFile {
+    fn default() -> Self {
+        Self {
+            files: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            opened: Arc::new(Mutex::new(Vec::new())),
+            revealed: Arc::new(Mutex::new(Vec::new())),
+            dragged: Arc::new(Mutex::new(Vec::new())),
+            fail_operations: Arc::new(Mutex::new(false)),
+            can_drag_out_supported: Arc::new(Mutex::new(true)),
+        }
+    }
 }
 
 impl MockFile {
@@ -974,6 +1004,12 @@ impl MockFile {
     pub fn set_fail_operations(&self, fail: bool) {
         if let Ok(mut f) = self.fail_operations.lock() {
             *f = fail;
+        }
+    }
+
+    pub fn set_can_drag_out(&self, can: bool) {
+        if let Ok(mut c) = self.can_drag_out_supported.lock() {
+            *c = can;
         }
     }
 
@@ -994,7 +1030,8 @@ impl PlatformFile for MockFile {
         if let Some(info) = files.get(path) {
             Ok(info.clone())
         } else {
-            if path.contains("nonexistent") || path.contains("invalid") {
+            if path.contains("nonexistent") || path.contains("invalid") || path.contains("missing")
+            {
                 return Err(BbqError::Validation(format!(
                     "File does not exist or is invalid: {}",
                     path
@@ -1050,6 +1087,45 @@ impl PlatformFile for MockFile {
         }
         if let Ok(mut revealed) = self.revealed.lock() {
             revealed.push(path.to_string());
+        }
+        Ok(())
+    }
+
+    fn can_drag_out(&self) -> bool {
+        *self
+            .can_drag_out_supported
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+    }
+
+    async fn start_drag(&self, paths: &[String]) -> BbqResult<()> {
+        if *self
+            .fail_operations
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
+            return Err(BbqError::Platform(
+                "Simulated drag operation failure".to_string(),
+            ));
+        }
+        if paths.is_empty() {
+            return Err(BbqError::Validation(
+                "No paths provided for drag-out".to_string(),
+            ));
+        }
+        for p in paths {
+            if p.contains('\0') {
+                return Err(BbqError::Validation(format!(
+                    "Invalid null byte in path: {}",
+                    p
+                )));
+            }
+            if p.contains("nonexistent") || p.contains("missing") {
+                return Err(BbqError::Validation(format!("File does not exist: {}", p)));
+            }
+        }
+        if let Ok(mut dragged) = self.dragged.lock() {
+            dragged.push(paths.to_vec());
         }
         Ok(())
     }

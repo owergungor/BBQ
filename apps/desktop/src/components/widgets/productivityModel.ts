@@ -201,6 +201,203 @@ export function parseAndValidateCustomMinutes(
   return { valid: true, durationMs: ms, minutes: mins };
 }
 
+/**
+ * Formats milliseconds into clean MM:SS.SS (minutes:seconds.hundredths) for stopwatch display.
+ */
+export function formatStopwatchDisplay(ms: number): string {
+  if (typeof ms !== "number" || isNaN(ms) || ms < 0) {
+    return "00:00.00";
+  }
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const hundredths = Math.floor((ms % 1000) / 10);
+
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  const cs = String(hundredths).padStart(2, "0");
+
+  return `${mm}:${ss}.${cs}`;
+}
+
+export interface CountdownValidationResult {
+  valid: boolean;
+  durationMs: number;
+  minutes: number;
+  seconds: number;
+  reason?: string;
+}
+
+/**
+ * Validates separate countdown minutes (0..1440) and seconds (0..59).
+ * 0:0 cannot start.
+ */
+export function parseAndValidateCountdown(
+  minutesInput: string | number | null | undefined,
+  secondsInput: string | number | null | undefined
+): CountdownValidationResult {
+  const mRaw =
+    minutesInput === null || minutesInput === undefined || String(minutesInput).trim() === ""
+      ? 0
+      : Number(minutesInput);
+  const sRaw =
+    secondsInput === null || secondsInput === undefined || String(secondsInput).trim() === ""
+      ? 0
+      : Number(secondsInput);
+
+  if (
+    !Number.isFinite(mRaw) ||
+    Number.isNaN(mRaw) ||
+    !Number.isFinite(sRaw) ||
+    Number.isNaN(sRaw)
+  ) {
+    return {
+      valid: false,
+      durationMs: 0,
+      minutes: 0,
+      seconds: 0,
+      reason: "Minutes and seconds must be numbers",
+    };
+  }
+
+  const m = Math.floor(mRaw);
+  const s = Math.floor(sRaw);
+
+  if (m < 0 || m > 1440) {
+    return {
+      valid: false,
+      durationMs: 0,
+      minutes: m,
+      seconds: s,
+      reason: "Minutes must be between 0 and 1440",
+    };
+  }
+  if (s < 0 || s > 59) {
+    return {
+      valid: false,
+      durationMs: 0,
+      minutes: m,
+      seconds: s,
+      reason: "Seconds must be between 0 and 59",
+    };
+  }
+  if (m === 0 && s === 0) {
+    return {
+      valid: false,
+      durationMs: 0,
+      minutes: 0,
+      seconds: 0,
+      reason: "0:0 cannot start",
+    };
+  }
+
+  const durationMs = (m * 60 + s) * 1000;
+  if (durationMs > 1440 * 60 * 1000) {
+    return {
+      valid: false,
+      durationMs: 0,
+      minutes: m,
+      seconds: s,
+      reason: "Duration exceeds 24 hours",
+    };
+  }
+
+  return { valid: true, durationMs, minutes: m, seconds: s };
+}
+
+export interface PomodoroValidationResult {
+  valid: boolean;
+  workMs: number;
+  breakMs: number;
+  reason?: string;
+}
+
+/**
+ * Validates separate Pomodoro work (min, sec) and break (min, sec) inputs.
+ * Minutes 0..1440, Seconds 0..59.
+ * 0:0 cannot start for either phase.
+ */
+export function parseAndValidatePomodoro(
+  workMin: string | number | null | undefined,
+  workSec: string | number | null | undefined,
+  breakMin: string | number | null | undefined,
+  breakSec: string | number | null | undefined
+): PomodoroValidationResult {
+  const wmRaw =
+    workMin === null || workMin === undefined || String(workMin).trim() === ""
+      ? 0
+      : Number(workMin);
+  const wsRaw =
+    workSec === null || workSec === undefined || String(workSec).trim() === ""
+      ? 0
+      : Number(workSec);
+  const bmRaw =
+    breakMin === null || breakMin === undefined || String(breakMin).trim() === ""
+      ? 0
+      : Number(breakMin);
+  const bsRaw =
+    breakSec === null || breakSec === undefined || String(breakSec).trim() === ""
+      ? 0
+      : Number(breakSec);
+
+  if (
+    ![wmRaw, wsRaw, bmRaw, bsRaw].every(
+      (v) => Number.isFinite(v) && !Number.isNaN(v)
+    )
+  ) {
+    return {
+      valid: false,
+      workMs: 0,
+      breakMs: 0,
+      reason: "Work and break times must be finite numbers",
+    };
+  }
+
+  const wm = Math.floor(wmRaw);
+  const ws = Math.floor(wsRaw);
+  const bm = Math.floor(bmRaw);
+  const bs = Math.floor(bsRaw);
+
+  if (wm < 0 || wm > 1440 || bm < 0 || bm > 1440) {
+    return {
+      valid: false,
+      workMs: 0,
+      breakMs: 0,
+      reason: "Minutes must be between 0 and 1440",
+    };
+  }
+  if (ws < 0 || ws > 59 || bs < 0 || bs > 59) {
+    return {
+      valid: false,
+      workMs: 0,
+      breakMs: 0,
+      reason: "Seconds must be between 0 and 59",
+    };
+  }
+
+  const workMs = (wm * 60 + ws) * 1000;
+  const breakMs = (bm * 60 + bs) * 1000;
+
+  if (workMs === 0) {
+    return {
+      valid: false,
+      workMs: 0,
+      breakMs: 0,
+      reason: "Work interval 0:0 cannot start",
+    };
+  }
+  if (breakMs === 0) {
+    return {
+      valid: false,
+      workMs: 0,
+      breakMs: 0,
+      reason: "Break interval 0:0 cannot start",
+    };
+  }
+
+  return { valid: true, workMs, breakMs };
+}
+
 // ============================================================================
 // 2. CLIPBOARD NORMALIZATION & PRIVACY
 // ============================================================================

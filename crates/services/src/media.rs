@@ -133,8 +133,14 @@ impl MediaService {
                     .unwrap_or_else(|e| e.into_inner());
                 let mut service_st = self.service_state.lock().unwrap_or_else(|e| e.into_inner());
 
+                let now_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64;
+
                 if let Some(s) = known.get_mut(session_id) {
                     s.state = *play_state;
+                    s.last_updated_time = Some(now_ms);
                 }
                 *current = Self::select_active_session(&known);
                 *service_st = if *play_state == PlaybackState::Playing {
@@ -160,12 +166,19 @@ impl MediaService {
                     .lock()
                     .unwrap_or_else(|e| e.into_inner());
 
+                let now_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64;
+
                 if let Some(s) = known.get_mut(session_id) {
                     s.title = title.clone();
                     s.artist = artist.clone();
                     s.album = album.clone();
                     s.album_art = album_art.clone();
                     s.duration_ms = *duration_ms;
+                    s.position_ms = Some(0);
+                    s.last_updated_time = Some(now_ms);
                 }
                 *current = Self::select_active_session(&known);
             }
@@ -182,12 +195,19 @@ impl MediaService {
                     .lock()
                     .unwrap_or_else(|e| e.into_inner());
 
+                let now_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64;
+
                 if let Some(s) = known.get_mut(session_id) {
                     s.position_ms = Some(*position_ms);
+                    s.last_updated_time = Some(now_ms);
                 }
                 if let Some(ref mut c) = *current {
                     if c.id == *session_id {
                         c.position_ms = Some(*position_ms);
+                        c.last_updated_time = Some(now_ms);
                     }
                 }
             }
@@ -362,6 +382,7 @@ mod tests {
             album_art: None,
             duration_ms: Some(200_000),
             position_ms: Some(10_000),
+            last_updated_time: None,
             volume: Some(1.0),
             source: Some("Spotify".to_string()),
             capabilities: MediaCapabilities {
@@ -434,5 +455,118 @@ mod tests {
             .expect("current_session succeeds");
         assert!(session.is_none());
         assert!(service.is_platform_initialized.load(Ordering::Acquire));
+    }
+
+    #[tokio::test]
+    async fn test_media_track_replacement_and_position_reset() {
+        let mock_platform = Arc::new(MockMedia::default());
+        let service = MediaService::new(mock_platform.clone());
+        service.init().await.expect("init must succeed");
+
+        // Initial track at position 45,000ms
+        let initial_session = MediaSession {
+            id: "spotify".to_string(),
+            state: PlaybackState::Playing,
+            title: Some("Track 1".to_string()),
+            artist: Some("Artist 1".to_string()),
+            album: Some("Album 1".to_string()),
+            album_art: None,
+            duration_ms: Some(180_000),
+            position_ms: Some(45_000),
+            last_updated_time: Some(1000),
+            volume: Some(1.0),
+            source: Some("Spotify".to_string()),
+            capabilities: MediaCapabilities {
+                can_play: true,
+                can_pause: true,
+                can_go_next: true,
+                can_go_previous: true,
+                can_seek: true,
+                can_change_volume: false,
+            },
+        };
+        mock_platform.simulate_session(Some(initial_session));
+
+        let current = service.current_session().await.unwrap().unwrap();
+        assert_eq!(current.title.as_deref(), Some("Track 1"));
+        assert_eq!(current.position_ms, Some(45_000));
+
+        // When track changes (MetadataChanged), old track state MUST be replaced:
+        // title, artist, album, album_art, duration updated, position reset to 0, last_updated_time refreshed.
+        service.handle_media_event(MediaEvent::MetadataChanged {
+            session_id: "spotify".to_string(),
+            title: Some("Track 2".to_string()),
+            artist: Some("Artist 2".to_string()),
+            album: Some("Album 2".to_string()),
+            album_art: Some("data:image/png;base64,mockart".to_string()),
+            duration_ms: Some(240_000),
+        });
+
+        let updated = service.current_session().await.unwrap().unwrap();
+        assert_eq!(updated.title.as_deref(), Some("Track 2"));
+        assert_eq!(updated.artist.as_deref(), Some("Artist 2"));
+        assert_eq!(updated.album.as_deref(), Some("Album 2"));
+        assert_eq!(
+            updated.album_art.as_deref(),
+            Some("data:image/png;base64,mockart")
+        );
+        assert_eq!(updated.duration_ms, Some(240_000));
+        assert_eq!(
+            updated.position_ms,
+            Some(0),
+            "Position must be reset to 0 on new track"
+        );
+        assert!(
+            updated.last_updated_time.unwrap_or(0) > 1000,
+            "Timestamp must be refreshed"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_media_timeline_position_update() {
+        let mock_platform = Arc::new(MockMedia::default());
+        let service = MediaService::new(mock_platform.clone());
+        service.init().await.expect("init must succeed");
+        let _ = service.current_session().await;
+
+        let initial_session = MediaSession {
+            id: "spotify".to_string(),
+            state: PlaybackState::Playing,
+            title: Some("Track 1".to_string()),
+            position_ms: Some(10_000),
+            duration_ms: Some(200_000),
+            ..Default::default()
+        };
+        mock_platform.simulate_session(Some(initial_session));
+
+        service.handle_media_event(MediaEvent::PositionChanged {
+            session_id: "spotify".to_string(),
+            position_ms: 55_000,
+        });
+
+        let updated = service.current_session().await.unwrap().unwrap();
+        assert_eq!(updated.position_ms, Some(55_000));
+        assert!(updated.last_updated_time.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_media_controls_and_error_propagation() {
+        let mock_platform = Arc::new(MockMedia::default());
+        let service = MediaService::new(mock_platform.clone());
+        service.init().await.expect("init must succeed");
+
+        // Normal controls work without error
+        service.play().await.expect("play succeeds");
+        service.pause().await.expect("pause succeeds");
+        service.toggle_play_pause().await.expect("toggle succeeds");
+        service.next().await.expect("next succeeds");
+        service.previous().await.expect("previous succeeds");
+        service.seek(30_000).await.expect("seek succeeds");
+
+        // Subsystem unavailable errors propagate cleanly
+        mock_platform.set_available(false);
+        assert!(service.play().await.is_err());
+        assert!(service.pause().await.is_err());
+        assert!(service.seek(15_000).await.is_err());
     }
 }

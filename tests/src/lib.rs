@@ -89,6 +89,7 @@ mod tests {
             album_art: None,
             duration_ms: Some(210_000),
             position_ms: Some(0),
+            last_updated_time: None,
             volume: Some(1.0),
             source: Some("Spotify".to_string()),
             capabilities: MediaCapabilities {
@@ -1063,6 +1064,7 @@ mod tests {
             Some(WidgetDimensions {
                 preferred_width: Some(400),
                 preferred_height: Some(280),
+                ..Default::default()
             }),
             IslandAnchor::TopCenter,
         );
@@ -1087,6 +1089,7 @@ mod tests {
         let oversize_dims = WidgetDimensions {
             preferred_width: Some(5000),
             preferred_height: Some(5000),
+            ..Default::default()
         };
         let clamped_geo = calculate_island_geometry(
             &primary,

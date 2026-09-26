@@ -50,6 +50,7 @@ pub async fn set_island_mode(
                 Some(bbq_core::WidgetDimensions {
                     preferred_width: Some(settings.island_width),
                     preferred_height: Some(settings.island_height),
+                    ..Default::default()
                 }),
             ),
         };
@@ -129,19 +130,28 @@ pub async fn apply_island_geometry(
     state: State<'_, AppState>,
     geometry: bbq_core::IslandGeometry,
 ) -> Result<(), String> {
+    let display = state
+        .display_service
+        .get_target_display(Some(&geometry.display_id))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Native clamping invariant: frontend dimensions can never bypass native work_area bounds
+    let clamped = bbq_core::clamp_geometry_to_display(&geometry, &display);
+
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
-            width: geometry.width as f64,
-            height: geometry.height as f64,
+            width: clamped.width as f64,
+            height: clamped.height as f64,
         }));
         let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
-            x: geometry.x as f64,
-            y: geometry.y as f64,
+            x: clamped.x as f64,
+            y: clamped.y as f64,
         }));
     }
     state
         .window_service
-        .apply_geometry(&geometry)
+        .apply_geometry(&clamped)
         .await
         .map_err(|e| e.to_string())
 }

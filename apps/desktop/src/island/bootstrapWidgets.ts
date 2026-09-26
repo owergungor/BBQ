@@ -18,6 +18,25 @@ export function bootstrapWidgets(): void {
     priority: 90,
     canActivate: () => true,
     lifecycle: "ready",
+    sizing: {
+      compact: {
+        minWidth: 220,
+        preferredWidth: 240,
+        maxWidth: 280,
+        minHeight: 38,
+        preferredHeight: 38,
+        maxHeight: 44,
+      },
+      expanded: {
+        minWidth: 460,
+        preferredWidth: 500,
+        maxWidth: 560,
+        minHeight: 280,
+        preferredHeight: 320,
+        maxHeight: 400,
+      },
+      contentPolicy: "fixed",
+    },
   });
 
   widgetRegistry.register({
@@ -27,6 +46,25 @@ export function bootstrapWidgets(): void {
     priority: 85,
     canActivate: () => true,
     lifecycle: "ready",
+    sizing: {
+      compact: {
+        minWidth: 220,
+        preferredWidth: 240,
+        maxWidth: 300,
+        minHeight: 38,
+        preferredHeight: 38,
+        maxHeight: 44,
+      },
+      expanded: {
+        minWidth: 500,
+        preferredWidth: 540,
+        maxWidth: 600,
+        minHeight: 340,
+        preferredHeight: 380,
+        maxHeight: 480,
+      },
+      contentPolicy: "boundedExpansion",
+    },
   });
 
   widgetRegistry.register({
@@ -36,6 +74,25 @@ export function bootstrapWidgets(): void {
     priority: 80,
     canActivate: () => true,
     lifecycle: "ready",
+    sizing: {
+      compact: {
+        minWidth: 220,
+        preferredWidth: 240,
+        maxWidth: 300,
+        minHeight: 38,
+        preferredHeight: 38,
+        maxHeight: 44,
+      },
+      expanded: {
+        minWidth: 500,
+        preferredWidth: 540,
+        maxWidth: 600,
+        minHeight: 340,
+        preferredHeight: 380,
+        maxHeight: 480,
+      },
+      contentPolicy: "boundedExpansion",
+    },
   });
 
   widgetRegistry.register({
@@ -45,6 +102,25 @@ export function bootstrapWidgets(): void {
     priority: 70,
     canActivate: () => true,
     lifecycle: "ready",
+    sizing: {
+      compact: {
+        minWidth: 240,
+        preferredWidth: 280,
+        maxWidth: 380,
+        minHeight: 38,
+        preferredHeight: 38,
+        maxHeight: 44,
+      },
+      expanded: {
+        minWidth: 460,
+        preferredWidth: 500,
+        maxWidth: 540,
+        minHeight: 280,
+        preferredHeight: 340,
+        maxHeight: 400,
+      },
+      contentPolicy: "boundedExpansion",
+    },
   });
 
   widgetRegistry.register({
@@ -54,6 +130,25 @@ export function bootstrapWidgets(): void {
     priority: 50,
     canActivate: () => true,
     lifecycle: "ready",
+    sizing: {
+      compact: {
+        minWidth: 200,
+        preferredWidth: 220,
+        maxWidth: 260,
+        minHeight: 38,
+        preferredHeight: 38,
+        maxHeight: 44,
+      },
+      expanded: {
+        minWidth: 480,
+        preferredWidth: 520,
+        maxWidth: 560,
+        minHeight: 320,
+        preferredHeight: 360,
+        maxHeight: 420,
+      },
+      contentPolicy: "fixed",
+    },
   });
 
   widgetRegistry.register({
@@ -63,6 +158,25 @@ export function bootstrapWidgets(): void {
     priority: 45,
     canActivate: () => true,
     lifecycle: "ready",
+    sizing: {
+      compact: {
+        minWidth: 220,
+        preferredWidth: 240,
+        maxWidth: 280,
+        minHeight: 38,
+        preferredHeight: 38,
+        maxHeight: 44,
+      },
+      expanded: {
+        minWidth: 480,
+        preferredWidth: 520,
+        maxWidth: 580,
+        minHeight: 320,
+        preferredHeight: 360,
+        maxHeight: 440,
+      },
+      contentPolicy: "fixed",
+    },
   });
 
   widgetRegistry.register({
@@ -72,6 +186,25 @@ export function bootstrapWidgets(): void {
     priority: 40,
     canActivate: () => true,
     lifecycle: "ready",
+    sizing: {
+      compact: {
+        minWidth: 200,
+        preferredWidth: 240,
+        maxWidth: 280,
+        minHeight: 38,
+        preferredHeight: 38,
+        maxHeight: 44,
+      },
+      expanded: {
+        minWidth: 460,
+        preferredWidth: 500,
+        maxWidth: 540,
+        minHeight: 320,
+        preferredHeight: 360,
+        maxHeight: 420,
+      },
+      contentPolicy: "fixed",
+    },
   });
 
   widgetRegistry.register({
@@ -81,6 +214,25 @@ export function bootstrapWidgets(): void {
     priority: 35,
     canActivate: () => true,
     lifecycle: "ready",
+    sizing: {
+      compact: {
+        minWidth: 220,
+        preferredWidth: 240,
+        maxWidth: 280,
+        minHeight: 38,
+        preferredHeight: 38,
+        maxHeight: 44,
+      },
+      expanded: {
+        minWidth: 480,
+        preferredWidth: 520,
+        maxWidth: 560,
+        minHeight: 320,
+        preferredHeight: 360,
+        maxHeight: 420,
+      },
+      contentPolicy: "boundedExpansion",
+    },
   });
 
   widgetRegistry.register({
@@ -90,5 +242,24 @@ export function bootstrapWidgets(): void {
     priority: 10,
     canActivate: () => true,
     lifecycle: "ready",
+    sizing: {
+      compact: {
+        minWidth: 220,
+        preferredWidth: 240,
+        maxWidth: 280,
+        minHeight: 38,
+        preferredHeight: 38,
+        maxHeight: 44,
+      },
+      expanded: {
+        minWidth: 500,
+        preferredWidth: 540,
+        maxWidth: 620,
+        minHeight: 360,
+        preferredHeight: 400,
+        maxHeight: 480,
+      },
+      contentPolicy: "fixed",
+    },
   });
 }

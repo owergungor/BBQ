@@ -85,6 +85,12 @@ export const DropWidget: React.FC = () => {
           iconName: "check",
           description: "Store reference in Workspace Files",
         };
+      case "drag_out":
+        return {
+          label: isBatch ? "Drag Out All" : "Drag Out",
+          iconName: "external-link",
+          description: "Initiate native drag-out to desktop or Explorer",
+        };
       default:
         return {
           label: action,
@@ -196,7 +202,17 @@ export const DropWidget: React.FC = () => {
             {stagedItems.map((target) => {
               const file = normalizeStagedFile(target);
               return (
-                <div key={file.id} className="bbq-staged-file-card" role="listitem">
+                <div
+                  key={file.id}
+                  className="bbq-staged-file-card"
+                  role="listitem"
+                  draggable
+                  onDragStart={(e) => {
+                    e.preventDefault();
+                    executeDropAction("drag_out", file.id);
+                  }}
+                  title={`${file.path} (Drag to export)`}
+                >
                   <div className="bbq-staged-file-left">
                     <span className="bbq-staged-file-icon">
                       <Icon name={file.iconName} size={15} aria-hidden="true" />

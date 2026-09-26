@@ -72,6 +72,7 @@ pub async fn sync_runtime_services_with_settings(
                     Some(bbq_core::WidgetDimensions {
                         preferred_width: Some(current.island_width),
                         preferred_height: Some(current.island_height),
+                        ..Default::default()
                     }),
                 ),
             };

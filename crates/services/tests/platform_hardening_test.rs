@@ -389,6 +389,7 @@ fn test_display_dpi_and_multi_monitor_determinism() {
             Some(WidgetDimensions {
                 preferred_width: Some(300),
                 preferred_height: Some(40),
+                ..Default::default()
             }),
             IslandAnchor::TopCenter,
         );
@@ -399,6 +400,7 @@ fn test_display_dpi_and_multi_monitor_determinism() {
             Some(WidgetDimensions {
                 preferred_width: Some(300),
                 preferred_height: Some(40),
+                ..Default::default()
             }),
             IslandAnchor::TopCenter,
         );
@@ -513,6 +515,7 @@ async fn test_displays_changed_heterogeneous_dpi_transition_invariants() {
                 Some(WidgetDimensions {
                     preferred_width: Some(300),
                     preferred_height: Some(200),
+                    ..Default::default()
                 }),
                 IslandAnchor::TopCenter,
             );

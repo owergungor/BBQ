@@ -139,6 +139,14 @@ export function normalizeStats(
     state.cpu !== null &&
     state.cpu !== undefined &&
     rawCpuUsage !== undefined;
+  let cpuLabel = "0%";
+  if (typeof rawCpuUsage === "number" && !Number.isNaN(rawCpuUsage)) {
+    if (rawCpuUsage > 0 && rawCpuUsage < 1) {
+      cpuLabel = "<1%";
+    } else {
+      cpuLabel = `${cpuPercent}%`;
+    }
+  }
 
   // Memory
   const totalMem = state.memory?.total_bytes ?? 0;
@@ -184,7 +192,7 @@ export function normalizeStats(
       usagePercent: cpuPercent,
       coreCount,
       available: hasCpu,
-      label: `${cpuPercent}%`,
+      label: cpuLabel,
     },
     memory: {
       usagePercent: memPercent,

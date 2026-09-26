@@ -30,9 +30,43 @@ export const SystemWidget: React.FC = () => {
     [system, capabilities]
   );
 
-  // On-demand refresh when the widget is mounted/viewed (zero continuous polling)
+  // CPU/Hardware sampling is allowed ONLY as a visible System widget metric.
+  // When hidden or unmounted, zero sampling occurs. Uses cancelable one-shot timeouts.
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let isCancelled = false;
+
+    const scheduleNextSample = () => {
+      if (isCancelled || document.visibilityState === "hidden") return;
+      timeoutId = setTimeout(async () => {
+        if (isCancelled || document.visibilityState === "hidden") return;
+        await refreshSystemState();
+        scheduleNextSample();
+      }, 3000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && !isCancelled) {
+        refreshSystemState();
+        scheduleNextSample();
+      } else if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     refreshSystemState();
+    scheduleNextSample();
+
+    return () => {
+      isCancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
   }, []);
 
   // Record bounded trend point upon telemetry arrival (max 30 points in memory, no DB writes)
@@ -161,7 +195,7 @@ export const SystemWidget: React.FC = () => {
               />
             </svg>
             <div className="bbq-stats-gauge-center">
-              <span className="bbq-stats-gauge-val">{stats.cpu.usagePercent}%</span>
+              <span className="bbq-stats-gauge-val">{stats.cpu.label}</span>
               <span className="bbq-stats-gauge-subval">CPU</span>
             </div>
           </div>

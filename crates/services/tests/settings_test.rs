@@ -262,6 +262,7 @@ async fn test_display_and_geometry_runtime_synchronization() {
     let dims = Some(WidgetDimensions {
         preferred_width: Some(360),
         preferred_height: Some(48),
+        ..Default::default()
     });
     let geo = calculate_island_geometry(
         &primary,

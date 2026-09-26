@@ -28,6 +28,8 @@ pub trait DropServiceTrait: Service {
     async fn get_current_batch(&self) -> BbqResult<Option<DropBatch>>;
     async fn clear(&self) -> BbqResult<()>;
     async fn subscribe_events(&self, sink: DropEventSink) -> BbqResult<()>;
+    async fn start_drag(&self, paths: &[String]) -> BbqResult<()>;
+    fn can_drag_out(&self) -> bool;
 }
 
 pub struct DropService {
@@ -215,31 +217,35 @@ impl DropServiceTrait for DropService {
             }
         };
 
-        if batch.items.len() == 1 {
+        let mut actions = if batch.items.len() == 1 {
             let first = &batch.items[0];
             match first.kind {
-                DropTargetKind::File => Ok(vec![
+                DropTargetKind::File => vec![
                     DropAction::Open,
                     DropAction::Reveal,
                     DropAction::CopyPath,
                     DropAction::AddToWorkspace,
-                ]),
-                DropTargetKind::Directory => Ok(vec![
-                    DropAction::Open,
-                    DropAction::Reveal,
-                    DropAction::CopyPath,
-                ]),
-                DropTargetKind::Unknown => Ok(vec![DropAction::Reveal, DropAction::CopyPath]),
+                ],
+                DropTargetKind::Directory => {
+                    vec![DropAction::Open, DropAction::Reveal, DropAction::CopyPath]
+                }
+                DropTargetKind::Unknown => vec![DropAction::Reveal, DropAction::CopyPath],
             }
         } else {
             // Multi-drop batch
             let has_files = batch.items.iter().any(|i| i.kind == DropTargetKind::File);
-            let mut actions = vec![DropAction::Open, DropAction::Reveal, DropAction::CopyPath];
+            let mut acts = vec![DropAction::Open, DropAction::Reveal, DropAction::CopyPath];
             if has_files && self.file_service.is_some() {
-                actions.push(DropAction::AddToWorkspace);
+                acts.push(DropAction::AddToWorkspace);
             }
-            Ok(actions)
+            acts
+        };
+
+        if self.platform_file.can_drag_out() {
+            actions.push(DropAction::DragOut);
         }
+
+        Ok(actions)
     }
 
     async fn execute_action(
@@ -352,6 +358,16 @@ impl DropServiceTrait for DropService {
                     });
                 }
             }
+            DropAction::DragOut => {
+                let paths: Vec<String> = selected_items.iter().map(|i| i.path.clone()).collect();
+                match self.platform_file.start_drag(&paths).await {
+                    Ok(_) => success_count += paths.len(),
+                    Err(e) => {
+                        tracing::error!("Drag-out failed: {}", e);
+                        failure_count += paths.len();
+                    }
+                }
+            }
         }
 
         let message = if failure_count == 0 {
@@ -361,6 +377,7 @@ impl DropServiceTrait for DropService {
                     DropAction::Reveal => "Revealed in folder".to_string(),
                     DropAction::CopyPath => "Path copied to clipboard".to_string(),
                     DropAction::AddToWorkspace => "Added to workspace".to_string(),
+                    DropAction::DragOut => "Drag-out completed".to_string(),
                 }
             } else {
                 match action {
@@ -370,6 +387,7 @@ impl DropServiceTrait for DropService {
                     DropAction::AddToWorkspace => {
                         format!("Added {} files to workspace", success_count)
                     }
+                    DropAction::DragOut => format!("Dragged out {} items", success_count),
                 }
             }
         } else if success_count > 0 {
@@ -418,6 +436,14 @@ impl DropServiceTrait for DropService {
         })?;
         sinks.push(sink);
         Ok(())
+    }
+
+    async fn start_drag(&self, paths: &[String]) -> BbqResult<()> {
+        self.platform_file.start_drag(paths).await
+    }
+
+    fn can_drag_out(&self) -> bool {
+        self.platform_file.can_drag_out()
     }
 }
 
@@ -746,6 +772,139 @@ mod tests {
 
         assert_eq!(result.success_count, 2);
         assert_eq!(result.failure_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_drop_service_drag_out_actions_capability() {
+        let mock_file = Arc::new(MockFile::default());
+        let mock_clipboard = Arc::new(MockClipboard::default());
+        let service = DropService::new(mock_file.clone(), mock_clipboard, None);
+
+        let batch = service
+            .inspect(&["C:/test/file1.png".to_string()])
+            .await
+            .unwrap();
+
+        // When can_drag_out is false, DragOut is not present
+        mock_file.set_can_drag_out(false);
+        let actions = service.get_actions(&batch.id).await.unwrap();
+        assert!(!actions.contains(&DropAction::DragOut));
+
+        // When can_drag_out is true, DragOut is offered
+        mock_file.set_can_drag_out(true);
+        let actions = service.get_actions(&batch.id).await.unwrap();
+        assert!(actions.contains(&DropAction::DragOut));
+    }
+
+    #[tokio::test]
+    async fn test_drop_service_drag_out_success_and_multiple_files() {
+        let temp_dir = std::env::temp_dir().join(format!("bbq_drag_test_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let file1 = temp_dir.join("file1.txt");
+        let file2 = temp_dir.join("file2.txt");
+        std::fs::write(&file1, "hello").unwrap();
+        std::fs::write(&file2, "world").unwrap();
+
+        let path1 = file1.to_string_lossy().to_string();
+        let path2 = file2.to_string_lossy().to_string();
+
+        let mock_file = Arc::new(MockFile::default());
+        mock_file.set_can_drag_out(true);
+        let mock_clipboard = Arc::new(MockClipboard::default());
+        let service = DropService::new(mock_file.clone(), mock_clipboard, None);
+
+        let batch = service
+            .inspect(&[path1.clone(), path2.clone()])
+            .await
+            .unwrap();
+
+        let result = service
+            .execute_action(&batch.id, DropAction::DragOut, None)
+            .await
+            .unwrap();
+
+        assert_eq!(result.success_count, 2);
+        assert_eq!(result.failure_count, 0);
+
+        let dragged = mock_file.dragged.lock().unwrap().clone();
+        assert_eq!(dragged.len(), 1);
+        assert_eq!(dragged[0].len(), 2);
+        assert!(dragged[0].contains(&path1));
+        assert!(dragged[0].contains(&path2));
+
+        let _ = std::fs::remove_file(file1);
+        let _ = std::fs::remove_file(file2);
+        let _ = std::fs::remove_dir(temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_drop_service_drag_out_missing_file_failure() {
+        let mock_file = Arc::new(MockFile::default());
+        mock_file.set_can_drag_out(true);
+        let mock_clipboard = Arc::new(MockClipboard::default());
+        let service = DropService::new(mock_file.clone(), mock_clipboard, None);
+
+        let batch = service
+            .inspect(&["C:/nonexistent/bbq_missing_file_123.bin".to_string()])
+            .await
+            .unwrap();
+
+        let result = service
+            .execute_action(&batch.id, DropAction::DragOut, None)
+            .await
+            .unwrap();
+
+        assert_eq!(result.success_count, 0);
+        assert_eq!(result.failure_count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_drop_service_drag_out_unsafe_path_rejection() {
+        let mock_file = Arc::new(MockFile::default());
+        mock_file.set_can_drag_out(true);
+        let mock_clipboard = Arc::new(MockClipboard::default());
+        let service = DropService::new(mock_file.clone(), mock_clipboard, None);
+
+        // Path with null byte
+        let batch = service
+            .inspect(&["C:/path/with\0null.txt".to_string()])
+            .await
+            .unwrap();
+
+        let result = service
+            .execute_action(&batch.id, DropAction::DragOut, None)
+            .await
+            .unwrap();
+
+        assert_eq!(result.success_count, 0);
+        assert_eq!(result.failure_count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_drop_service_zero_file_content_loading() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("bbq_zero_content_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let big_file = temp_dir.join("large_payload.dat");
+        // Write 100KB dummy file
+        let dummy = vec![0u8; 100 * 1024];
+        std::fs::write(&big_file, &dummy).unwrap();
+
+        let path = big_file.to_string_lossy().to_string();
+
+        let mock_file = Arc::new(MockFile::default());
+        let mock_clipboard = Arc::new(MockClipboard::default());
+        let service = DropService::new(mock_file, mock_clipboard, None);
+
+        let batch = service.inspect(std::slice::from_ref(&path)).await.unwrap();
+
+        assert_eq!(batch.count, 1);
+        assert_eq!(batch.items[0].name, "large_payload.dat");
+        // File metadata only; size matches metadata, but content is never loaded into any field
+        assert_eq!(batch.items[0].size, 1024);
+
+        let _ = std::fs::remove_file(big_file);
+        let _ = std::fs::remove_dir(temp_dir);
     }
 
     #[test]

@@ -230,13 +230,13 @@ fn enumerate_native_macos_displays() -> Vec<DisplayInfo> {
         let width = logical_w.round().max(1.0) as u32;
         let height = logical_h.round().max(1.0) as u32;
 
-        // Menu bar height on primary display (~25pt)
-        let top_inset = if is_primary { 25 } else { 0 };
+        // On macOS, visible screen / work area coordinates should not artificially
+        // double-offset the top inset when geometry.rs already applies DEFAULT_TOP_MARGIN (8px).
         let work_area = DisplayRect {
             x,
-            y: y + top_inset,
+            y,
             width,
-            height: height.saturating_sub(top_inset as u32),
+            height,
         };
 
         let name = if is_builtin {
@@ -278,9 +278,9 @@ fn enumerate_native_macos_displays() -> Vec<DisplayInfo> {
             },
             work_area: DisplayRect {
                 x: 0,
-                y: 25,
+                y: 0,
                 width: 1440,
-                height: 875,
+                height: 900,
             },
         },
         DisplayInfo {
@@ -535,6 +535,12 @@ impl PlatformMedia for MacOsMedia {
             album_art: None,
             duration_ms: None,
             position_ms: None,
+            last_updated_time: Some(
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64,
+            ),
             volume: None,
             source: Some("macos_system".to_string()),
             capabilities: MediaCapabilities {
@@ -807,6 +813,16 @@ impl PlatformFile for MacOsFile {
             .map_err(|e| BbqError::Platform(format!("Failed to spawn reveal command: {}", e)))?;
         Ok(())
     }
+
+    fn can_drag_out(&self) -> bool {
+        false
+    }
+
+    async fn start_drag(&self, _paths: &[String]) -> BbqResult<()> {
+        Err(BbqError::NotSupported(
+            "Native drag-out is not supported on macOS".to_string(),
+        ))
+    }
 }
 
 pub use crate::launcher::PlatformLauncher;
@@ -1026,7 +1042,7 @@ mod tests {
         assert!(primary.scale_factor >= 1.0 && primary.scale_factor <= 4.0);
         assert!(primary.bounds.width > 0);
         assert!(primary.bounds.height > 0);
-        assert_eq!(primary.work_area.y, 25); // Menu bar offset
+        assert_eq!(primary.work_area.y, 0); // CoreGraphics work area without artificial duplicated top inset
 
         let caps = display.capabilities();
         assert!(caps.multi_monitor);

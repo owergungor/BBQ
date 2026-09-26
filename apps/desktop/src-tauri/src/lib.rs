@@ -363,6 +363,7 @@ pub fn run() {
                                 Some(bbq_core::WidgetDimensions {
                                     preferred_width: Some(initial_island_width),
                                     preferred_height: Some(initial_island_height),
+                                    ..Default::default()
                                 }),
                             ),
                         };

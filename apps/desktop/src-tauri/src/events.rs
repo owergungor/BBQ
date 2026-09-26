@@ -106,14 +106,17 @@ pub fn wire_service_events(handle: &AppHandle, state: &AppState) {
                         TimerMode::Pomodoro => {
                             let (title, body) = match session.pomodoro_phase {
                                 Some(PomodoroPhase::Work) => (
-                                    "Pomodoro complete",
-                                    "Work interval ended. Time for a break!",
+                                    "Focus session complete",
+                                    "Focus session complete. Time for a well-deserved break!",
                                 ),
                                 Some(PomodoroPhase::ShortBreak)
                                 | Some(PomodoroPhase::LongBreak) => {
-                                    ("Pomodoro finished", "Work session complete. Take a break.")
+                                    ("Break ended", "Break ended. Ready to focus again!")
                                 }
-                                None => ("Pomodoro finished", "Session complete."),
+                                None => (
+                                    "Focus session complete",
+                                    "Focus session complete. Time for a well-deserved break!",
+                                ),
                             };
                             NotificationRequest::new(
                                 format!("pomodoro_finish_{}", session.id),

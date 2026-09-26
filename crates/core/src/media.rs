@@ -35,6 +35,7 @@ pub struct MediaSession {
     pub album_art: Option<String>,
     pub duration_ms: Option<u64>,
     pub position_ms: Option<u64>,
+    pub last_updated_time: Option<u64>,
     pub volume: Option<f32>,
     pub source: Option<String>,
     pub capabilities: MediaCapabilities,
@@ -106,6 +107,7 @@ mod tests {
             album_art: None,
             duration_ms: Some(180_000),
             position_ms: Some(30_000),
+            last_updated_time: Some(1700000000),
             volume: Some(0.8),
             source: Some("Spotify".to_string()),
             capabilities: MediaCapabilities {

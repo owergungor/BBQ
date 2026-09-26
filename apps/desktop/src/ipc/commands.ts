@@ -104,6 +104,29 @@ export const bbqCommands = {
     }
   },
 
+  resizeIsland: async (
+    layoutState: IslandLayoutState,
+    widgetDims?: WidgetDimensions,
+    anchor?: IslandAnchor,
+    displayId?: string
+  ): Promise<IslandGeometry | null> => {
+    try {
+      const geo = await bbqCommands.calculateIslandGeometry(
+        layoutState,
+        widgetDims,
+        anchor,
+        displayId
+      );
+      if (geo) {
+        await bbqCommands.applyIslandGeometry(geo);
+      }
+      return geo;
+    } catch (err) {
+      console.error("Failed to resize island:", err);
+      return null;
+    }
+  },
+
   getSettings: async (): Promise<BbqSettings | null> => {
     try {
       return await invoke<BbqSettings>("get_settings");

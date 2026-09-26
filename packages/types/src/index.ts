@@ -40,9 +40,33 @@ export type IslandAnchor =
   | 'topRight'
   | { custom: { offset_x: number; offset_y: number } };
 
+export type ContentPolicy = 'fixed' | 'contentDriven' | 'boundedExpansion' | 'content-driven' | 'bounded-expansion';
+
+export interface WidgetSizingConstraints {
+  minWidth: number;
+  preferredWidth: number;
+  maxWidth: number;
+  minHeight: number;
+  preferredHeight: number;
+  maxHeight: number;
+  aspectRatio?: number;
+}
+
+export interface WidgetSizingContract {
+  compact: WidgetSizingConstraints;
+  expanded: WidgetSizingConstraints;
+  contentPolicy: ContentPolicy;
+}
+
 export interface WidgetDimensions {
   preferredWidth?: number;
   preferredHeight?: number;
+  compactWidth?: number;
+  compactHeight?: number;
+  expandedWidth?: number;
+  expandedHeight?: number;
+  aspectRatio?: number;
+  contract?: WidgetSizingContract;
 }
 
 export interface IslandGeometry {
@@ -80,6 +104,7 @@ export interface MediaSession {
   albumArt: string | null;
   durationMs: number | null;
   positionMs: number | null;
+  lastUpdatedTime?: number | null;
   volume: number | null;
   source: string | null;
   capabilities: MediaCapabilities;
@@ -374,7 +399,7 @@ export interface DropBatch {
   created_at: number;
 }
 
-export type DropAction = 'open' | 'reveal' | 'copy_path' | 'add_to_workspace';
+export type DropAction = 'open' | 'reveal' | 'copy_path' | 'add_to_workspace' | 'drag_out';
 
 export interface DropActionResult {
   success_count: number;

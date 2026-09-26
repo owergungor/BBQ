@@ -112,6 +112,7 @@ pub enum DropAction {
     Reveal,
     CopyPath,
     AddToWorkspace,
+    DragOut,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

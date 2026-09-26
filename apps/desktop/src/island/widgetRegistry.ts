@@ -1,4 +1,5 @@
 import React from "react";
+import type { WidgetSizingContract } from "@bbq/types";
 
 export type WidgetLifecycle =
   | "idle"
@@ -16,6 +17,7 @@ export interface WidgetDefinition {
   render?: () => React.ReactNode;
   lifecycle: WidgetLifecycle;
   isDeclaredOnly?: boolean;
+  sizing?: WidgetSizingContract;
   onActivate?: () => void;
   onDeactivate?: () => void;
 }

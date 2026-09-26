@@ -16,13 +16,19 @@ import {
   subscribeToShowIsland,
 } from "../../ipc/events.ts";
 import { setActiveWidget } from "../../island/islandState.ts";
+import { widgetRegistry } from "../../island/widgetRegistry.ts";
 import { IslandShell } from "./IslandShell.tsx";
 import { IslandContent } from "./IslandContent.tsx";
+import { ContextMenu } from "../common/ContextMenu.tsx";
 
 export const Island: React.FC = () => {
   const { state, mode, activeWidgetId, isDragOver } = useIslandState();
   const { currentSession } = useMediaState();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [contextMenuPos, setContextMenuPos] = React.useState<{ x: number; y: number } | null>(null);
+
+  const activeWidget = activeWidgetId ? widgetRegistry.get(activeWidgetId) : undefined;
+  const sizing = activeWidget?.sizing;
 
   const hasMedia = Boolean(
     currentSession &&
@@ -220,17 +226,25 @@ export const Island: React.FC = () => {
     await islandRuntime.handleEvent({ type: "USER_ESCAPE" });
   }, []);
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+  }, []);
+
   return (
     <div
       id="bbq-island-container"
       ref={containerRef}
       className="bbq-island-container"
+      onContextMenu={handleContextMenu}
     >
       <IslandShell
         state={state}
         mode={mode}
         hasMedia={hasMedia}
         isDragOver={isDragOver}
+        sizing={sizing}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onClick={handleToggle}
@@ -248,6 +262,13 @@ export const Island: React.FC = () => {
           onCollapse={handleCollapse}
         />
       </IslandShell>
+      {contextMenuPos && (
+        <ContextMenu
+          x={contextMenuPos.x}
+          y={contextMenuPos.y}
+          onClose={() => setContextMenuPos(null)}
+        />
+      )}
     </div>
   );
 };

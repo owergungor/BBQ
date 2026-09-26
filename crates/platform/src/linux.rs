@@ -673,7 +673,7 @@ impl PlatformMedia for LinuxMedia {
             .args([
                 "metadata",
                 "--format",
-                "{{status}}\t{{title}}\t{{artist}}\t{{album}}\t{{position}}\t{{mpris:length}}",
+                "{{status}}\t{{title}}\t{{artist}}\t{{album}}\t{{position}}\t{{mpris:length}}\t{{mpris:artUrl}}",
             ])
             .output()
         {
@@ -711,6 +711,15 @@ impl PlatformMedia for LinuxMedia {
             .map(|s| s.to_string());
         let pos_us: u64 = parts.get(4).and_then(|p| p.parse().ok()).unwrap_or(0);
         let dur_us: u64 = parts.get(5).and_then(|p| p.parse().ok()).unwrap_or(0);
+        let art_url = parts
+            .get(6)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
 
         Ok(Some(MediaSession {
             id: "mpris_active".to_string(),
@@ -718,7 +727,7 @@ impl PlatformMedia for LinuxMedia {
             title: Some(title),
             artist,
             album,
-            album_art: None,
+            album_art: art_url,
             duration_ms: if dur_us > 0 {
                 Some(dur_us / 1000)
             } else {
@@ -729,6 +738,7 @@ impl PlatformMedia for LinuxMedia {
             } else {
                 None
             },
+            last_updated_time: Some(now_ms),
             volume: None,
             source: Some("mpris".to_string()),
             capabilities: MediaCapabilities {
@@ -736,7 +746,7 @@ impl PlatformMedia for LinuxMedia {
                 can_pause: true,
                 can_go_next: true,
                 can_go_previous: true,
-                can_seek: false,
+                can_seek: true,
                 can_change_volume: false,
             },
         }))
@@ -778,7 +788,11 @@ impl PlatformMedia for LinuxMedia {
         Ok(())
     }
 
-    async fn seek(&self, _position_ms: u64) -> BbqResult<()> {
+    async fn seek(&self, position_ms: u64) -> BbqResult<()> {
+        let secs = position_ms as f64 / 1000.0;
+        let _ = std::process::Command::new("playerctl")
+            .args(["position", &secs.to_string()])
+            .spawn();
         Ok(())
     }
 }
@@ -834,6 +848,54 @@ impl std::fmt::Debug for LinuxSystem {
     }
 }
 
+impl LinuxSystem {
+    fn read_process_cpu() -> Option<bbq_core::CpuMetrics> {
+        let content = std::fs::read_to_string("/proc/self/stat").ok()?;
+        let rparen = content.rfind(')')?;
+        let rest = content.get(rparen + 2..)?;
+        let fields: Vec<&str> = rest.split_whitespace().collect();
+        if fields.len() > 12 {
+            let utime: u64 = fields[11].parse().ok()?;
+            let stime: u64 = fields[12].parse().ok()?;
+            let process_ticks = utime.saturating_add(stime);
+
+            let core_count = std::thread::available_parallelism()
+                .map(|n| n.get() as u32)
+                .unwrap_or(1);
+
+            use std::sync::Mutex;
+            static PREV_LINUX_CPU: Mutex<Option<(u64, std::time::Instant)>> = Mutex::new(None);
+
+            let now = std::time::Instant::now();
+            let usage_percent = if let Ok(mut lock) = PREV_LINUX_CPU.lock() {
+                let pct = if let Some((prev_ticks, prev_inst)) = *lock {
+                    let ticks_delta = process_ticks.saturating_sub(prev_ticks);
+                    let elapsed_secs = now.duration_since(prev_inst).as_secs_f64();
+                    let clk_tck = 100.0;
+                    let total_capacity = elapsed_secs * clk_tck * (core_count as f64);
+                    if total_capacity > 0.0 && elapsed_secs >= 0.08 {
+                        ((ticks_delta as f64 / total_capacity) * 100.0).clamp(0.0, 100.0) as f32
+                    } else {
+                        0.0
+                    }
+                } else {
+                    0.0
+                };
+                *lock = Some((process_ticks, now));
+                pct
+            } else {
+                0.0
+            };
+
+            return Some(bbq_core::CpuMetrics {
+                usage_percent,
+                core_count,
+            });
+        }
+        None
+    }
+}
+
 #[async_trait]
 impl PlatformSystem for LinuxSystem {
     async fn initialize(&self) -> BbqResult<()> {
@@ -844,7 +906,7 @@ impl PlatformSystem for LinuxSystem {
         Ok(SystemState {
             battery: BatteryState::default(),
             network: NetworkState::default(),
-            cpu: None,
+            cpu: Self::read_process_cpu(),
             memory: None,
             muted: Some(false),
             volume: Some(1.0),
@@ -859,7 +921,7 @@ impl PlatformSystem for LinuxSystem {
         Ok(SystemCapabilities {
             has_battery: false,
             can_read_network: false,
-            can_read_cpu: false,
+            can_read_cpu: std::path::Path::new("/proc/self/stat").exists(),
             can_read_memory: false,
             can_control_volume: false,
             can_mute: false,
@@ -974,6 +1036,16 @@ impl PlatformFile for LinuxFile {
             .spawn()
             .map_err(|e| BbqError::Platform(format!("Failed to spawn reveal command: {}", e)))?;
         Ok(())
+    }
+
+    fn can_drag_out(&self) -> bool {
+        false
+    }
+
+    async fn start_drag(&self, _paths: &[String]) -> BbqResult<()> {
+        Err(BbqError::NotSupported(
+            "Native drag-out is not supported on Linux".to_string(),
+        ))
     }
 }
 

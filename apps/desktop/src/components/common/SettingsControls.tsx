@@ -1,74 +1,11 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import type { ThemePreference, AccentColor } from "@bbq/types";
-import { Icon, type IconName } from "./Icon.tsx";
+import { CromiaColorPicker } from "./CromiaColorPicker.tsx";
 
 /* ==========================================================================
-   1. Theme Switcher (Inspired by 21st.dev / theme-switcher-1)
+   1. Theme Switcher / Theme Tabs (Inspired by 21st.dev / theme-tabs)
    ========================================================================== */
-interface ThemeSwitcherProps {
-  theme: ThemePreference;
-  onChange: (theme: ThemePreference) => void;
-}
-
-export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ theme, onChange }) => {
-  const options: { id: ThemePreference; label: string; icon: IconName }[] = [
-    { id: "light", label: "Light", icon: "sun" },
-    { id: "dark", label: "Dark", icon: "moon" },
-    { id: "system", label: "System", icon: "settings" },
-  ];
-
-  return (
-    <div
-      className="bbq-theme-switcher"
-      role="radiogroup"
-      aria-label="Theme mode"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "3px",
-        borderRadius: "10px",
-        background: "rgba(255, 255, 255, 0.05)",
-        border: "1px solid var(--bbq-border)",
-        position: "relative",
-        gap: "2px",
-      }}
-    >
-      {options.map((opt) => {
-        const isSelected = theme === opt.id;
-        return (
-          <button
-            key={opt.id}
-            id={`theme-btn-${opt.id}`}
-            type="button"
-            role="radio"
-            aria-checked={isSelected}
-            onClick={() => onChange(opt.id)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "5px 12px",
-              borderRadius: "7px",
-              border: "none",
-              background: isSelected ? "var(--bbq-accent)" : "transparent",
-              color: isSelected ? "#ffffff" : "var(--bbq-text-muted)",
-              cursor: "pointer",
-              fontSize: "11px",
-              fontWeight: isSelected ? 600 : 500,
-              transition: "all 180ms cubic-bezier(0.16, 1, 0.3, 1)",
-              boxShadow: isSelected ? "0 1px 4px rgba(0, 0, 0, 0.25)" : "none",
-            }}
-          >
-            <span style={{ display: "inline-flex", alignItems: "center" }} aria-hidden="true">
-              <Icon name={opt.icon} size={13} />
-            </span>
-            <span>{opt.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-};
+export { ThemeTabs, ThemeSwitcher } from "./ThemeTabs.tsx";
 
 /* ==========================================================================
    2. Modern Switch (Inspired by 21st.dev HeroUI Switch)
@@ -404,7 +341,6 @@ export const AccentColorPicker: React.FC<AccentColorPickerProps> = ({
   const defaultCustomColor = isLight ? "#007AFF" : "#0A84FF";
   const [isCustomOpen, setIsCustomOpen] = useState(isCustomActive);
   const [customHexInput, setCustomHexInput] = useState(customAccentColor || defaultCustomColor);
-  const colorInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (customAccentColor) {
@@ -539,86 +475,12 @@ export const AccentColorPicker: React.FC<AccentColorPickerProps> = ({
 
       {/* Expandable Custom Color Picker Panel */}
       {isCustomOpen && (
-        <div
-          id="bbq-custom-color-panel"
-          style={{
-            marginTop: "4px",
-            padding: "8px 10px",
-            borderRadius: "8px",
-            background: "rgba(255, 255, 255, 0.04)",
-            border: "1px solid var(--bbq-border)",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
-          {/* Native Color Input Trigger with Custom Circle Swatch */}
-          <div
-            style={{
-              position: "relative",
-              width: "28px",
-              height: "28px",
-              borderRadius: "6px",
-              overflow: "hidden",
-              border: "1px solid var(--bbq-border)",
-              flexShrink: 0,
-              cursor: "pointer",
-            }}
-            onClick={() => colorInputRef.current?.click()}
-          >
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                background: customHexInput,
-              }}
-            />
-            <input
-              ref={colorInputRef}
-              id="custom-color-native-input"
-              type="color"
-              value={
-                customHexInput.startsWith("#") && customHexInput.length === 7
-                  ? customHexInput
-                  : defaultCustomColor
-              }
-              onChange={(e) => handleHexChange(e.target.value)}
-              style={{
-                position: "absolute",
-                inset: 0,
-                opacity: 0,
-                cursor: "pointer",
-                width: "100%",
-                height: "100%",
-              }}
-              aria-label="Pick custom color"
-            />
-          </div>
-
-          {/* Hex Input Field */}
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", flex: 1 }}>
-            <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>HEX:</span>
-            <input
-              id="custom-color-hex-input"
-              type="text"
-              value={customHexInput}
-              placeholder="#RRGGBB"
-              maxLength={7}
-              onChange={(e) => handleHexChange(e.target.value)}
-              style={{
-                background: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid var(--bbq-border)",
-                borderRadius: "5px",
-                padding: "3px 8px",
-                color: "var(--bbq-text)",
-                fontSize: "11px",
-                fontFamily: "monospace",
-                width: "80px",
-                outline: "none",
-              }}
-              aria-label="Custom color hex code"
-            />
-          </div>
+        <div id="bbq-custom-color-panel" style={{ marginTop: "6px" }}>
+          <CromiaColorPicker
+            value={customHexInput}
+            theme={isLight ? "light" : "dark"}
+            onChange={(hex) => handleHexChange(hex)}
+          />
         </div>
       )}
     </div>

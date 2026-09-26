@@ -110,12 +110,134 @@ pub enum IslandLayoutState {
     Transitioning,
 }
 
+/// Policy governing dynamic content expansion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum ContentPolicy {
+    #[default]
+    Fixed,
+    ContentDriven,
+    BoundedExpansion,
+}
+
+/// Sizing constraints for a specific widget state.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WidgetSizingConstraints {
+    pub min_width: u32,
+    pub preferred_width: u32,
+    pub max_width: u32,
+    pub min_height: u32,
+    pub preferred_height: u32,
+    pub max_height: u32,
+    pub aspect_ratio: Option<f32>,
+}
+
+/// Per-widget explicit sizing contract.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WidgetSizingContract {
+    pub compact: WidgetSizingConstraints,
+    pub expanded: WidgetSizingConstraints,
+    pub content_policy: ContentPolicy,
+}
+
+impl WidgetSizingContract {
+    pub fn new(
+        compact: WidgetSizingConstraints,
+        expanded: WidgetSizingConstraints,
+        content_policy: ContentPolicy,
+    ) -> Self {
+        Self {
+            compact,
+            expanded,
+            content_policy,
+        }
+    }
+
+    pub fn clamp_compact(&self, requested_w: Option<u32>, requested_h: Option<u32>) -> (u32, u32) {
+        match self.content_policy {
+            ContentPolicy::Fixed => (self.compact.preferred_width, self.compact.preferred_height),
+            ContentPolicy::ContentDriven | ContentPolicy::BoundedExpansion => {
+                let w = requested_w
+                    .unwrap_or(self.compact.preferred_width)
+                    .clamp(self.compact.min_width, self.compact.max_width);
+                let h = if let Some(ratio) = self.compact.aspect_ratio {
+                    if ratio > 0.0 {
+                        ((w as f32 / ratio).round() as u32)
+                            .clamp(self.compact.min_height, self.compact.max_height)
+                    } else {
+                        requested_h
+                            .unwrap_or(self.compact.preferred_height)
+                            .clamp(self.compact.min_height, self.compact.max_height)
+                    }
+                } else {
+                    requested_h
+                        .unwrap_or(self.compact.preferred_height)
+                        .clamp(self.compact.min_height, self.compact.max_height)
+                };
+                (w, h)
+            }
+        }
+    }
+
+    pub fn clamp_expanded(&self, requested_w: Option<u32>, requested_h: Option<u32>) -> (u32, u32) {
+        match self.content_policy {
+            ContentPolicy::Fixed => (
+                self.expanded.preferred_width,
+                self.expanded.preferred_height,
+            ),
+            ContentPolicy::ContentDriven | ContentPolicy::BoundedExpansion => {
+                let w = requested_w
+                    .unwrap_or(self.expanded.preferred_width)
+                    .clamp(self.expanded.min_width, self.expanded.max_width);
+                let h = if let Some(ratio) = self.expanded.aspect_ratio {
+                    if ratio > 0.0 {
+                        ((w as f32 / ratio).round() as u32)
+                            .clamp(self.expanded.min_height, self.expanded.max_height)
+                    } else {
+                        requested_h
+                            .unwrap_or(self.expanded.preferred_height)
+                            .clamp(self.expanded.min_height, self.expanded.max_height)
+                    }
+                } else {
+                    requested_h
+                        .unwrap_or(self.expanded.preferred_height)
+                        .clamp(self.expanded.min_height, self.expanded.max_height)
+                };
+                (w, h)
+            }
+        }
+    }
+}
+
 /// Preferred dimensions suggested by a widget (optional).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct WidgetDimensions {
     pub preferred_width: Option<u32>,
     pub preferred_height: Option<u32>,
+    pub compact_width: Option<u32>,
+    pub compact_height: Option<u32>,
+    pub expanded_width: Option<u32>,
+    pub expanded_height: Option<u32>,
+    pub aspect_ratio: Option<f32>,
+    pub contract: Option<WidgetSizingContract>,
+}
+
+impl WidgetDimensions {
+    pub fn from_contract(contract: WidgetSizingContract) -> Self {
+        Self {
+            preferred_width: Some(contract.compact.preferred_width),
+            preferred_height: Some(contract.compact.preferred_height),
+            compact_width: Some(contract.compact.preferred_width),
+            compact_height: Some(contract.compact.preferred_height),
+            expanded_width: Some(contract.expanded.preferred_width),
+            expanded_height: Some(contract.expanded.preferred_height),
+            aspect_ratio: contract.compact.aspect_ratio,
+            contract: Some(contract),
+        }
+    }
 }
 
 /// Anchor positioning rule for the Island.
@@ -152,59 +274,153 @@ pub struct IslandGeometry {
     pub scale_factor: f64,
 }
 
+/// Clamps any IslandGeometry authoritatively against the display work area and universal bounds.
+pub fn clamp_geometry_to_display(
+    geometry: &IslandGeometry,
+    display: &DisplayInfo,
+) -> IslandGeometry {
+    let mut bounded_w = geometry.width.clamp(MIN_ISLAND_WIDTH, MAX_ISLAND_WIDTH);
+    let mut bounded_h = geometry.height.clamp(MIN_ISLAND_HEIGHT, MAX_ISLAND_HEIGHT);
+
+    let max_avail_w = display.work_area.width.saturating_sub(16);
+    let max_avail_h = display.work_area.height.saturating_sub(16);
+    if max_avail_w > 0 && bounded_w > max_avail_w {
+        bounded_w = max_avail_w.clamp(MIN_ISLAND_WIDTH, MAX_ISLAND_WIDTH);
+    }
+    if max_avail_h > 0 && bounded_h > max_avail_h {
+        bounded_h = max_avail_h.clamp(MIN_ISLAND_HEIGHT, MAX_ISLAND_HEIGHT);
+    }
+
+    let min_x = display.work_area.x;
+    let max_x =
+        (display.work_area.x + display.work_area.width as i32 - bounded_w as i32).max(min_x);
+    let safe_x = geometry.x.clamp(min_x, max_x);
+
+    let min_y = display.work_area.y;
+    let max_y =
+        (display.work_area.y + display.work_area.height as i32 - bounded_h as i32).max(min_y);
+    let safe_y = geometry.y.clamp(min_y, max_y);
+
+    IslandGeometry {
+        x: safe_x,
+        y: safe_y,
+        width: bounded_w,
+        height: bounded_h,
+        anchor: geometry.anchor,
+        display_id: display.id.clone(),
+        scale_factor: display.scale_factor,
+    }
+}
+
 /// Calculates bounded Island geometry for a given display, layout state, and widget preferences.
 ///
 /// Ensures the Island:
 /// 1. Clamps dimensions within universal [MIN, MAX] bounds.
-/// 2. Never exceeds the display's `work_area` (taskbar/dock safe area).
-/// 3. Centers horizontally correctly in both positive and negative coordinate spaces.
-/// 4. Leaves safe top margin under menu bars / screen edges.
+/// 2. Respects per-widget sizing contract constraints and content policies.
+/// 3. Never exceeds the display's `work_area` (taskbar/dock safe area).
+/// 4. Centers horizontally correctly in both positive and negative coordinate spaces.
+/// 5. Leaves safe top margin under menu bars / screen edges.
 pub fn calculate_island_geometry(
     display: &DisplayInfo,
     layout_state: IslandLayoutState,
     widget_dims: Option<WidgetDimensions>,
     anchor: IslandAnchor,
 ) -> IslandGeometry {
-    let (target_w, target_h, idle_w, idle_h) = match layout_state {
-        IslandLayoutState::Idle => {
-            let pref = widget_dims.unwrap_or_default();
-            let w = pref.preferred_width.unwrap_or(DEFAULT_IDLE_WIDTH);
-            let h = pref.preferred_height.unwrap_or(DEFAULT_IDLE_HEIGHT);
-            (w, h, w, h)
+    let pref = widget_dims.unwrap_or_default();
+    let (target_w, target_h, idle_w, idle_h) = if let Some(ref contract) = pref.contract {
+        let (cw, ch) = contract.clamp_compact(
+            pref.compact_width.or(pref.preferred_width),
+            pref.compact_height.or(pref.preferred_height),
+        );
+        match layout_state {
+            IslandLayoutState::Idle => (cw, ch, cw, ch),
+            IslandLayoutState::Hovering => {
+                let hover_w = cw + (DEFAULT_HOVER_WIDTH.saturating_sub(DEFAULT_IDLE_WIDTH));
+                let hover_h = ch + (DEFAULT_HOVER_HEIGHT.saturating_sub(DEFAULT_IDLE_HEIGHT));
+                (hover_w, hover_h, cw, ch)
+            }
+            IslandLayoutState::DraggingOver => (DEFAULT_DROP_WIDTH, DEFAULT_DROP_HEIGHT, cw, ch),
+            IslandLayoutState::Expanded => {
+                let (ew, eh) = contract.clamp_expanded(
+                    pref.expanded_width.or(pref.preferred_width),
+                    pref.expanded_height.or(pref.preferred_height),
+                );
+                (ew, eh, cw, ch)
+            }
+            IslandLayoutState::Transitioning => (
+                pref.preferred_width.unwrap_or(360),
+                pref.preferred_height.unwrap_or(160),
+                cw,
+                ch,
+            ),
         }
-        IslandLayoutState::Hovering => {
-            let pref = widget_dims.unwrap_or_default();
-            let base_w = pref.preferred_width.unwrap_or(DEFAULT_IDLE_WIDTH);
-            let base_h = pref.preferred_height.unwrap_or(DEFAULT_IDLE_HEIGHT);
-            let hover_w = if base_w == DEFAULT_IDLE_WIDTH {
-                DEFAULT_HOVER_WIDTH
-            } else {
-                base_w + (DEFAULT_HOVER_WIDTH - DEFAULT_IDLE_WIDTH)
-            };
-            let hover_h = if base_h == DEFAULT_IDLE_HEIGHT {
-                DEFAULT_HOVER_HEIGHT
-            } else {
-                base_h + (DEFAULT_HOVER_HEIGHT - DEFAULT_IDLE_HEIGHT)
-            };
-            (hover_w, hover_h, base_w, base_h)
-        }
-        IslandLayoutState::DraggingOver => (
-            DEFAULT_DROP_WIDTH,
-            DEFAULT_DROP_HEIGHT,
-            DEFAULT_IDLE_WIDTH,
-            DEFAULT_IDLE_HEIGHT,
-        ),
-        IslandLayoutState::Expanded => {
-            let pref = widget_dims.unwrap_or_default();
-            let w = pref.preferred_width.unwrap_or(DEFAULT_EXPANDED_WIDTH);
-            let h = pref.preferred_height.unwrap_or(DEFAULT_EXPANDED_HEIGHT);
-            (w, h, DEFAULT_IDLE_WIDTH, DEFAULT_IDLE_HEIGHT)
-        }
-        IslandLayoutState::Transitioning => {
-            let pref = widget_dims.unwrap_or_default();
-            let w = pref.preferred_width.unwrap_or(360);
-            let h = pref.preferred_height.unwrap_or(160);
-            (w, h, DEFAULT_IDLE_WIDTH, DEFAULT_IDLE_HEIGHT)
+    } else {
+        match layout_state {
+            IslandLayoutState::Idle => {
+                let w = pref
+                    .compact_width
+                    .or(pref.preferred_width)
+                    .unwrap_or(DEFAULT_IDLE_WIDTH);
+                let h = pref
+                    .compact_height
+                    .or(pref.preferred_height)
+                    .unwrap_or(DEFAULT_IDLE_HEIGHT);
+                (w, h, w, h)
+            }
+            IslandLayoutState::Hovering => {
+                let base_w = pref
+                    .compact_width
+                    .or(pref.preferred_width)
+                    .unwrap_or(DEFAULT_IDLE_WIDTH);
+                let base_h = pref
+                    .compact_height
+                    .or(pref.preferred_height)
+                    .unwrap_or(DEFAULT_IDLE_HEIGHT);
+                let hover_w = if base_w == DEFAULT_IDLE_WIDTH {
+                    DEFAULT_HOVER_WIDTH
+                } else {
+                    base_w + (DEFAULT_HOVER_WIDTH.saturating_sub(DEFAULT_IDLE_WIDTH))
+                };
+                let hover_h = if base_h == DEFAULT_IDLE_HEIGHT {
+                    DEFAULT_HOVER_HEIGHT
+                } else {
+                    base_h + (DEFAULT_HOVER_HEIGHT.saturating_sub(DEFAULT_IDLE_HEIGHT))
+                };
+                (hover_w, hover_h, base_w, base_h)
+            }
+            IslandLayoutState::DraggingOver => (
+                DEFAULT_DROP_WIDTH,
+                DEFAULT_DROP_HEIGHT,
+                DEFAULT_IDLE_WIDTH,
+                DEFAULT_IDLE_HEIGHT,
+            ),
+            IslandLayoutState::Expanded => {
+                let w = pref
+                    .expanded_width
+                    .or(pref.preferred_width)
+                    .unwrap_or(DEFAULT_EXPANDED_WIDTH);
+                let h = if let Some(ratio) = pref.aspect_ratio {
+                    if ratio > 0.0 {
+                        (w as f32 / ratio).round() as u32
+                    } else {
+                        pref.expanded_height
+                            .or(pref.preferred_height)
+                            .unwrap_or(DEFAULT_EXPANDED_HEIGHT)
+                    }
+                } else {
+                    pref.expanded_height
+                        .or(pref.preferred_height)
+                        .unwrap_or(DEFAULT_EXPANDED_HEIGHT)
+                };
+                let idle_w = pref.compact_width.unwrap_or(DEFAULT_IDLE_WIDTH);
+                let idle_h = pref.compact_height.unwrap_or(DEFAULT_IDLE_HEIGHT);
+                (w, h, idle_w, idle_h)
+            }
+            IslandLayoutState::Transitioning => {
+                let w = pref.preferred_width.unwrap_or(360);
+                let h = pref.preferred_height.unwrap_or(160);
+                (w, h, DEFAULT_IDLE_WIDTH, DEFAULT_IDLE_HEIGHT)
+            }
         }
     };
 
@@ -396,6 +612,7 @@ mod tests {
         let dims = WidgetDimensions {
             preferred_width: Some(2000),
             preferred_height: Some(1000),
+            ..Default::default()
         };
         let geo = calculate_island_geometry(
             &display,
@@ -414,6 +631,7 @@ mod tests {
         let dims = WidgetDimensions {
             preferred_width: Some(50),
             preferred_height: Some(10),
+            ..Default::default()
         };
         let geo = calculate_island_geometry(
             &display,
@@ -906,6 +1124,7 @@ mod tests {
             Some(WidgetDimensions {
                 preferred_width: Some(280),
                 preferred_height: Some(44),
+                ..Default::default()
             }),
             IslandAnchor::TopCenter,
         );
@@ -915,6 +1134,7 @@ mod tests {
             Some(WidgetDimensions {
                 preferred_width: Some(280),
                 preferred_height: Some(44),
+                ..Default::default()
             }),
             IslandAnchor::TopCenter,
         );
@@ -924,5 +1144,280 @@ mod tests {
         assert_eq!(geo1.width, geo2.width);
         assert_eq!(geo1.height, geo2.height);
         assert_eq!(geo1.scale_factor, geo2.scale_factor);
+    }
+
+    #[test]
+    fn test_phase1_scale_factors_100_125_150_200() {
+        for scale in [1.0, 1.25, 1.5, 2.0] {
+            let display = DisplayInfo {
+                id: format!("disp-scale-{}", scale),
+                name: "Scaled Display".to_string(),
+                is_primary: true,
+                scale_factor: scale,
+                bounds: DisplayRect {
+                    x: 0,
+                    y: 0,
+                    width: 1920,
+                    height: 1080,
+                },
+                work_area: DisplayRect {
+                    x: 0,
+                    y: 0,
+                    width: 1920,
+                    height: 1040,
+                },
+            };
+
+            let idle = calculate_island_geometry(
+                &display,
+                IslandLayoutState::Idle,
+                None,
+                IslandAnchor::TopCenter,
+            );
+            assert_eq!(idle.scale_factor, scale);
+            assert_eq!(idle.width, DEFAULT_IDLE_WIDTH);
+            assert_eq!(idle.height, DEFAULT_IDLE_HEIGHT);
+            assert_eq!(idle.x, (1920 - DEFAULT_IDLE_WIDTH as i32) / 2);
+            assert_eq!(idle.y, DEFAULT_TOP_MARGIN);
+        }
+    }
+
+    #[test]
+    fn test_phase1_negative_coordinates_multimonitor() {
+        // Left monitor placed at x: -2560..0, y: -1440..0 (negative X and Y)
+        let left_top_display = DisplayInfo {
+            id: "left-top".to_string(),
+            name: "Left Top Monitor".to_string(),
+            is_primary: false,
+            scale_factor: 1.5,
+            bounds: DisplayRect {
+                x: -2560,
+                y: -1440,
+                width: 2560,
+                height: 1440,
+            },
+            work_area: DisplayRect {
+                x: -2560,
+                y: -1440,
+                width: 2560,
+                height: 1400,
+            },
+        };
+
+        let idle = calculate_island_geometry(
+            &left_top_display,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // Work area x is -2560, width is 2560. Centered: -2560 + (2560 - 240)/2 = -2560 + 1160 = -1400
+        assert_eq!(idle.x, -1400);
+        // Work area y is -1440. Top center with top margin: -1440 + 8 = -1432
+        assert_eq!(idle.y, -1440 + DEFAULT_TOP_MARGIN);
+        assert_eq!(idle.scale_factor, 1.5);
+    }
+
+    #[test]
+    fn test_phase1_work_area_boundaries_taskbars() {
+        // Test top taskbar (e.g. macOS menu bar or Windows top taskbar)
+        let top_taskbar_disp = DisplayInfo {
+            id: "top-tb".to_string(),
+            name: "Top Taskbar".to_string(),
+            is_primary: true,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 0,
+                y: 40, // 40px taskbar at top
+                width: 1920,
+                height: 1040,
+            },
+        };
+        let geo_top = calculate_island_geometry(
+            &top_taskbar_disp,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(geo_top.y, 40 + DEFAULT_TOP_MARGIN);
+
+        // Test left taskbar
+        let left_taskbar_disp = DisplayInfo {
+            id: "left-tb".to_string(),
+            name: "Left Taskbar".to_string(),
+            is_primary: true,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 60, // 60px taskbar at left
+                y: 0,
+                width: 1860,
+                height: 1080,
+            },
+        };
+        let geo_left = calculate_island_geometry(
+            &left_taskbar_disp,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+        // Centered within work area: 60 + (1860 - 240) / 2 = 60 + 810 = 870
+        assert_eq!(geo_left.x, 870);
+    }
+
+    #[test]
+    fn test_phase1_widget_sizing_contract_fixed() {
+        let display = sample_primary_display();
+        let contract = WidgetSizingContract::new(
+            WidgetSizingConstraints {
+                min_width: 200,
+                preferred_width: 220,
+                max_width: 260,
+                min_height: 38,
+                preferred_height: 38,
+                max_height: 44,
+                aspect_ratio: None,
+            },
+            WidgetSizingConstraints {
+                min_width: 480,
+                preferred_width: 520,
+                max_width: 560,
+                min_height: 320,
+                preferred_height: 360,
+                max_height: 420,
+                aspect_ratio: None,
+            },
+            ContentPolicy::Fixed,
+        );
+
+        let dims = WidgetDimensions {
+            preferred_width: Some(300), // Requesting 300, but policy is Fixed
+            contract: Some(contract),
+            ..Default::default()
+        };
+
+        let idle = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(idle.width, 220); // Fixed to preferred_width
+        assert_eq!(idle.height, 38);
+
+        let exp = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Expanded,
+            Some(dims),
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(exp.width, 520); // Fixed to preferred_width
+        assert_eq!(exp.height, 360);
+    }
+
+    #[test]
+    fn test_phase1_widget_sizing_contract_bounded_expansion() {
+        let display = sample_primary_display();
+        let contract = WidgetSizingContract::new(
+            WidgetSizingConstraints {
+                min_width: 240,
+                preferred_width: 280,
+                max_width: 380,
+                min_height: 38,
+                preferred_height: 38,
+                max_height: 44,
+                aspect_ratio: None,
+            },
+            WidgetSizingConstraints {
+                min_width: 460,
+                preferred_width: 500,
+                max_width: 540,
+                min_height: 280,
+                preferred_height: 340,
+                max_height: 400,
+                aspect_ratio: None,
+            },
+            ContentPolicy::BoundedExpansion,
+        );
+
+        // Compact content-fit expansion: long media title requires 340px
+        let dims_long = WidgetDimensions {
+            compact_width: Some(340),
+            contract: Some(contract),
+            ..Default::default()
+        };
+        let idle_long = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims_long),
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(idle_long.width, 340); // Expanded within [240, 380] bounds
+
+        // Returning to compact default when content is short
+        let dims_short = WidgetDimensions {
+            compact_width: Some(250),
+            contract: Some(contract),
+            ..Default::default()
+        };
+        let idle_short = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims_short),
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(idle_short.width, 250);
+
+        // Excessive expansion clamped to maxWidth
+        let dims_oversize = WidgetDimensions {
+            compact_width: Some(999),
+            contract: Some(contract),
+            ..Default::default()
+        };
+        let idle_oversize = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims_oversize),
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(idle_oversize.width, 380); // Clamped to maxWidth
+    }
+
+    #[test]
+    fn test_phase1_native_clamp_geometry_to_display() {
+        let display = sample_primary_display();
+        let arbitrary_oversize = IslandGeometry {
+            x: -500,
+            y: -200,
+            width: 4000,
+            height: 3000,
+            anchor: IslandAnchor::TopCenter,
+            display_id: display.id.clone(),
+            scale_factor: 1.0,
+        };
+
+        let clamped = clamp_geometry_to_display(&arbitrary_oversize, &display);
+        assert!(clamped.width <= MAX_ISLAND_WIDTH);
+        assert!(clamped.height <= MAX_ISLAND_HEIGHT);
+        assert!(clamped.x >= display.work_area.x);
+        assert!(clamped.y >= display.work_area.y);
+        assert!(
+            clamped.x + clamped.width as i32
+                <= display.work_area.x + display.work_area.width as i32
+        );
+        assert!(
+            clamped.y + clamped.height as i32
+                <= display.work_area.y + display.work_area.height as i32
+        );
     }
 }

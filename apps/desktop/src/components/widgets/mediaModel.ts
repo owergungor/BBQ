@@ -25,6 +25,7 @@ export interface NormalizedMediaMetadata {
   state: PlaybackState;
   durationMs: number;
   positionMs: number;
+  lastUpdatedTime: number | null;
   progressPercent: number;
   canPlay: boolean;
   canPause: boolean;
@@ -67,6 +68,10 @@ export function normalizeMediaSession(
 
   const rawDuration = typeof session.durationMs === "number" ? session.durationMs : 0;
   const rawPosition = typeof session.positionMs === "number" ? session.positionMs : 0;
+  const rawLastUpdated =
+    typeof session.lastUpdatedTime === "number" && Number.isFinite(session.lastUpdatedTime)
+      ? session.lastUpdatedTime
+      : null;
 
   const durationMs = Number.isFinite(rawDuration) && rawDuration > 0 ? Math.floor(rawDuration) : 0;
   const positionMs = clampPosition(rawPosition, durationMs);
@@ -99,6 +104,7 @@ export function normalizeMediaSession(
     state,
     durationMs,
     positionMs,
+    lastUpdatedTime: rawLastUpdated,
     progressPercent,
     canPlay: caps.canPlay ?? false,
     canPause: caps.canPause ?? false,
@@ -106,6 +112,23 @@ export function normalizeMediaSession(
     canGoPrevious: caps.canGoPrevious ?? false,
     canSeek: (caps.canSeek ?? false) && durationMs > 0,
   };
+}
+
+/**
+ * Calculates current interpolated position from monotonic elapsed time.
+ * Clamps strictly within [0, durationMs].
+ */
+export function calculateInterpolatedPosition(
+  meta: NormalizedMediaMetadata | null,
+  now = Date.now()
+): number {
+  if (!meta) return 0;
+  if (!meta.isPlaying || meta.durationMs <= 0) {
+    return clampPosition(meta.positionMs, meta.durationMs);
+  }
+  const baseTime = meta.lastUpdatedTime ?? now;
+  const elapsed = Math.max(0, now - baseTime);
+  return clampPosition(meta.positionMs + elapsed, meta.durationMs);
 }
 
 /**

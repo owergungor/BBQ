@@ -8,6 +8,7 @@ import {
   normalizeMediaSession,
   clampPosition,
   calculateProgressPercent,
+  calculateInterpolatedPosition,
   formatTime,
   createAmbientPalette,
   DEFAULT_AMBIENT_PALETTE,
@@ -135,6 +136,145 @@ describe("BBQ v1.3 - Milestone 4: Media Presentation & Ambient Glow", () => {
       assert.strictEqual(formatTime(245000), "4:05");
       assert.strictEqual(formatTime(3600000), "1:00:00");
       assert.strictEqual(formatTime(3665000), "1:01:05");
+    });
+  });
+
+  describe("PHASE 3: Media Timeline Model & Monotonic Progress", () => {
+    it("handles startup state gracefully with 0ms position", () => {
+      assert.strictEqual(calculateInterpolatedPosition(null), 0);
+      const emptyMeta = normalizeMediaSession({
+        id: "idle",
+        state: "stopped",
+        title: "",
+        artist: "",
+        album: "",
+        albumArt: null,
+        durationMs: 0,
+        positionMs: 0,
+        volume: 1,
+        source: null,
+        capabilities: {
+          canPlay: false,
+          canPause: false,
+          canGoNext: false,
+          canGoPrevious: false,
+          canSeek: false,
+          canChangeVolume: false,
+        },
+      });
+      assert.strictEqual(calculateInterpolatedPosition(emptyMeta), 0);
+    });
+
+    it("interpolates monotonic elapsed time accurately while playing", () => {
+      const baseTime = 1700000000000;
+      const meta = normalizeMediaSession({
+        id: "spotify-1",
+        state: "playing",
+        title: "Song",
+        artist: "Artist",
+        durationMs: 180000,
+        positionMs: 30000,
+        lastUpdatedTime: baseTime,
+      });
+
+      // Exactly at baseTime: 30,000ms
+      assert.strictEqual(calculateInterpolatedPosition(meta, baseTime), 30000);
+
+      // 5,000ms later: 35,000ms
+      assert.strictEqual(calculateInterpolatedPosition(meta, baseTime + 5000), 35000);
+
+      // 120,000ms later: 150,000ms
+      assert.strictEqual(calculateInterpolatedPosition(meta, baseTime + 120000), 150000);
+    });
+
+    it("freezes monotonic interpolation when paused", () => {
+      const baseTime = 1700000000000;
+      const meta = normalizeMediaSession({
+        id: "spotify-1",
+        state: "paused",
+        title: "Song",
+        artist: "Artist",
+        durationMs: 180000,
+        positionMs: 42000,
+        lastUpdatedTime: baseTime,
+      });
+
+      // Even when Date.now() advances by 10s, paused state stays strictly at 42,000ms
+      assert.strictEqual(calculateInterpolatedPosition(meta, baseTime + 10000), 42000);
+      assert.strictEqual(calculateInterpolatedPosition(meta, baseTime + 60000), 42000);
+    });
+
+    it("clamps position to durationMs on short tracks without overflowing", () => {
+      const baseTime = 1700000000000;
+      const meta = normalizeMediaSession({
+        id: "short-clip",
+        state: "playing",
+        title: "Short Jingle",
+        artist: "Artist",
+        durationMs: 15000, // 15 second track
+        positionMs: 10000,
+        lastUpdatedTime: baseTime,
+      });
+
+      // 3s later: 13,000ms
+      assert.strictEqual(calculateInterpolatedPosition(meta, baseTime + 3000), 13000);
+
+      // 10s later (would be 20,000ms): clamped strictly to 15,000ms
+      assert.strictEqual(calculateInterpolatedPosition(meta, baseTime + 10000), 15000);
+    });
+
+    it("correctly handles long tracks (2-hour podcast) and boundary formatting", () => {
+      const baseTime = 1700000000000;
+      const durationMs = 2 * 3600 * 1000; // 7,200,000ms
+      const meta = normalizeMediaSession({
+        id: "podcast-ep1",
+        state: "playing",
+        title: "Long Podcast",
+        artist: "Host",
+        durationMs,
+        positionMs: 3600 * 1000, // 1 hour in
+        lastUpdatedTime: baseTime,
+      });
+
+      assert.strictEqual(formatTime(meta?.durationMs), "2:00:00");
+      assert.strictEqual(formatTime(meta?.positionMs), "1:00:00");
+
+      // 30 minutes later
+      const advanced = calculateInterpolatedPosition(meta, baseTime + 1800 * 1000);
+      assert.strictEqual(advanced, 5400000);
+      assert.strictEqual(formatTime(advanced), "1:30:00");
+
+      // Progress percent at 1h 30m of 2h = 75%
+      assert.strictEqual(calculateProgressPercent(advanced, durationMs), 75);
+    });
+
+    it("resets position and rebases timeline on track change", () => {
+      const baseTime = 1700000000000;
+      // Track 1
+      const track1 = normalizeMediaSession({
+        id: "spotify-1",
+        state: "playing",
+        title: "Track 1",
+        durationMs: 200000,
+        positionMs: 180000,
+        lastUpdatedTime: baseTime,
+      });
+      assert.strictEqual(calculateInterpolatedPosition(track1, baseTime), 180000);
+
+      // Track 2 metadata arrives with position 0
+      const track2Time = baseTime + 20000;
+      const track2 = normalizeMediaSession({
+        id: "spotify-1",
+        state: "playing",
+        title: "Track 2",
+        durationMs: 240000,
+        positionMs: 0,
+        lastUpdatedTime: track2Time,
+      });
+
+      assert.strictEqual(track2?.positionMs, 0);
+      assert.strictEqual(calculateInterpolatedPosition(track2, track2Time), 0);
+      assert.strictEqual(calculateInterpolatedPosition(track2, track2Time + 2000), 2000);
     });
   });
 

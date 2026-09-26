@@ -13,10 +13,12 @@ import {
   calculateTimerProgressPct,
   calculateTimerDashOffset,
   getPomodoroPhaseInfo,
-  parseAndValidateCustomMinutes,
+  formatStopwatchDisplay,
+  parseAndValidateCountdown,
+  parseAndValidatePomodoro,
 } from "./productivityModel.ts";
 
-export { formatTimeDisplay };
+export { formatTimeDisplay, formatStopwatchDisplay };
 
 const COUNTDOWN_PRESETS = [
   { label: "1m", ms: 1 * 60 * 1000 },
@@ -31,7 +33,25 @@ const COUNTDOWN_PRESETS = [
 export const TimerWidget: React.FC = () => {
   const { session, isLoading } = useTimerState();
   const [selectedDurationMs, setSelectedDurationMs] = useState<number>(5 * 60 * 1000);
-  const [customMinutes, setCustomMinutes] = useState<string>("");
+  const [countdownMinutes, setCountdownMinutes] = useState<string>("5");
+  const [countdownSeconds, setCountdownSeconds] = useState<string>("0");
+  const [pomodoroWorkMinutes, setPomodoroWorkMinutes] = useState<string>("25");
+  const [pomodoroWorkSeconds, setPomodoroWorkSeconds] = useState<string>("0");
+  const [pomodoroBreakMinutes, setPomodoroBreakMinutes] = useState<string>("5");
+  const [pomodoroBreakSeconds, setPomodoroBreakSeconds] = useState<string>("0");
+
+  const countdownValidation = useMemo(() => {
+    return parseAndValidateCountdown(countdownMinutes, countdownSeconds);
+  }, [countdownMinutes, countdownSeconds]);
+
+  const pomodoroValidation = useMemo(() => {
+    return parseAndValidatePomodoro(
+      pomodoroWorkMinutes,
+      pomodoroWorkSeconds,
+      pomodoroBreakMinutes,
+      pomodoroBreakSeconds
+    );
+  }, [pomodoroWorkMinutes, pomodoroWorkSeconds, pomodoroBreakMinutes, pomodoroBreakSeconds]);
 
   // Initialize store and listen on mount
   useEffect(() => {
@@ -56,7 +76,7 @@ export const TimerWidget: React.FC = () => {
     setDisplayMs(getDisplayMs());
   }, [session, getDisplayMs]);
 
-  // Bounded, cancelable one-shot timeout scheduling strictly targeting the next second boundary
+  // Bounded, cancelable one-shot timeout scheduling strictly targeting next tick
   useEffect(() => {
     if (session.state !== "Running") {
       return;
@@ -66,25 +86,39 @@ export const TimerWidget: React.FC = () => {
     let isCancelled = false;
 
     const scheduleNextTick = () => {
-      if (isCancelled) return;
+      if (isCancelled || document.visibilityState === "hidden") return;
       const now = Date.now();
       setDisplayMs(getDisplayMs());
 
-      // Target the next whole second boundary
-      const delay = Math.max(50, 1000 - (now % 1000));
+      // Target ~50ms for smooth stopwatch hundredths, or next whole second boundary for countdown/pomodoro
+      const delay =
+        session.mode === "Stopwatch"
+          ? Math.max(10, 50 - (now % 50))
+          : Math.max(50, 1000 - (now % 1000));
       timeoutId = setTimeout(scheduleNextTick, delay);
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && !isCancelled) {
+        scheduleNextTick();
+      } else if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     scheduleNextTick();
 
     return () => {
       isCancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (timeoutId) {
         clearTimeout(timeoutId);
         timeoutId = null;
       }
     };
-  }, [session.state, session.started_at, session.target_at, getDisplayMs]);
+  }, [session.mode, session.state, session.started_at, session.target_at, getDisplayMs]);
 
   // Mode switching - preserves Idle state without auto-starting
   const handleSelectMode = useCallback(async (mode: TimerMode, e?: React.MouseEvent) => {
@@ -116,14 +150,16 @@ export const TimerWidget: React.FC = () => {
     if (e) e.stopPropagation();
     let res: TimerSession | null = null;
     if (session.mode === "Countdown") {
-      res = await bbqCommands.timerStartCountdown(selectedDurationMs);
+      if (!countdownValidation.valid) return;
+      res = await bbqCommands.timerStartCountdown(countdownValidation.durationMs);
     } else if (session.mode === "Stopwatch") {
       res = await bbqCommands.timerStartStopwatch();
     } else if (session.mode === "Pomodoro") {
+      if (!pomodoroValidation.valid) return;
       res = await bbqCommands.timerStartPomodoro();
     }
     if (res) setTimerSession(res);
-  }, [session.mode, selectedDurationMs]);
+  }, [session.mode, countdownValidation, pomodoroValidation]);
 
   const handlePause = useCallback(async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -152,23 +188,25 @@ export const TimerWidget: React.FC = () => {
   const handlePresetSelect = useCallback(async (ms: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setSelectedDurationMs(ms);
+    const m = Math.floor(ms / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    setCountdownMinutes(String(m));
+    setCountdownSeconds(String(s));
     const res = await bbqCommands.timerStartCountdown(ms);
     if (res) setTimerSession(res);
   }, []);
 
-  const handleCustomSubmit = useCallback(async (e?: React.FormEvent | React.MouseEvent) => {
+  const handleCountdownSet = useCallback(async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
-    const validated = parseAndValidateCustomMinutes(customMinutes);
-    if (validated.valid) {
-      setSelectedDurationMs(validated.durationMs);
-      const res = await bbqCommands.timerStartCountdown(validated.durationMs);
+    if (countdownValidation.valid) {
+      setSelectedDurationMs(countdownValidation.durationMs);
+      const res = await bbqCommands.timerStartCountdown(countdownValidation.durationMs);
       if (res) setTimerSession(res);
-      setCustomMinutes("");
     }
-  }, [customMinutes]);
+  }, [countdownValidation]);
 
   const pomodoroInfo = useMemo(() => {
     return getPomodoroPhaseInfo(session.pomodoro_phase);
@@ -295,7 +333,11 @@ export const TimerWidget: React.FC = () => {
 
           {/* Centered Digital Display */}
           <div className="bbq-timer-center-content">
-            <span className="bbq-timer-digits">{formatTimeDisplay(displayMs)}</span>
+            <span className="bbq-timer-digits">
+              {session.mode === "Stopwatch"
+                ? formatStopwatchDisplay(displayMs)
+                : formatTimeDisplay(displayMs)}
+            </span>
             <span className={"bbq-timer-state-indicator " + session.state.toLowerCase()}>
               {session.state}
             </span>
@@ -327,31 +369,118 @@ export const TimerWidget: React.FC = () => {
 
           <form
             className="bbq-timer-custom-form"
-            onSubmit={handleCustomSubmit}
+            onSubmit={handleCountdownSet}
             onClick={(e) => e.stopPropagation()}
           >
-            <input
-              id="timer-custom-minutes-input"
-              type="number"
-              min="0.5"
-              max="1440"
-              step="any"
-              placeholder="Custom min"
-              value={customMinutes}
-              onChange={(e) => setCustomMinutes(e.target.value)}
-              className="bbq-timer-custom-input"
-              aria-label="Custom duration in minutes"
-            />
-            <button
-              id="timer-custom-start-btn"
-              type="submit"
-              className="bbq-timer-custom-btn"
-              disabled={!customMinutes.trim()}
-              onClick={(e) => handleCustomSubmit(e)}
-            >
-              Set
-            </button>
+            <div className="bbq-timer-inputs-row" role="group" aria-label="Countdown duration inputs">
+              <div className="bbq-timer-input-col">
+                <input
+                  id="timer-custom-minutes-input"
+                  type="number"
+                  min="0"
+                  max="1440"
+                  step="1"
+                  placeholder="Min"
+                  value={countdownMinutes}
+                  onChange={(e) => setCountdownMinutes(e.target.value)}
+                  className="bbq-timer-custom-input"
+                  aria-label="Countdown minutes"
+                />
+                <span className="bbq-timer-input-unit">m</span>
+              </div>
+              <span className="bbq-timer-sep">:</span>
+              <div className="bbq-timer-input-col">
+                <input
+                  id="timer-custom-seconds-input"
+                  type="number"
+                  min="0"
+                  max="59"
+                  step="1"
+                  placeholder="Sec"
+                  value={countdownSeconds}
+                  onChange={(e) => setCountdownSeconds(e.target.value)}
+                  className="bbq-timer-custom-input"
+                  aria-label="Countdown seconds"
+                />
+                <span className="bbq-timer-input-unit">s</span>
+              </div>
+              <button
+                id="timer-custom-start-btn"
+                type="submit"
+                className="bbq-timer-custom-btn"
+                disabled={!countdownValidation.valid}
+                onClick={(e) => handleCountdownSet(e)}
+              >
+                Set
+              </button>
+            </div>
           </form>
+          {!countdownValidation.valid && countdownValidation.reason && (
+            <div className="bbq-timer-input-error" role="alert">
+              {countdownValidation.reason}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pomodoro Work and Break settings (when Idle) */}
+      {session.mode === "Pomodoro" && session.state === "Idle" && (
+        <div className="bbq-pomodoro-settings-section">
+          <div className="bbq-pomodoro-inputs-group">
+            <span className="bbq-pomodoro-input-label">Work:</span>
+            <input
+              id="pomodoro-work-minutes"
+              type="number"
+              min="0"
+              max="1440"
+              value={pomodoroWorkMinutes}
+              onChange={(e) => setPomodoroWorkMinutes(e.target.value)}
+              className="bbq-timer-custom-input bbq-pomodoro-mini-input"
+              aria-label="Work minutes"
+            />
+            <span>m</span>
+            <input
+              id="pomodoro-work-seconds"
+              type="number"
+              min="0"
+              max="59"
+              value={pomodoroWorkSeconds}
+              onChange={(e) => setPomodoroWorkSeconds(e.target.value)}
+              className="bbq-timer-custom-input bbq-pomodoro-mini-input"
+              aria-label="Work seconds"
+            />
+            <span>s</span>
+          </div>
+          <div className="bbq-pomodoro-inputs-group">
+            <span className="bbq-pomodoro-input-label">Break:</span>
+            <input
+              id="pomodoro-break-minutes"
+              type="number"
+              min="0"
+              max="1440"
+              value={pomodoroBreakMinutes}
+              onChange={(e) => setPomodoroBreakMinutes(e.target.value)}
+              className="bbq-timer-custom-input bbq-pomodoro-mini-input"
+              aria-label="Break minutes"
+            />
+            <span>m</span>
+            <input
+              id="pomodoro-break-seconds"
+              type="number"
+              min="0"
+              max="59"
+              value={pomodoroBreakSeconds}
+              onChange={(e) => setPomodoroBreakSeconds(e.target.value)}
+              className="bbq-timer-custom-input bbq-pomodoro-mini-input"
+              aria-label="Break seconds"
+            />
+            <span>s</span>
+          </div>
+          {!pomodoroValidation.valid && pomodoroValidation.reason && (
+            <div className="bbq-timer-input-error" role="alert">
+              {pomodoroValidation.reason}
+            </div>
+          )}
         </div>
       )}
 
