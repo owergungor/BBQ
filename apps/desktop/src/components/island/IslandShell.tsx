@@ -4,6 +4,9 @@ import type { IslandMachineState } from "../../island/islandState.ts";
 import type { WidgetSizingContract } from "@bbq/types";
 import { Icon } from "../common/Icon.tsx";
 
+import { useSettingsState } from "../../state/settingsState.ts";
+import { resolveEffectiveCompactWidth } from "../../island/geometryResolution.ts";
+
 interface IslandShellProps {
   state: IslandMachineState;
   mode: IslandMode;
@@ -41,38 +44,43 @@ export const IslandShell: React.FC<IslandShellProps> = ({
   onDragLeave,
   onDrop,
 }) => {
+  const userCompactWidth = useSettingsState((s) => s.settings.island_width);
   const modeClass = `mode-${mode.toLowerCase()}`;
   const stateClass = `state-${state.toLowerCase()}`;
   const mediaClass = hasMedia ? "has-media" : "";
   const dragClass = isDragOver ? "drag-over" : "";
 
   let dynamicStyle: React.CSSProperties = { ...style };
-  if (sizing) {
-    if (state === "Idle") {
-      const w = contentWidth
-        ? Math.min(sizing.compact.maxWidth, Math.max(sizing.compact.minWidth, contentWidth))
-        : sizing.compact.preferredWidth;
-      dynamicStyle = {
-        ...dynamicStyle,
-        maxWidth: `${w}px`,
-        maxHeight: `${sizing.compact.preferredHeight}px`,
-      };
-    } else if (state === "Hovering") {
-      const baseW = contentWidth
-        ? Math.min(sizing.compact.maxWidth, Math.max(sizing.compact.minWidth, contentWidth))
-        : sizing.compact.preferredWidth;
-      dynamicStyle = {
-        ...dynamicStyle,
-        maxWidth: `${baseW + 40}px`,
-        maxHeight: `${sizing.compact.preferredHeight + 6}px`,
-      };
-    } else if (state === "Expanded") {
-      dynamicStyle = {
-        ...dynamicStyle,
-        maxWidth: `${sizing.expanded.preferredWidth}px`,
-        maxHeight: `${sizing.expanded.preferredHeight}px`,
-      };
-    }
+  if (state === "Idle") {
+    const resolvedW = resolveEffectiveCompactWidth({
+      contentMinWidth: contentWidth,
+      userCompactWidth,
+      widgetSizing: sizing,
+    });
+    dynamicStyle = {
+      ...dynamicStyle,
+      maxWidth: `${resolvedW}px`,
+      maxHeight: "var(--bbq-compact-height, 38px)",
+    };
+  } else if (state === "Hovering") {
+    const resolvedW = resolveEffectiveCompactWidth({
+      contentMinWidth: contentWidth,
+      userCompactWidth,
+      widgetSizing: sizing,
+    });
+    dynamicStyle = {
+      ...dynamicStyle,
+      maxWidth: `${resolvedW + 40}px`,
+      maxHeight: "var(--bbq-peek-height, 44px)",
+    };
+  } else if (state === "Expanded") {
+    const expHeight = sizing ? `${sizing.expanded.preferredHeight}px` : "var(--bbq-expanded-height, 360px)";
+    dynamicStyle = {
+      ...dynamicStyle,
+      maxWidth: sizing ? `${sizing.expanded.preferredWidth}px` : "var(--bbq-expanded-width, 520px)",
+      height: expHeight,
+      maxHeight: expHeight,
+    };
   }
 
   return (

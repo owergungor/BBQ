@@ -18,6 +18,8 @@ import {
   parseAndValidatePomodoro,
 } from "./productivityModel.ts";
 
+import { timerNotificationCoordinator } from "../../state/timerNotification.ts";
+
 export { formatTimeDisplay, formatStopwatchDisplay };
 
 const COUNTDOWN_PRESETS = [
@@ -29,6 +31,73 @@ const COUNTDOWN_PRESETS = [
   { label: "45m", ms: 45 * 60 * 1000 },
   { label: "60m", ms: 60 * 60 * 1000 },
 ];
+
+/**
+ * Isolated lightweight StopwatchReadout component.
+ * Centisecond ticks (20Hz) only re-render this isolated leaf node,
+ * completely preventing heavy React tree re-renders across the rest of the widget.
+ */
+export const StopwatchReadout: React.FC<{ session: TimerSession }> = React.memo(({ session }) => {
+  const isRunning = session.state === "Running";
+  const getElapsedMs = useCallback((): number => {
+    return calculateRemainingMs(session, Date.now());
+  }, [session]);
+
+  const [ms, setMs] = useState<number>(getElapsedMs);
+
+  useEffect(() => {
+    setMs(getElapsedMs());
+  }, [session, getElapsedMs]);
+
+  useEffect(() => {
+    if (!isRunning) return;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let isCancelled = false;
+
+    const tick = () => {
+      if (isCancelled || document.visibilityState === "hidden") return;
+      const now = Date.now();
+      setMs(getElapsedMs());
+      // Accurate 50ms boundary alignment (20fps, zero polling, cancelable one-shot)
+      const delay = Math.max(10, 50 - (now % 50));
+      timeoutId = setTimeout(tick, delay);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && !isCancelled) {
+        tick();
+      } else if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    tick();
+
+    return () => {
+      isCancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+  }, [isRunning, session.started_at, session.paused_at, getElapsedMs]);
+
+  return (
+    <div className="bbq-stopwatch-display-container" aria-live="polite" aria-atomic="true">
+      <div className="bbq-stopwatch-readout">
+        <span className="bbq-stopwatch-digits">
+          {formatStopwatchDisplay(ms)}
+        </span>
+        <span className={"bbq-timer-state-indicator " + session.state.toLowerCase()}>
+          {session.state}
+        </span>
+      </div>
+    </div>
+  );
+});
 
 export const TimerWidget: React.FC = () => {
   const { session, isLoading } = useTimerState();
@@ -76,9 +145,17 @@ export const TimerWidget: React.FC = () => {
     setDisplayMs(getDisplayMs());
   }, [session, getDisplayMs]);
 
-  // Bounded, cancelable one-shot timeout scheduling strictly targeting next tick
+  // Evaluate notification whenever a session completes
   useEffect(() => {
-    if (session.state !== "Running") {
+    if (session.state === "Completed") {
+      timerNotificationCoordinator.evaluate(session);
+    }
+  }, [session]);
+
+  // Bounded, cancelable one-shot timeout scheduling strictly targeting next tick for countdown/pomodoro (1Hz)
+  // Stopwatch ticks (20Hz) are completely handled inside StopwatchReadout.
+  useEffect(() => {
+    if (session.state !== "Running" || session.mode === "Stopwatch") {
       return;
     }
 
@@ -90,11 +167,8 @@ export const TimerWidget: React.FC = () => {
       const now = Date.now();
       setDisplayMs(getDisplayMs());
 
-      // Target ~50ms for smooth stopwatch hundredths, or next whole second boundary for countdown/pomodoro
-      const delay =
-        session.mode === "Stopwatch"
-          ? Math.max(10, 50 - (now % 50))
-          : Math.max(50, 1000 - (now % 1000));
+      // Target next whole second boundary for countdown/pomodoro (1Hz)
+      const delay = Math.max(50, 1000 - (now % 1000));
       timeoutId = setTimeout(scheduleNextTick, delay);
     };
 
@@ -156,7 +230,10 @@ export const TimerWidget: React.FC = () => {
       res = await bbqCommands.timerStartStopwatch();
     } else if (session.mode === "Pomodoro") {
       if (!pomodoroValidation.valid) return;
-      res = await bbqCommands.timerStartPomodoro();
+      res = await bbqCommands.timerStartPomodoro(
+        pomodoroValidation.workMs,
+        pomodoroValidation.breakMs
+      );
     }
     if (res) setTimerSession(res);
   }, [session.mode, countdownValidation, pomodoroValidation]);
@@ -276,336 +353,347 @@ export const TimerWidget: React.FC = () => {
         </button>
       </div>
 
-      {/* Pomodoro Phase & Cycle Badge */}
-      {session.mode === "Pomodoro" && (
-        <div className="bbq-pomodoro-status">
-          <span
-            className="bbq-pomodoro-phase-badge"
-            style={{ backgroundColor: pomodoroInfo.color + "1e", color: pomodoroInfo.color }}
-          >
-            <Icon name={pomodoroInfo.iconName} size={12} aria-hidden="true" />
-            <span>{pomodoroInfo.label}</span>
-          </span>
-          <div className="bbq-pomodoro-cycles" title={"Completed cycles: " + session.completed_cycles}>
-            <span className="bbq-cycles-label">Cycles: {session.completed_cycles}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Circular Progress Ring + Digital Readout Centerpiece */}
-      <div className="bbq-timer-centerpiece" aria-live="polite" aria-atomic="true">
-        <div className="bbq-timer-ring-container">
-          <svg
-            className="bbq-timer-ring-svg"
-            width="128"
-            height="128"
-            viewBox="0 0 128 128"
-            aria-hidden="true"
-          >
-            {/* Background Track */}
-            <circle
-              className="bbq-timer-ring-bg"
-              cx="64"
-              cy="64"
-              r={radius}
-              fill="none"
-              stroke="rgba(255, 255, 255, 0.08)"
-              strokeWidth="5"
-            />
-            {/* Active Progress Ring */}
-            <circle
-              className="bbq-timer-ring-fill"
-              cx="64"
-              cy="64"
-              r={radius}
-              fill="none"
-              stroke={accentColor}
-              strokeWidth="5"
-              strokeDasharray={circumference}
-              strokeDashoffset={dashOffset}
-              strokeLinecap="round"
-              transform="rotate(-90 64 64)"
-              style={{
-                transition: session.state === "Running" ? "stroke-dashoffset 0.5s ease" : "none",
-              }}
-            />
-          </svg>
-
-          {/* Centered Digital Display */}
-          <div className="bbq-timer-center-content">
-            <span className="bbq-timer-digits">
-              {session.mode === "Stopwatch"
-                ? formatStopwatchDisplay(displayMs)
-                : formatTimeDisplay(displayMs)}
+      {/* Stable Timer Content Body */}
+      <div className="bbq-timer-content-body">
+        {/* Pomodoro Phase & Cycle Badge */}
+        {session.mode === "Pomodoro" && (
+          <div className="bbq-pomodoro-status">
+            <span
+              className="bbq-pomodoro-phase-badge"
+              style={{ backgroundColor: pomodoroInfo.color + "1e", color: pomodoroInfo.color }}
+            >
+              <Icon name={pomodoroInfo.iconName} size={12} aria-hidden="true" />
+              <span>{pomodoroInfo.label}</span>
             </span>
-            <span className={"bbq-timer-state-indicator " + session.state.toLowerCase()}>
-              {session.state}
-            </span>
-            {session.state === "Completed" && (
-              <span className="bbq-sr-only" role="status" aria-live="polite">
-                Timer completed
-              </span>
-            )}
+            <div className="bbq-pomodoro-cycles" title={"Completed cycles: " + session.completed_cycles}>
+              <span className="bbq-cycles-label">Cycles: {session.completed_cycles}</span>
+            </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Countdown Presets & Custom Manual Time (Countdown mode) */}
-      {session.mode === "Countdown" && (
-        <div className="bbq-timer-presets-section">
-          <div className="bbq-timer-presets" role="group" aria-label="Quick timer presets">
-            {COUNTDOWN_PRESETS.map((preset) => (
-              <button
-                key={preset.ms}
-                id={"timer-preset-" + preset.label.replace(/\s+/g, "")}
-                type="button"
-                className={"bbq-timer-preset-btn" + (selectedDurationMs === preset.ms ? " active" : "")}
-                onClick={(e) => handlePresetSelect(preset.ms, e)}
+        {/* Stopwatch Direct Display (no circular container) vs Timer Progress Ring Centerpiece */}
+        {session.mode === "Stopwatch" ? (
+          <StopwatchReadout session={session} />
+        ) : (
+          <div className="bbq-timer-centerpiece" aria-live="polite" aria-atomic="true">
+            <div className="bbq-timer-ring-container">
+              <svg
+                className="bbq-timer-ring-svg"
+                width="128"
+                height="128"
+                viewBox="0 0 128 128"
+                aria-hidden="true"
               >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-
-          <form
-            className="bbq-timer-custom-form"
-            onSubmit={handleCountdownSet}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bbq-timer-inputs-row" role="group" aria-label="Countdown duration inputs">
-              <div className="bbq-timer-input-col">
-                <input
-                  id="timer-custom-minutes-input"
-                  type="number"
-                  min="0"
-                  max="1440"
-                  step="1"
-                  placeholder="Min"
-                  value={countdownMinutes}
-                  onChange={(e) => setCountdownMinutes(e.target.value)}
-                  className="bbq-timer-custom-input"
-                  aria-label="Countdown minutes"
+                {/* Background Track */}
+                <circle
+                  className="bbq-timer-ring-bg"
+                  cx="64"
+                  cy="64"
+                  r={radius}
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.08)"
+                  strokeWidth="5"
                 />
-                <span className="bbq-timer-input-unit">m</span>
-              </div>
-              <span className="bbq-timer-sep">:</span>
-              <div className="bbq-timer-input-col">
-                <input
-                  id="timer-custom-seconds-input"
-                  type="number"
-                  min="0"
-                  max="59"
-                  step="1"
-                  placeholder="Sec"
-                  value={countdownSeconds}
-                  onChange={(e) => setCountdownSeconds(e.target.value)}
-                  className="bbq-timer-custom-input"
-                  aria-label="Countdown seconds"
+                {/* Active Progress Ring */}
+                <circle
+                  className="bbq-timer-ring-fill"
+                  cx="64"
+                  cy="64"
+                  r={radius}
+                  fill="none"
+                  stroke={accentColor}
+                  strokeWidth="5"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={dashOffset}
+                  strokeLinecap="round"
+                  transform="rotate(-90 64 64)"
+                  style={{
+                    transition: session.state === "Running" ? "stroke-dashoffset 0.5s ease" : "none",
+                  }}
                 />
-                <span className="bbq-timer-input-unit">s</span>
+              </svg>
+
+              {/* Centered Digital Display */}
+              <div className="bbq-timer-center-content">
+                <span className="bbq-timer-digits">
+                  {formatTimeDisplay(displayMs)}
+                </span>
+                <span className={"bbq-timer-state-indicator " + session.state.toLowerCase()}>
+                  {session.state}
+                </span>
+                {session.state === "Completed" && (
+                  <span className="bbq-sr-only" role="status" aria-live="polite">
+                    Timer completed
+                  </span>
+                )}
               </div>
-              <button
-                id="timer-custom-start-btn"
-                type="submit"
-                className="bbq-timer-custom-btn"
-                disabled={!countdownValidation.valid}
-                onClick={(e) => handleCountdownSet(e)}
-              >
-                Set
-              </button>
             </div>
-          </form>
-          {!countdownValidation.valid && countdownValidation.reason && (
-            <div className="bbq-timer-input-error" role="alert">
-              {countdownValidation.reason}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Pomodoro Work and Break settings (when Idle) */}
-      {session.mode === "Pomodoro" && session.state === "Idle" && (
-        <div className="bbq-pomodoro-settings-section">
-          <div className="bbq-pomodoro-inputs-group">
-            <span className="bbq-pomodoro-input-label">Work:</span>
-            <input
-              id="pomodoro-work-minutes"
-              type="number"
-              min="0"
-              max="1440"
-              value={pomodoroWorkMinutes}
-              onChange={(e) => setPomodoroWorkMinutes(e.target.value)}
-              className="bbq-timer-custom-input bbq-pomodoro-mini-input"
-              aria-label="Work minutes"
-            />
-            <span>m</span>
-            <input
-              id="pomodoro-work-seconds"
-              type="number"
-              min="0"
-              max="59"
-              value={pomodoroWorkSeconds}
-              onChange={(e) => setPomodoroWorkSeconds(e.target.value)}
-              className="bbq-timer-custom-input bbq-pomodoro-mini-input"
-              aria-label="Work seconds"
-            />
-            <span>s</span>
           </div>
-          <div className="bbq-pomodoro-inputs-group">
-            <span className="bbq-pomodoro-input-label">Break:</span>
-            <input
-              id="pomodoro-break-minutes"
-              type="number"
-              min="0"
-              max="1440"
-              value={pomodoroBreakMinutes}
-              onChange={(e) => setPomodoroBreakMinutes(e.target.value)}
-              className="bbq-timer-custom-input bbq-pomodoro-mini-input"
-              aria-label="Break minutes"
-            />
-            <span>m</span>
-            <input
-              id="pomodoro-break-seconds"
-              type="number"
-              min="0"
-              max="59"
-              value={pomodoroBreakSeconds}
-              onChange={(e) => setPomodoroBreakSeconds(e.target.value)}
-              className="bbq-timer-custom-input bbq-pomodoro-mini-input"
-              aria-label="Break seconds"
-            />
-            <span>s</span>
-          </div>
-          {!pomodoroValidation.valid && pomodoroValidation.reason && (
-            <div className="bbq-timer-input-error" role="alert">
-              {pomodoroValidation.reason}
+        )}
+
+        {/* Countdown Presets & Custom Manual Time (Countdown mode) */}
+        {session.mode === "Countdown" && (
+          <div className="bbq-timer-presets-section">
+            <div className="bbq-timer-presets" role="group" aria-label="Quick timer presets">
+              {COUNTDOWN_PRESETS.map((preset) => (
+                <button
+                  key={preset.ms}
+                  id={"timer-preset-" + preset.label.replace(/\s+/g, "")}
+                  type="button"
+                  className={"bbq-timer-preset-btn" + (selectedDurationMs === preset.ms ? " active" : "")}
+                  onClick={(e) => handlePresetSelect(preset.ms, e)}
+                  disabled={session.state === "Running"}
+                >
+                  {preset.label}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Action Controls */}
-      <div className="bbq-timer-controls" onClick={(e) => e.stopPropagation()}>
-        {session.state === "Idle" && (
-          <button
-            id="timer-btn-start"
-            type="button"
-            className="bbq-timer-btn bbq-timer-btn-primary"
-            onClick={handleStart}
-            disabled={isLoading}
-            aria-label="Start timer"
-          >
-            <Icon name="play" size={13} aria-hidden="true" />
-            <span>Start</span>
-          </button>
-        )}
-
-        {session.state === "Running" && (
-          <>
-            <button
-              id="timer-btn-pause"
-              type="button"
-              className="bbq-timer-btn bbq-timer-btn-warning"
-              onClick={handlePause}
-              disabled={isLoading}
-              aria-label="Pause timer"
+            <form
+              className="bbq-timer-custom-form"
+              onSubmit={handleCountdownSet}
+              onClick={(e) => e.stopPropagation()}
             >
-              <Icon name="pause" size={13} aria-hidden="true" />
-              <span>Pause</span>
-            </button>
-            <button
-              id="timer-btn-reset"
-              type="button"
-              className="bbq-timer-btn bbq-timer-btn-secondary"
-              onClick={handleReset}
-              disabled={isLoading}
-              aria-label="Reset timer"
-            >
-              <Icon name="refresh" size={13} aria-hidden="true" />
-              <span>Reset</span>
-            </button>
-            {session.mode === "Countdown" && (
-              <button
-                id="timer-btn-cancel"
-                type="button"
-                className="bbq-timer-btn bbq-timer-btn-ghost"
-                onClick={handleCancel}
-                disabled={isLoading}
-                aria-label="Cancel timer"
-              >
-                <Icon name="close" size={13} aria-hidden="true" />
-                <span>Cancel</span>
-              </button>
+              <div className="bbq-timer-inputs-row" role="group" aria-label="Countdown duration inputs">
+                <div className="bbq-timer-input-col">
+                  <input
+                    id="timer-custom-minutes-input"
+                    type="number"
+                    min="0"
+                    max="1440"
+                    step="1"
+                    placeholder="05"
+                    disabled={session.state === "Running"}
+                    value={countdownMinutes}
+                    onChange={(e) => setCountdownMinutes(e.target.value)}
+                    className="bbq-timer-custom-input"
+                    aria-label="Countdown minutes"
+                  />
+                  <span className="bbq-timer-input-unit">dk</span>
+                </div>
+                <div className="bbq-timer-input-col">
+                  <input
+                    id="timer-custom-seconds-input"
+                    type="number"
+                    min="0"
+                    max="59"
+                    step="1"
+                    placeholder="00"
+                    disabled={session.state === "Running"}
+                    value={countdownSeconds}
+                    onChange={(e) => setCountdownSeconds(e.target.value)}
+                    className="bbq-timer-custom-input"
+                    aria-label="Countdown seconds"
+                  />
+                  <span className="bbq-timer-input-unit">sn</span>
+                </div>
+                <button
+                  id="timer-custom-start-btn"
+                  type="submit"
+                  className="bbq-timer-custom-btn"
+                  disabled={!countdownValidation.valid || session.state === "Running"}
+                  onClick={(e) => handleCountdownSet(e)}
+                >
+                  Set
+                </button>
+              </div>
+            </form>
+            {!countdownValidation.valid && countdownValidation.reason && (
+              <div className="bbq-timer-input-error" role="alert">
+                {countdownValidation.reason}
+              </div>
             )}
-          </>
+          </div>
         )}
 
-        {session.state === "Paused" && (
-          <>
-            <button
-              id="timer-btn-resume"
-              type="button"
-              className="bbq-timer-btn bbq-timer-btn-primary"
-              onClick={handleResume}
-              disabled={isLoading}
-              aria-label="Resume timer"
-            >
-              <Icon name="play" size={13} aria-hidden="true" />
-              <span>Resume</span>
-            </button>
-            <button
-              id="timer-btn-reset"
-              type="button"
-              className="bbq-timer-btn bbq-timer-btn-secondary"
-              onClick={handleReset}
-              disabled={isLoading}
-              aria-label="Reset timer"
-            >
-              <Icon name="refresh" size={13} aria-hidden="true" />
-              <span>Reset</span>
-            </button>
-            {session.mode === "Countdown" && (
-              <button
-                id="timer-btn-cancel"
-                type="button"
-                className="bbq-timer-btn bbq-timer-btn-ghost"
-                onClick={handleCancel}
-                disabled={isLoading}
-                aria-label="Cancel timer"
-              >
-                <Icon name="close" size={13} aria-hidden="true" />
-                <span>Cancel</span>
-              </button>
+        {/* Pomodoro Work and Break settings */}
+        {session.mode === "Pomodoro" && (
+          <div className="bbq-pomodoro-settings-section">
+            <div className="bbq-pomodoro-inputs-group">
+              <span className="bbq-pomodoro-input-label">Çalışma</span>
+              <input
+                id="pomodoro-work-minutes"
+                type="number"
+                min="0"
+                max="1440"
+                disabled={session.state === "Running"}
+                value={pomodoroWorkMinutes}
+                onChange={(e) => setPomodoroWorkMinutes(e.target.value)}
+                className="bbq-timer-custom-input bbq-pomodoro-mini-input"
+                aria-label="Çalışma dakikası"
+              />
+              <span className="bbq-timer-input-unit">dk</span>
+              <input
+                id="pomodoro-work-seconds"
+                type="number"
+                min="0"
+                max="59"
+                disabled={session.state === "Running"}
+                value={pomodoroWorkSeconds}
+                onChange={(e) => setPomodoroWorkSeconds(e.target.value)}
+                className="bbq-timer-custom-input bbq-pomodoro-mini-input"
+                aria-label="Çalışma saniyesi"
+              />
+              <span className="bbq-timer-input-unit">sn</span>
+            </div>
+            <div className="bbq-pomodoro-inputs-group">
+              <span className="bbq-pomodoro-input-label">Mola</span>
+              <input
+                id="pomodoro-break-minutes"
+                type="number"
+                min="0"
+                max="1440"
+                disabled={session.state === "Running"}
+                value={pomodoroBreakMinutes}
+                onChange={(e) => setPomodoroBreakMinutes(e.target.value)}
+                className="bbq-timer-custom-input bbq-pomodoro-mini-input"
+                aria-label="Mola dakikası"
+              />
+              <span className="bbq-timer-input-unit">dk</span>
+              <input
+                id="pomodoro-break-seconds"
+                type="number"
+                min="0"
+                max="59"
+                disabled={session.state === "Running"}
+                value={pomodoroBreakSeconds}
+                onChange={(e) => setPomodoroBreakSeconds(e.target.value)}
+                className="bbq-timer-custom-input bbq-pomodoro-mini-input"
+                aria-label="Mola saniyesi"
+              />
+              <span className="bbq-timer-input-unit">sn</span>
+            </div>
+            {!pomodoroValidation.valid && pomodoroValidation.reason && (
+              <div className="bbq-timer-input-error" role="alert">
+                {pomodoroValidation.reason}
+              </div>
             )}
-          </>
+          </div>
         )}
 
-        {session.state === "Completed" && (
-          <>
+        {/* Action Controls */}
+        <div className="bbq-timer-controls" onClick={(e) => e.stopPropagation()}>
+          {session.state === "Idle" && (
             <button
-              id="timer-btn-restart"
+              id="timer-btn-start"
               type="button"
               className="bbq-timer-btn bbq-timer-btn-primary"
               onClick={handleStart}
               disabled={isLoading}
-              aria-label="Start new timer"
+              aria-label="Start timer"
             >
               <Icon name="play" size={13} aria-hidden="true" />
-              <span>Start New</span>
+              <span>Start</span>
             </button>
-            <button
-              id="timer-btn-reset"
-              type="button"
-              className="bbq-timer-btn bbq-timer-btn-secondary"
-              onClick={handleReset}
-              disabled={isLoading}
-              aria-label="Reset timer"
-            >
-              <Icon name="refresh" size={13} aria-hidden="true" />
-              <span>Reset</span>
-            </button>
-          </>
-        )}
+          )}
+
+          {session.state === "Running" && (
+            <>
+              <button
+                id="timer-btn-pause"
+                type="button"
+                className="bbq-timer-btn bbq-timer-btn-warning"
+                onClick={handlePause}
+                disabled={isLoading}
+                aria-label="Pause timer"
+              >
+                <Icon name="pause" size={13} aria-hidden="true" />
+                <span>Pause</span>
+              </button>
+              <button
+                id="timer-btn-reset"
+                type="button"
+                className="bbq-timer-btn bbq-timer-btn-secondary"
+                onClick={handleReset}
+                disabled={isLoading}
+                aria-label="Reset timer"
+              >
+                <Icon name="refresh" size={13} aria-hidden="true" />
+                <span>Reset</span>
+              </button>
+              {session.mode === "Countdown" && (
+                <button
+                  id="timer-btn-cancel"
+                  type="button"
+                  className="bbq-timer-btn bbq-timer-btn-ghost"
+                  onClick={handleCancel}
+                  disabled={isLoading}
+                  aria-label="Cancel timer"
+                >
+                  <Icon name="close" size={13} aria-hidden="true" />
+                  <span>Cancel</span>
+                </button>
+              )}
+            </>
+          )}
+
+          {session.state === "Paused" && (
+            <>
+              <button
+                id="timer-btn-resume"
+                type="button"
+                className="bbq-timer-btn bbq-timer-btn-primary"
+                onClick={handleResume}
+                disabled={isLoading}
+                aria-label="Resume timer"
+              >
+                <Icon name="play" size={13} aria-hidden="true" />
+                <span>Resume</span>
+              </button>
+              <button
+                id="timer-btn-reset"
+                type="button"
+                className="bbq-timer-btn bbq-timer-btn-secondary"
+                onClick={handleReset}
+                disabled={isLoading}
+                aria-label="Reset timer"
+              >
+                <Icon name="refresh" size={13} aria-hidden="true" />
+                <span>Reset</span>
+              </button>
+              {session.mode === "Countdown" && (
+                <button
+                  id="timer-btn-cancel"
+                  type="button"
+                  className="bbq-timer-btn bbq-timer-btn-ghost"
+                  onClick={handleCancel}
+                  disabled={isLoading}
+                  aria-label="Cancel timer"
+                >
+                  <Icon name="close" size={13} aria-hidden="true" />
+                  <span>Cancel</span>
+                </button>
+              )}
+            </>
+          )}
+
+          {session.state === "Completed" && (
+            <>
+              <button
+                id="timer-btn-restart"
+                type="button"
+                className="bbq-timer-btn bbq-timer-btn-primary"
+                onClick={handleStart}
+                disabled={isLoading}
+                aria-label="Start new timer"
+              >
+                <Icon name="play" size={13} aria-hidden="true" />
+                <span>Start New</span>
+              </button>
+              <button
+                id="timer-btn-reset"
+                type="button"
+                className="bbq-timer-btn bbq-timer-btn-secondary"
+                onClick={handleReset}
+                disabled={isLoading}
+                aria-label="Reset timer"
+              >
+                <Icon name="refresh" size={13} aria-hidden="true" />
+                <span>Reset</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

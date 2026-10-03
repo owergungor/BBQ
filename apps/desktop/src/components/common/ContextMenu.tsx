@@ -21,25 +21,58 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
   const [isPinned, setIsPinned] = useState<boolean>(true);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Compute screen-edge clamped position
+  // Compute screen-edge clamped position and submenu flip
   const [adjustedPos, setAdjustedPos] = useState<{ x: number; y: number }>({ x, y });
+  const [flipSubmenu, setFlipSubmenu] = useState<boolean>(false);
 
   useEffect(() => {
     const menuWidth = 200;
+    const submenuWidth = 160;
     const menuHeight = 280;
     const padding = 8;
+    const winW = typeof window !== "undefined" ? window.innerWidth : 800;
+    const winH = typeof window !== "undefined" ? window.innerHeight : 600;
 
-    const clampedX = Math.max(
-      padding,
-      Math.min(x, (typeof window !== "undefined" ? window.innerWidth : 800) - menuWidth - padding)
-    );
-    const clampedY = Math.max(
-      padding,
-      Math.min(y, (typeof window !== "undefined" ? window.innerHeight : 600) - menuHeight - padding)
-    );
+    let clampedX = x;
+    let clampedY = y;
 
+    // Reposition safely away from edges
+    if (clampedX + menuWidth + padding > winW) {
+      clampedX = Math.max(padding, winW - menuWidth - padding);
+    }
+    if (clampedX < padding) {
+      clampedX = padding;
+    }
+    if (clampedY + menuHeight + padding > winH) {
+      clampedY = Math.max(padding, winH - menuHeight - padding);
+    }
+    if (clampedY < padding) {
+      clampedY = padding;
+    }
+
+    setFlipSubmenu(clampedX + menuWidth + submenuWidth + padding > winW);
     setAdjustedPos({ x: clampedX, y: clampedY });
   }, [x, y]);
+
+  // Click outside to dismiss context menu
+  useEffect(() => {
+    const handleDocClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener("mousedown", handleDocClick);
+      document.addEventListener("contextmenu", handleDocClick);
+    }, 10);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleDocClick);
+      document.removeEventListener("contextmenu", handleDocClick);
+    };
+  }, [onClose]);
 
   const isExpanded = islandLayoutState === "Expanded";
   const startAtLogin = Boolean(settings.start_at_login);
@@ -160,17 +193,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
     },
   ];
 
-  // Outside click listener
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [onClose]);
-
   // Keyboard navigation: ArrowDown, ArrowUp, Enter, Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -200,7 +222,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
         ref={menuRef}
         role="menu"
         aria-label="BBQ Quick Actions Context Menu"
-        className="bbq-context-menu"
+        className={`bbq-context-menu${flipSubmenu ? " flip-submenu" : ""}`}
         style={{
           left: `${adjustedPos.x}px`,
           top: `${adjustedPos.y}px`,
@@ -209,7 +231,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       >
         <div className="bbq-context-menu-header">
           <span className="bbq-context-menu-title">BBQ Island</span>
-          <span className="bbq-context-menu-badge">v2.1</span>
+          <span className="bbq-context-menu-badge">v2.2</span>
         </div>
 
         <div className="bbq-context-menu-divider" role="separator" />
@@ -296,7 +318,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
           >
             <div className="bbq-about-header">
               <span className="bbq-about-brand">BBQ Desktop Island</span>
-              <span className="bbq-about-version">v2.1.0</span>
+              <span className="bbq-about-version">v2.2.0</span>
             </div>
             <p className="bbq-about-desc">
               Lightweight, responsive cross-platform productivity island. Zero-polling native telemetry, media controller, and productivity shelf.

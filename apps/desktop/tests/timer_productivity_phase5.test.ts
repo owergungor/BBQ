@@ -104,27 +104,27 @@ describe("BBQ v2.1 — Phase 5: Timer, Pomodoro, and Stopwatch Contracts", () =>
     });
   });
 
-  describe("5C. Stopwatch MM:SS.SS Display & Monotonic Elapsed Time", () => {
-    it("formats 0ms into 00:00.00", () => {
-      assert.strictEqual(formatStopwatchDisplay(0), "00:00.00");
+  describe("5C. Stopwatch HH:MM:SS.cs Display & Monotonic Elapsed Time", () => {
+    it("formats 0ms into 00:00:00.00", () => {
+      assert.strictEqual(formatStopwatchDisplay(0), "00:00:00.00");
     });
 
-    it("formats minutes, seconds, and hundredths correctly", () => {
-      // 1 minute, 5 seconds, 430 milliseconds -> 01:05.43
+    it("formats hours, minutes, seconds, and hundredths correctly", () => {
+      // 1 minute, 5 seconds, 430 milliseconds -> 00:01:05.43
       const ms = (1 * 60 + 5) * 1000 + 430;
-      assert.strictEqual(formatStopwatchDisplay(ms), "01:05.43");
+      assert.strictEqual(formatStopwatchDisplay(ms), "00:01:05.43");
 
-      // 59 seconds, 990 ms -> 00:59.99
-      assert.strictEqual(formatStopwatchDisplay(59990), "00:59.99");
+      // 59 seconds, 990 ms -> 00:00:59.99
+      assert.strictEqual(formatStopwatchDisplay(59990), "00:00:59.99");
 
-      // 12 minutes, 34 seconds, 560 ms -> 12:34.56
+      // 12 minutes, 34 seconds, 560 ms -> 00:12:34.56
       const ms2 = (12 * 60 + 34) * 1000 + 560;
-      assert.strictEqual(formatStopwatchDisplay(ms2), "12:34.56");
+      assert.strictEqual(formatStopwatchDisplay(ms2), "00:12:34.56");
     });
 
     it("handles negative or invalid values gracefully without throwing", () => {
-      assert.strictEqual(formatStopwatchDisplay(-100), "00:00.00");
-      assert.strictEqual(formatStopwatchDisplay(NaN), "00:00.00");
+      assert.strictEqual(formatStopwatchDisplay(-100), "00:00:00.00");
+      assert.strictEqual(formatStopwatchDisplay(NaN), "00:00:00.00");
     });
   });
 });

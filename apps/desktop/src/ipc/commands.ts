@@ -428,9 +428,15 @@ export const bbqCommands = {
     }
   },
 
-  timerStartPomodoro: async (): Promise<TimerSession | null> => {
+  timerStartPomodoro: async (
+    workMs?: number,
+    breakMs?: number
+  ): Promise<TimerSession | null> => {
     try {
-      return await invoke<TimerSession>("timer_start_pomodoro");
+      return await invoke<TimerSession>("timer_start_pomodoro", {
+        workMs: workMs ?? null,
+        breakMs: breakMs ?? null,
+      });
     } catch (err) {
       console.error("Failed to start pomodoro:", err);
       return null;

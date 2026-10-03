@@ -100,26 +100,28 @@ pub fn wire_service_events(handle: &AppHandle, state: &AppState) {
                         TimerMode::Countdown => NotificationRequest::new(
                             format!("timer_finish_{}", session.id),
                             NotificationCategory::Timer,
-                            "Timer finished",
-                            "Your countdown timer has completed.",
+                            "Countdown",
+                            "Countdown tamamlandı.",
                         ),
                         TimerMode::Pomodoro => {
+                            // Phase notification bodies:
+                            // Work completed: "Focus session complete. Time for a well-deserved break!" ("Çalışma süresi tamamlandı. Mola başladı.")
+                            // Break completed: "Break ended. Ready to focus again!" ("Mola tamamlandı. Çalışma başladı.")
                             let (title, body) = match session.pomodoro_phase {
-                                Some(PomodoroPhase::Work) => (
-                                    "Focus session complete",
-                                    "Focus session complete. Time for a well-deserved break!",
-                                ),
+                                Some(PomodoroPhase::Work) => {
+                                    ("Pomodoro", "Çalışma süresi tamamlandı. Mola başladı.")
+                                }
                                 Some(PomodoroPhase::ShortBreak)
                                 | Some(PomodoroPhase::LongBreak) => {
-                                    ("Break ended", "Break ended. Ready to focus again!")
+                                    ("Pomodoro", "Mola tamamlandı. Çalışma başladı.")
                                 }
-                                None => (
-                                    "Focus session complete",
-                                    "Focus session complete. Time for a well-deserved break!",
-                                ),
+                                None => ("Pomodoro", "Çalışma süresi tamamlandı. Mola başladı."),
                             };
                             NotificationRequest::new(
-                                format!("pomodoro_finish_{}", session.id),
+                                format!(
+                                    "pomodoro_finish_{}_{}_{:?}",
+                                    session.id, session.completed_cycles, session.pomodoro_phase
+                                ),
                                 NotificationCategory::Pomodoro,
                                 title,
                                 body,

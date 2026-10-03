@@ -807,10 +807,37 @@ impl PlatformFile for MacOsFile {
     }
 
     async fn reveal(&self, path: &str) -> BbqResult<()> {
-        std::process::Command::new("open")
-            .args(["-R", path])
-            .spawn()
-            .map_err(|e| BbqError::Platform(format!("Failed to spawn reveal command: {}", e)))?;
+        let target = crate::path_utils::resolve_reveal_target(path);
+        match target {
+            crate::path_utils::RevealResolution::Exact {
+                path: ref p,
+                is_file,
+            } => {
+                let mut cmd = std::process::Command::new("open");
+                if is_file {
+                    cmd.arg("-R").arg(p.as_os_str());
+                } else {
+                    cmd.arg(p.as_os_str());
+                }
+                cmd.spawn().map_err(|e| {
+                    BbqError::Platform(format!("Failed to spawn reveal command: {}", e))
+                })?;
+            }
+            crate::path_utils::RevealResolution::FallbackParent { ref parent, .. } => {
+                std::process::Command::new("open")
+                    .arg(parent.as_os_str())
+                    .spawn()
+                    .map_err(|e| {
+                        BbqError::Platform(format!("Failed to spawn reveal parent: {}", e))
+                    })?;
+            }
+            crate::path_utils::RevealResolution::NotFound { ref original } => {
+                return Err(BbqError::Validation(format!(
+                    "Path and its parent directory do not exist: {}",
+                    original.display()
+                )));
+            }
+        }
         Ok(())
     }
 

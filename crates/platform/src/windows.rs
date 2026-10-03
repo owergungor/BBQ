@@ -1779,10 +1779,38 @@ impl PlatformFile for WindowsFile {
     }
 
     async fn reveal(&self, path: &str) -> BbqResult<()> {
-        std::process::Command::new("explorer.exe")
-            .arg(format!("/select,{}", path))
-            .spawn()
-            .map_err(|e| BbqError::Platform(format!("Failed to reveal file: {}", e)))?;
+        let target = crate::path_utils::resolve_reveal_target(path);
+        match target {
+            crate::path_utils::RevealResolution::Exact {
+                path: ref p,
+                is_file,
+            } => {
+                let path_str = p.to_string_lossy();
+                let mut cmd = std::process::Command::new("explorer.exe");
+                if is_file {
+                    cmd.arg(format!("/select,{}", path_str));
+                } else {
+                    cmd.arg(path_str.as_ref());
+                }
+                cmd.spawn()
+                    .map_err(|e| BbqError::Platform(format!("Failed to reveal file: {}", e)))?;
+            }
+            crate::path_utils::RevealResolution::FallbackParent { ref parent, .. } => {
+                let parent_str = parent.to_string_lossy();
+                std::process::Command::new("explorer.exe")
+                    .arg(parent_str.as_ref())
+                    .spawn()
+                    .map_err(|e| {
+                        BbqError::Platform(format!("Failed to open parent directory: {}", e))
+                    })?;
+            }
+            crate::path_utils::RevealResolution::NotFound { ref original } => {
+                return Err(BbqError::Validation(format!(
+                    "Path and its parent directory do not exist: {}",
+                    original.display()
+                )));
+            }
+        }
         Ok(())
     }
 
@@ -1828,12 +1856,17 @@ impl PlatformFile for WindowsFile {
             }
 
             // 2. Offload OLE drag-out to blocking native thread so UI stays 100% responsive
+            let canonical_clone = canonical_paths.clone();
             tokio::task::spawn_blocking(move || {
                 use std::os::windows::ffi::OsStrExt;
                 use windows::core::PCWSTR;
                 use windows::Win32::System::Com::IDataObject;
                 use windows::Win32::System::Ole::{
                     OleInitialize, OleUninitialize, DROPEFFECT_COPY, DROPEFFECT_LINK,
+                    DROPEFFECT_MOVE,
+                };
+                use windows::Win32::UI::Input::KeyboardAndMouse::{
+                    GetAsyncKeyState, ReleaseCapture, VK_LBUTTON,
                 };
                 use windows::Win32::UI::Shell::{
                     BHID_DataObject, Common::ITEMIDLIST, ILFree, IShellItem, IShellItemArray,
@@ -1842,11 +1875,19 @@ impl PlatformFile for WindowsFile {
                 };
 
                 unsafe {
+                    // Check if mouse button is held down. If not, drag cannot proceed.
+                    let is_mouse_down =
+                        (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0;
+                    if !is_mouse_down {
+                        // If invoked without active pointer hold, do not start blocking OLE modal loop
+                        return Ok(());
+                    }
+
                     let _ = OleInitialize(None);
 
                     let data_obj_res = (|| -> windows::core::Result<IDataObject> {
-                        if canonical_paths.len() == 1 {
-                            let wide: Vec<u16> = std::ffi::OsStr::new(&canonical_paths[0])
+                        if canonical_clone.len() == 1 {
+                            let wide: Vec<u16> = std::ffi::OsStr::new(&canonical_clone[0])
                                 .encode_wide()
                                 .chain(std::iter::once(0))
                                 .collect();
@@ -1855,8 +1896,8 @@ impl PlatformFile for WindowsFile {
                             item.BindToHandler(None, &BHID_DataObject)
                         } else {
                             let mut pidls: Vec<*mut ITEMIDLIST> =
-                                Vec::with_capacity(canonical_paths.len());
-                            for path_str in &canonical_paths {
+                                Vec::with_capacity(canonical_clone.len());
+                            for path_str in &canonical_clone {
                                 let wide: Vec<u16> = std::ffi::OsStr::new(path_str)
                                     .encode_wide()
                                     .chain(std::iter::once(0))
@@ -1897,13 +1938,16 @@ impl PlatformFile for WindowsFile {
                                 None,
                                 &data_obj,
                                 None,
-                                DROPEFFECT_COPY | DROPEFFECT_LINK,
+                                DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK,
                             );
                         }
                         Err(e) => {
                             tracing::warn!("Failed to bind Shell DataObject: {}", e);
                         }
                     }
+
+                    // Explicitly release any mouse capture to guarantee normal OS desktop/explorer behavior
+                    let _ = ReleaseCapture();
 
                     OleUninitialize();
                     Ok(())

@@ -52,6 +52,9 @@ export interface WidgetSizingConstraints {
   aspectRatio?: number;
 }
 
+/** Conceptual geometry model defining dimension bounds and optional aspect ratio. */
+export type WidgetGeometry = WidgetSizingConstraints;
+
 export interface WidgetSizingContract {
   compact: WidgetSizingConstraints;
   expanded: WidgetSizingConstraints;

@@ -4,6 +4,7 @@ pub mod hotkey;
 pub mod launcher;
 pub mod mock;
 pub mod notification;
+pub mod path_utils;
 pub mod traits;
 
 #[cfg(any(all(unix, not(target_os = "macos")), test))]
@@ -17,6 +18,7 @@ pub mod windows;
 
 pub use hotkey::*;
 pub use mock::*;
+pub use path_utils::*;
 use std::sync::Arc;
 pub use traits::*;
 

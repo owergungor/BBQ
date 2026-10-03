@@ -22,6 +22,49 @@ pub struct DisplayInfo {
     pub work_area: DisplayRect,
 }
 
+/// Insets of display work area relative to total bounds (e.g. menu bars, docks, taskbars).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DisplayInsets {
+    pub top: i32,
+    pub bottom: i32,
+    pub left: i32,
+    pub right: i32,
+}
+
+impl DisplayInfo {
+    /// Computes native insets representing system surfaces like taskbar, menu bar, or dock.
+    pub fn insets(&self) -> DisplayInsets {
+        let top = (self.work_area.y - self.bounds.y).max(0);
+        let left = (self.work_area.x - self.bounds.x).max(0);
+        let bottom = ((self.bounds.y + self.bounds.height as i32)
+            - (self.work_area.y + self.work_area.height as i32))
+            .max(0);
+        let right = ((self.bounds.x + self.bounds.width as i32)
+            - (self.work_area.x + self.work_area.width as i32))
+            .max(0);
+        DisplayInsets {
+            top,
+            bottom,
+            left,
+            right,
+        }
+    }
+
+    /// Computes the safe top margin for placing top-anchored islands.
+    /// When a native system bar (macOS menu bar, top taskbar) is already present,
+    /// the work area top already clears the hardware bezel, so additional margin
+    /// is not compounded to prevent the island from dropping too far down (e.g. in Finder).
+    pub fn safe_top_margin(&self) -> i32 {
+        let insets = self.insets();
+        if insets.top >= DEFAULT_TOP_MARGIN {
+            0
+        } else {
+            DEFAULT_TOP_MARGIN - insets.top
+        }
+    }
+}
+
 /// Capability level for display geometry and monitor enumeration on host platform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -449,10 +492,12 @@ pub fn calculate_island_geometry(
 
     let (x, y) = match anchor {
         IslandAnchor::TopCenter => {
-            let offset_x = (display.work_area.width as i32 - bounded_w as i32) / 2;
-            let x = display.work_area.x + offset_x;
-            let y = display.work_area.y + DEFAULT_TOP_MARGIN - y_hover_offset;
-            (x, y)
+            // Anchor to the true horizontal center of the display monitor bounds so that side
+            // docks/taskbars or width changes do not shift the island's horizontal anchor.
+            let screen_center_x = display.bounds.x + (display.bounds.width as i32) / 2;
+            let offset_x = screen_center_x - (bounded_w as i32) / 2;
+            let y = display.work_area.y + display.safe_top_margin() - y_hover_offset;
+            (offset_x, y)
         }
         IslandAnchor::TopLeft => {
             let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
@@ -461,7 +506,7 @@ pub fn calculate_island_geometry(
                 0
             };
             let x = display.work_area.x + 8 - x_hover_offset;
-            let y = display.work_area.y + DEFAULT_TOP_MARGIN - y_hover_offset;
+            let y = display.work_area.y + display.safe_top_margin() - y_hover_offset;
             (x, y)
         }
         IslandAnchor::TopRight => {
@@ -472,7 +517,7 @@ pub fn calculate_island_geometry(
             };
             let x = display.work_area.x + (display.work_area.width as i32 - bounded_w as i32) - 8
                 + x_hover_offset;
-            let y = display.work_area.y + DEFAULT_TOP_MARGIN - y_hover_offset;
+            let y = display.work_area.y + display.safe_top_margin() - y_hover_offset;
             (x, y)
         }
         IslandAnchor::Custom { offset_x, offset_y } => {
@@ -992,8 +1037,8 @@ mod tests {
         );
         // In logical coordinates: (1440 - 240) / 2 = 600
         assert_eq!(idle_geo.x, 600);
-        // In work area with menu bar: 25 + DEFAULT_TOP_MARGIN = 25 + 8 = 33
-        assert_eq!(idle_geo.y, 25 + DEFAULT_TOP_MARGIN);
+        // Menu bar top inset (25px) already clears bezel, so safe_top_margin is 0, placing flush at y = 25
+        assert_eq!(idle_geo.y, 25);
         assert_eq!(idle_geo.scale_factor, 2.0);
 
         let exp_geo = calculate_island_geometry(
@@ -1004,7 +1049,7 @@ mod tests {
         );
         // (1440 - 520) / 2 = 460
         assert_eq!(exp_geo.x, 460);
-        assert_eq!(exp_geo.y, 25 + DEFAULT_TOP_MARGIN);
+        assert_eq!(exp_geo.y, 25);
     }
 
     #[test]
@@ -1244,7 +1289,8 @@ mod tests {
             None,
             IslandAnchor::TopCenter,
         );
-        assert_eq!(geo_top.y, 40 + DEFAULT_TOP_MARGIN);
+        // Top taskbar (40px >= 8px) already offsets past bezel, so safe_top_margin is 0
+        assert_eq!(geo_top.y, 40);
 
         // Test left taskbar
         let left_taskbar_disp = DisplayInfo {
@@ -1271,8 +1317,8 @@ mod tests {
             None,
             IslandAnchor::TopCenter,
         );
-        // Centered within work area: 60 + (1860 - 240) / 2 = 60 + 810 = 870
-        assert_eq!(geo_left.x, 870);
+        // Anchored to monitor center: 1920 / 2 = 960 -> 960 - 240/2 = 840 (not biased by dock)
+        assert_eq!(geo_left.x, 840);
     }
 
     #[test]
@@ -1419,5 +1465,153 @@ mod tests {
             clamped.y + clamped.height as i32
                 <= display.work_area.y + display.work_area.height as i32
         );
+    }
+
+    #[test]
+    fn test_m1_compact_width_change_preserves_anchor_center() {
+        let display = sample_primary_display();
+        let center_x = display.bounds.x + (display.bounds.width as i32) / 2;
+
+        let test_widths = [180, 200, 250, 300, 350, 400, 450, 480];
+        for &w in &test_widths {
+            let dims = WidgetDimensions {
+                compact_width: Some(w),
+                preferred_width: Some(w),
+                ..Default::default()
+            };
+            let geo = calculate_island_geometry(
+                &display,
+                IslandLayoutState::Idle,
+                Some(dims),
+                IslandAnchor::TopCenter,
+            );
+            assert_eq!(geo.width, w);
+            // Visual horizontal center must be mathematically identical across all widths
+            let island_center = geo.x + (geo.width as i32) / 2;
+            assert_eq!(
+                island_center, center_x,
+                "Center must be preserved when width changes to {}",
+                w
+            );
+        }
+    }
+
+    #[test]
+    fn test_m1_compact_height_change_preserves_anchor_top() {
+        let display = sample_primary_display();
+        let expected_top = display.work_area.y + display.safe_top_margin();
+
+        let test_heights = [36, 38, 40, 44, 48, 52, 54];
+        for &h in &test_heights {
+            let dims = WidgetDimensions {
+                compact_height: Some(h),
+                preferred_height: Some(h),
+                ..Default::default()
+            };
+            let geo = calculate_island_geometry(
+                &display,
+                IslandLayoutState::Idle,
+                Some(dims),
+                IslandAnchor::TopCenter,
+            );
+            assert_eq!(geo.height, h);
+            // Top Y anchor position must be completely preserved as height changes
+            assert_eq!(
+                geo.y, expected_top,
+                "Top Y anchor must remain fixed when height is {}",
+                h
+            );
+        }
+    }
+
+    #[test]
+    fn test_m1_compact_width_and_height_operate_independently() {
+        let display = sample_primary_display();
+        let dims = WidgetDimensions {
+            compact_width: Some(350),
+            compact_height: Some(48),
+            preferred_width: Some(350),
+            preferred_height: Some(48),
+            ..Default::default()
+        };
+        let geo = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(geo.width, 350);
+        assert_eq!(geo.height, 48);
+        assert_eq!(geo.x, (1920 - 350) / 2);
+        assert_eq!(geo.y, DEFAULT_TOP_MARGIN);
+    }
+
+    #[test]
+    fn test_m1_finder_menu_bar_inset_prevents_excess_top_offset() {
+        // macOS Retina with 25px menu bar
+        let macos_finder_display = DisplayInfo {
+            id: "macos_main".to_string(),
+            name: "Built-in Display".to_string(),
+            is_primary: true,
+            scale_factor: 2.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1728,
+                height: 1117,
+            },
+            work_area: DisplayRect {
+                x: 0,
+                y: 25, // 25px menu bar at top
+                width: 1728,
+                height: 1092,
+            },
+        };
+
+        let geo = calculate_island_geometry(
+            &macos_finder_display,
+            IslandLayoutState::Idle,
+            None,
+            IslandAnchor::TopCenter,
+        );
+
+        // Island sits flush at y = 25 right below menu bar, NOT at 25 + 8 = 33
+        assert_eq!(geo.y, 25);
+        assert_eq!(geo.x, (1728 - DEFAULT_IDLE_WIDTH as i32) / 2);
+    }
+
+    #[test]
+    fn test_m1_minimum_and_maximum_safe_geometry_bounds() {
+        let display = sample_primary_display();
+
+        // Below minimum
+        let too_small = WidgetDimensions {
+            compact_width: Some(10),
+            compact_height: Some(5),
+            ..Default::default()
+        };
+        let small_geo = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(too_small),
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(small_geo.width, MIN_ISLAND_WIDTH); // 180
+        assert_eq!(small_geo.height, MIN_ISLAND_HEIGHT); // 36
+
+        // Above maximum
+        let too_large = WidgetDimensions {
+            compact_width: Some(1000),
+            compact_height: Some(800),
+            ..Default::default()
+        };
+        let large_geo = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(too_large),
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(large_geo.width, MAX_ISLAND_WIDTH); // 640
+        assert_eq!(large_geo.height, MAX_ISLAND_HEIGHT); // 520
     }
 }

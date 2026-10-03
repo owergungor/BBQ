@@ -202,22 +202,24 @@ export function parseAndValidateCustomMinutes(
 }
 
 /**
- * Formats milliseconds into clean MM:SS.SS (minutes:seconds.hundredths) for stopwatch display.
+ * Formats milliseconds into clean HH:MM:SS.cs (e.g. 00:03:27.42) for stopwatch display.
  */
 export function formatStopwatchDisplay(ms: number): string {
   if (typeof ms !== "number" || isNaN(ms) || ms < 0) {
-    return "00:00.00";
+    return "00:00:00.00";
   }
   const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   const hundredths = Math.floor((ms % 1000) / 10);
 
+  const hh = String(hours).padStart(2, "0");
   const mm = String(minutes).padStart(2, "0");
   const ss = String(seconds).padStart(2, "0");
   const cs = String(hundredths).padStart(2, "0");
 
-  return `${mm}:${ss}.${cs}`;
+  return `${hh}:${mm}:${ss}.${cs}`;
 }
 
 export interface CountdownValidationResult {

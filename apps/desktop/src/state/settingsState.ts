@@ -243,11 +243,19 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
           "--bbq-compact-width",
           `${settings.island_width}px`
         );
+        document.documentElement.style.setProperty(
+          "--bbq-peek-width",
+          `${settings.island_width + 40}px`
+        );
       }
       if (settings.island_height) {
         document.documentElement.style.setProperty(
           "--bbq-compact-height",
           `${settings.island_height}px`
+        );
+        document.documentElement.style.setProperty(
+          "--bbq-peek-height",
+          `${settings.island_height + 6}px`
         );
       }
     }

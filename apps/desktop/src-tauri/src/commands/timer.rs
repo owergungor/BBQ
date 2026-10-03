@@ -34,10 +34,14 @@ pub async fn timer_start_stopwatch(state: State<'_, AppState>) -> Result<TimerSe
 }
 
 #[tauri::command]
-pub async fn timer_start_pomodoro(state: State<'_, AppState>) -> Result<TimerSession, String> {
+pub async fn timer_start_pomodoro(
+    state: State<'_, AppState>,
+    work_ms: Option<u64>,
+    break_ms: Option<u64>,
+) -> Result<TimerSession, String> {
     state
         .timer_service
-        .start_pomodoro()
+        .start_pomodoro_custom(work_ms, break_ms)
         .await
         .map_err(|e| e.to_string())
 }

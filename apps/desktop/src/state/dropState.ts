@@ -18,6 +18,7 @@ export type DropStatus =
 
 export interface DropDomainState {
   isDraggingOver: boolean;
+  isDraggingOut: boolean;
   currentBatch: DropBatch | null;
   actions: DropAction[];
   selectedActionIndex: number;
@@ -28,6 +29,7 @@ export interface DropDomainState {
 
 export const initialDropDomainState: DropDomainState = {
   isDraggingOver: false,
+  isDraggingOut: false,
   currentBatch: null,
   actions: [],
   selectedActionIndex: 0,
@@ -53,11 +55,27 @@ export function setDragOver(isDraggingOver: boolean): void {
   }));
 }
 
+export function cleanupDragOut(): void {
+  const current = dropStore.getState();
+  if (current.isDraggingOut || current.status === "executing") {
+    const isCompletedOrError = current.status === "completed" || current.status === "error";
+    dropStore.setState({
+      isDraggingOut: false,
+      status: isCompletedOrError
+        ? current.status
+        : current.currentBatch
+          ? "ready"
+          : "idle",
+    });
+  }
+}
+
 export function setSelectedActionIndex(selectedActionIndex: number): void {
   dropStore.setState({ selectedActionIndex });
 }
 
 export function clearDrop(): void {
+  cleanupDragOut();
   dropStore.setState(initialDropDomainState);
   bbqCommands.dropClear().catch(console.error);
 }
@@ -110,7 +128,43 @@ export async function executeDropAction(
   const { currentBatch } = dropStore.getState();
   if (!currentBatch) return null;
 
-  dropStore.setState({ status: "executing", error: null });
+  const isDragOut = action === "drag_out";
+  dropStore.setState({
+    status: "executing",
+    isDraggingOut: isDragOut,
+    error: null,
+  });
+
+  // Comprehensive Drag-out Lifecycle Cleanup (release, blur, escape, completion)
+  let cleanedUp = false;
+  const cleanupListeners = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    if (typeof window !== "undefined") {
+      window.removeEventListener("pointerup", cleanupListeners);
+      window.removeEventListener("mouseup", cleanupListeners);
+      window.removeEventListener("blur", cleanupListeners);
+      window.removeEventListener("pointercancel", cleanupListeners);
+      window.removeEventListener("dragend", cleanupListeners);
+      window.removeEventListener("keydown", handleDragEscape);
+    }
+    cleanupDragOut();
+  };
+
+  const handleDragEscape = (e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      cleanupListeners();
+    }
+  };
+
+  if (isDragOut && typeof window !== "undefined") {
+    window.addEventListener("pointerup", cleanupListeners, { once: true });
+    window.addEventListener("mouseup", cleanupListeners, { once: true });
+    window.addEventListener("blur", cleanupListeners, { once: true });
+    window.addEventListener("pointercancel", cleanupListeners, { once: true });
+    window.addEventListener("dragend", cleanupListeners, { once: true });
+    window.addEventListener("keydown", handleDragEscape, { once: true });
+  }
 
   try {
     const result = await bbqCommands.dropExecute(
@@ -135,6 +189,8 @@ export async function executeDropAction(
       error: msg,
     });
     return null;
+  } finally {
+    cleanupListeners();
   }
 }
 

@@ -1028,11 +1028,30 @@ impl PlatformFile for LinuxFile {
     }
 
     async fn reveal(&self, path: &str) -> BbqResult<()> {
-        let parent = std::path::Path::new(path)
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new(path));
+        let target = crate::path_utils::resolve_reveal_target(path);
+        let target_dir = match target {
+            crate::path_utils::RevealResolution::Exact { ref path, is_file } => {
+                if is_file {
+                    path.parent()
+                        .map(|p| p.to_path_buf())
+                        .unwrap_or_else(|| path.clone())
+                } else {
+                    path.clone()
+                }
+            }
+            crate::path_utils::RevealResolution::FallbackParent { ref parent, .. } => {
+                parent.clone()
+            }
+            crate::path_utils::RevealResolution::NotFound { ref original } => {
+                return Err(BbqError::Validation(format!(
+                    "Path and its parent directory do not exist: {}",
+                    original.display()
+                )));
+            }
+        };
+
         std::process::Command::new("xdg-open")
-            .arg(parent)
+            .arg(target_dir)
             .spawn()
             .map_err(|e| BbqError::Platform(format!("Failed to spawn reveal command: {}", e)))?;
         Ok(())

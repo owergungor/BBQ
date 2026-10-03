@@ -21,6 +21,11 @@ pub trait TimerServiceTrait: Service {
     async fn start_countdown(&self, duration_ms: u64) -> BbqResult<TimerSession>;
     async fn start_stopwatch(&self) -> BbqResult<TimerSession>;
     async fn start_pomodoro(&self) -> BbqResult<TimerSession>;
+    async fn start_pomodoro_custom(
+        &self,
+        work_ms: Option<u64>,
+        break_ms: Option<u64>,
+    ) -> BbqResult<TimerSession>;
     async fn pause(&self) -> BbqResult<TimerSession>;
     async fn resume(&self) -> BbqResult<TimerSession>;
     async fn reset(&self) -> BbqResult<TimerSession>;
@@ -33,6 +38,8 @@ struct TimerInner {
     session: TimerSession,
     accumulated_stopwatch_ms: u64,
     pomodoro_work_count: u32,
+    custom_pomodoro_work_ms: Option<u64>,
+    custom_pomodoro_break_ms: Option<u64>,
     cancel_tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
@@ -86,6 +93,8 @@ impl TimerService {
                 session: initial_session,
                 accumulated_stopwatch_ms: 0,
                 pomodoro_work_count: 1,
+                custom_pomodoro_work_ms: None,
+                custom_pomodoro_break_ms: None,
                 cancel_tx: None,
             })),
             event_sinks: Arc::new(RwLock::new(Vec::new())),
@@ -159,22 +168,24 @@ impl TimerService {
 
                             // Advance to next Pomodoro phase
                             let current_phase = guard.session.pomodoro_phase.unwrap_or(PomodoroPhase::Work);
+                            let work_dur = guard.custom_pomodoro_work_ms.unwrap_or(POMODORO_WORK_MS);
+                            let break_dur = guard.custom_pomodoro_break_ms.unwrap_or(POMODORO_SHORT_BREAK_MS);
                             let (next_phase, next_duration) = match current_phase {
                                 PomodoroPhase::Work => {
                                     if guard.pomodoro_work_count >= 4 {
                                         (PomodoroPhase::LongBreak, POMODORO_LONG_BREAK_MS)
                                     } else {
-                                        (PomodoroPhase::ShortBreak, POMODORO_SHORT_BREAK_MS)
+                                        (PomodoroPhase::ShortBreak, break_dur)
                                     }
                                 }
                                 PomodoroPhase::ShortBreak => {
                                     guard.pomodoro_work_count += 1;
-                                    (PomodoroPhase::Work, POMODORO_WORK_MS)
+                                    (PomodoroPhase::Work, work_dur)
                                 }
                                 PomodoroPhase::LongBreak => {
                                     guard.session.completed_cycles += 1;
                                     guard.pomodoro_work_count = 1;
-                                    (PomodoroPhase::Work, POMODORO_WORK_MS)
+                                    (PomodoroPhase::Work, work_dur)
                                 }
                             };
 
@@ -222,22 +233,26 @@ impl TimerService {
         self.cancel_active_wake_up(&mut guard);
 
         let current_phase = guard.session.pomodoro_phase.unwrap_or(PomodoroPhase::Work);
+        let work_dur = guard.custom_pomodoro_work_ms.unwrap_or(POMODORO_WORK_MS);
+        let break_dur = guard
+            .custom_pomodoro_break_ms
+            .unwrap_or(POMODORO_SHORT_BREAK_MS);
         let (next_phase, next_duration) = match current_phase {
             PomodoroPhase::Work => {
                 if guard.pomodoro_work_count >= 4 {
                     (PomodoroPhase::LongBreak, POMODORO_LONG_BREAK_MS)
                 } else {
-                    (PomodoroPhase::ShortBreak, POMODORO_SHORT_BREAK_MS)
+                    (PomodoroPhase::ShortBreak, break_dur)
                 }
             }
             PomodoroPhase::ShortBreak => {
                 guard.pomodoro_work_count += 1;
-                (PomodoroPhase::Work, POMODORO_WORK_MS)
+                (PomodoroPhase::Work, work_dur)
             }
             PomodoroPhase::LongBreak => {
                 guard.session.completed_cycles += 1;
                 guard.pomodoro_work_count = 1;
-                (PomodoroPhase::Work, POMODORO_WORK_MS)
+                (PomodoroPhase::Work, work_dur)
             }
         };
 
@@ -454,14 +469,51 @@ impl TimerServiceTrait for TimerService {
         Ok(snapshot)
     }
 
-    async fn start_pomodoro(&self) -> BbqResult<TimerSession> {
+    async fn start_pomodoro_custom(
+        &self,
+        work_ms: Option<u64>,
+        break_ms: Option<u64>,
+    ) -> BbqResult<TimerSession> {
+        if let Some(w) = work_ms {
+            if w == 0 {
+                return Err(BbqError::Validation(
+                    "Pomodoro work duration must be greater than zero".to_string(),
+                ));
+            }
+            if w > MAX_TIMER_DURATION_MS {
+                return Err(BbqError::Validation(
+                    "Pomodoro work duration exceeds maximum limit of 24 hours".to_string(),
+                ));
+            }
+        }
+        if let Some(b) = break_ms {
+            if b == 0 {
+                return Err(BbqError::Validation(
+                    "Pomodoro break duration must be greater than zero".to_string(),
+                ));
+            }
+            if b > MAX_TIMER_DURATION_MS {
+                return Err(BbqError::Validation(
+                    "Pomodoro break duration exceeds maximum limit of 24 hours".to_string(),
+                ));
+            }
+        }
+
         let now = self.now_ms();
         let session_id = self.next_session_id();
-        let duration_ms = POMODORO_WORK_MS;
-        let target_at = now + duration_ms;
 
         let mut guard = self.inner.write().await;
         self.cancel_active_wake_up(&mut guard);
+
+        if work_ms.is_some() {
+            guard.custom_pomodoro_work_ms = work_ms;
+        }
+        if break_ms.is_some() {
+            guard.custom_pomodoro_break_ms = break_ms;
+        }
+
+        let duration_ms = guard.custom_pomodoro_work_ms.unwrap_or(POMODORO_WORK_MS);
+        let target_at = now + duration_ms;
 
         let previous_cycles = guard.session.completed_cycles;
         guard.session = TimerSession {
@@ -491,6 +543,10 @@ impl TimerServiceTrait for TimerService {
         .await;
 
         Ok(snapshot)
+    }
+
+    async fn start_pomodoro(&self) -> BbqResult<TimerSession> {
+        self.start_pomodoro_custom(None, None).await
     }
 
     async fn pause(&self) -> BbqResult<TimerSession> {
@@ -613,10 +669,11 @@ impl TimerServiceTrait for TimerService {
                 guard.session.remaining_ms = Some(0);
             }
             TimerMode::Pomodoro => {
+                let duration = guard.custom_pomodoro_work_ms.unwrap_or(POMODORO_WORK_MS);
                 guard.pomodoro_work_count = 1;
                 guard.session.pomodoro_phase = Some(PomodoroPhase::Work);
-                guard.session.duration_ms = Some(POMODORO_WORK_MS);
-                guard.session.remaining_ms = Some(POMODORO_WORK_MS);
+                guard.session.duration_ms = Some(duration);
+                guard.session.remaining_ms = Some(duration);
             }
         }
 
@@ -669,10 +726,13 @@ impl TimerServiceTrait for TimerService {
 
         guard.accumulated_stopwatch_ms = 0;
 
+        let pomodoro_dur = duration_ms
+            .or(guard.custom_pomodoro_work_ms)
+            .unwrap_or(POMODORO_WORK_MS);
         let (duration, phase) = match mode {
             TimerMode::Countdown => (duration_ms.unwrap_or(5 * 60 * 1000), None),
             TimerMode::Stopwatch => (0, None),
-            TimerMode::Pomodoro => (POMODORO_WORK_MS, Some(PomodoroPhase::Work)),
+            TimerMode::Pomodoro => (pomodoro_dur, Some(PomodoroPhase::Work)),
         };
 
         if mode == TimerMode::Pomodoro {
@@ -1103,5 +1163,80 @@ mod tests {
         // Stopping an idle service is safe
         assert!(service.stop().await.is_ok());
         assert!(!service.has_active_wake_up().await);
+    }
+
+    #[tokio::test]
+    async fn test_pomodoro_custom_durations_and_transitions() {
+        let (service, _time) = create_mock_timer_service(1000);
+        let work_ms = 15 * 60 * 1000; // 15 min
+        let break_ms = 3 * 60 * 1000; // 3 min
+
+        let session = service
+            .start_pomodoro_custom(Some(work_ms), Some(break_ms))
+            .await
+            .expect("start custom pomodoro");
+        assert_eq!(session.mode, TimerMode::Pomodoro);
+        assert_eq!(session.state, TimerState::Running);
+        assert_eq!(session.duration_ms, Some(work_ms));
+        assert_eq!(session.remaining_ms, Some(work_ms));
+        assert_eq!(session.pomodoro_phase, Some(PomodoroPhase::Work));
+
+        // Advance to break phase
+        let break_session = service
+            .advance_pomodoro_phase_internal()
+            .await
+            .expect("advance to break");
+        assert_eq!(
+            break_session.pomodoro_phase,
+            Some(PomodoroPhase::ShortBreak)
+        );
+        assert_eq!(break_session.duration_ms, Some(break_ms));
+
+        // Advance back to work phase
+        let work_session2 = service
+            .advance_pomodoro_phase_internal()
+            .await
+            .expect("advance to work");
+        assert_eq!(work_session2.pomodoro_phase, Some(PomodoroPhase::Work));
+        assert_eq!(work_session2.duration_ms, Some(work_ms));
+
+        // Reset preserves custom work duration
+        let reset_session = service.reset().await.expect("reset");
+        assert_eq!(reset_session.state, TimerState::Idle);
+        assert_eq!(reset_session.duration_ms, Some(work_ms));
+    }
+
+    #[tokio::test]
+    async fn test_countdown_completion_and_pause_reset_isolation() {
+        let (service, _time) = create_mock_timer_service(1000);
+        let completed_events = Arc::new(Mutex::new(Vec::new()));
+        let events_clone = completed_events.clone();
+
+        service
+            .subscribe_events(Arc::new(move |event| {
+                if matches!(event, BbqEvent::TimerCompleted(_)) {
+                    events_clone.lock().unwrap().push(event);
+                }
+            }))
+            .await
+            .unwrap();
+
+        // Start countdown
+        service.start_countdown(50).await.expect("start");
+
+        // Pause should NOT produce completion event
+        service.pause().await.expect("pause");
+        assert_eq!(completed_events.lock().unwrap().len(), 0);
+
+        // Reset should NOT produce completion event
+        service.reset().await.expect("reset");
+        assert_eq!(completed_events.lock().unwrap().len(), 0);
+
+        // Start very short countdown to finish
+        service.start_countdown(20).await.expect("start short");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Exactly one completion event
+        assert_eq!(completed_events.lock().unwrap().len(), 1);
     }
 }

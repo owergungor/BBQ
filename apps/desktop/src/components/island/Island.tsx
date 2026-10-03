@@ -8,6 +8,8 @@ import { initializeSystemStore } from "../../state/systemState.ts";
 import { initializeTimerStore } from "../../state/timerState.ts";
 import { initHotkeyStore } from "../../state/hotkeyState.ts";
 import { setDragOver, inspectDrop } from "../../state/dropState.ts";
+import { settingsStore } from "../../state/settingsState.ts";
+import { bbqCommands } from "../../ipc/commands.ts";
 import {
   subscribeToIslandMode,
   subscribeToHotkeyTriggered,
@@ -226,11 +228,39 @@ export const Island: React.FC = () => {
     await islandRuntime.handleEvent({ type: "USER_ESCAPE" });
   }, []);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+  const handleContextMenu = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setContextMenuPos({ x: e.clientX, y: e.clientY });
-  }, []);
+
+    if (state !== "Expanded") {
+      const currentSettings = settingsStore.getState().settings;
+      const targetW = Math.max(currentSettings.island_width, 380);
+      const targetH = Math.max(currentSettings.island_height, 44) + 340;
+      await bbqCommands.resizeIsland("hovering", {
+        compactWidth: targetW,
+        compactHeight: targetH,
+        preferredWidth: targetW,
+        preferredHeight: targetH,
+      });
+    }
+  }, [state]);
+
+  const handleContextMenuClose = useCallback(async () => {
+    setContextMenuPos(null);
+    if (state !== "Expanded") {
+      const currentSettings = settingsStore.getState().settings;
+      await bbqCommands.resizeIsland(
+        state === "Hovering" ? "hovering" : "idle",
+        {
+          compactWidth: currentSettings.island_width,
+          compactHeight: currentSettings.island_height,
+          preferredWidth: currentSettings.island_width,
+          preferredHeight: currentSettings.island_height,
+        }
+      );
+    }
+  }, [state]);
 
   return (
     <div
@@ -266,7 +296,7 @@ export const Island: React.FC = () => {
         <ContextMenu
           x={contextMenuPos.x}
           y={contextMenuPos.y}
-          onClose={() => setContextMenuPos(null)}
+          onClose={handleContextMenuClose}
         />
       )}
     </div>

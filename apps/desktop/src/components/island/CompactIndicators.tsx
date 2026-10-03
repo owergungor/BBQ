@@ -10,7 +10,7 @@ import { useDropState } from "../../state/dropState.ts";
 import { useSettingsState } from "../../state/settingsState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon } from "../common/Icon.tsx";
-import { formatTimeDisplay } from "../widgets/TimerWidget.tsx";
+import { formatTimeDisplay, formatStopwatchDisplay } from "../widgets/TimerWidget.tsx";
 
 export function useBatteryDisplay(): string {
   return useSystemState((s) => {
@@ -273,7 +273,10 @@ export const CompactTimerIndicator: React.FC = () => {
       if (isCancelled) return;
       setCompactDisplayMs(getCompactTimerMs());
       const now = Date.now();
-      const delay = Math.max(50, 1000 - (now % 1000));
+      const delay =
+        timerSession.mode === "Stopwatch"
+          ? Math.max(10, 50 - (now % 50))
+          : Math.max(50, 1000 - (now % 1000));
       timeoutId = setTimeout(tick, delay);
     };
 
@@ -282,9 +285,14 @@ export const CompactTimerIndicator: React.FC = () => {
       isCancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [isTimerRunning, getCompactTimerMs]);
+  }, [isTimerRunning, timerSession.mode, getCompactTimerMs]);
 
   const isPomodoro = timerSession.mode === "Pomodoro";
+  const isStopwatch = timerSession.mode === "Stopwatch";
+
+  const displayFormattedTime = isStopwatch
+    ? formatStopwatchDisplay(compactDisplayMs)
+    : formatTimeDisplay(compactDisplayMs);
 
   return (
     <div className="bbq-island-idle-pill">
@@ -294,14 +302,20 @@ export const CompactTimerIndicator: React.FC = () => {
           style={{
             background: isPomodoro
               ? "#ef4444"
+              : isStopwatch
+              ? "#3b82f6"
               : isTimerRunning
               ? "#10b981"
               : "var(--accent, #3b82f6)",
           }}
         />
         <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 600 }}>
-          <Icon name={isPomodoro ? "sparkles" : "timer"} size={13} aria-hidden="true" />
-          <span>{formatTimeDisplay(compactDisplayMs)}</span>
+          <Icon
+            name={isPomodoro ? "sparkles" : isStopwatch ? "stopwatch" : "timer"}
+            size={13}
+            aria-hidden="true"
+          />
+          <span>{displayFormattedTime}</span>
         </span>
         <span className="bbq-media-separator">—</span>
         <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
@@ -361,11 +375,32 @@ export const CompactIdleIndicator: React.FC = () => {
   );
 };
 
-export {
+export const CompactSettingsIndicator: React.FC = () => {
+  const batteryDisplay = useBatteryDisplay();
+  return (
+    <div className="bbq-island-idle-pill">
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <span className="bbq-status-dot" style={{ background: "var(--bbq-accent, #0a84ff)" }} />
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 600 }}>
+          <Icon name="settings" size={12} aria-hidden="true" />
+          <span>Settings</span>
+        </span>
+      </div>
+      {batteryDisplay ? (
+        <div style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
+          {batteryDisplay}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+import {
   DEFAULT_COMPACT_INDICATOR_ORDER,
   resolveEffectiveIndicatorOrder,
 } from "../../island/compactOrder.ts";
-import { resolveEffectiveIndicatorOrder } from "../../island/compactOrder.ts";
+
+export { DEFAULT_COMPACT_INDICATOR_ORDER, resolveEffectiveIndicatorOrder };
 
 import { useIslandState } from "../../island/islandState.ts";
 
@@ -431,6 +466,9 @@ export const CompactIslandPill: React.FC<CompactIslandPillProps> = ({ state, act
         break;
       case "reminder":
         lockedContent = <CompactReminderIndicator />;
+        break;
+      case "settings":
+        lockedContent = <CompactSettingsIndicator />;
         break;
       default:
         break;

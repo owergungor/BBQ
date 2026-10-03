@@ -520,12 +520,21 @@ export const SettingsWidget: React.FC = () => {
               value={draftWidth}
               min={180}
               max={480}
-              step={10}
+              step={50}
               valueDisplay={`${draftWidth}px`}
               onChange={(val) => {
-                setDraftWidth(val);
+                let nextVal: number;
+                if (val <= 180) {
+                  nextVal = 180;
+                } else if (val >= 480) {
+                  nextVal = 480;
+                } else {
+                  nextVal = Math.max(180, Math.min(480, Math.round(val / 50) * 50));
+                }
+                setDraftWidth(nextVal);
                 if (typeof document !== "undefined") {
-                  document.documentElement.style.setProperty("--bbq-compact-width", `${val}px`);
+                  document.documentElement.style.setProperty("--bbq-compact-width", `${nextVal}px`);
+                  document.documentElement.style.setProperty("--bbq-peek-width", `${nextVal + 40}px`);
                 }
               }}
               onCommit={commitWidth}
@@ -540,9 +549,11 @@ export const SettingsWidget: React.FC = () => {
               step={2}
               valueDisplay={`${draftHeight}px`}
               onChange={(val) => {
-                setDraftHeight(val);
+                const nextVal = Math.max(36, Math.min(54, Math.round(val)));
+                setDraftHeight(nextVal);
                 if (typeof document !== "undefined") {
-                  document.documentElement.style.setProperty("--bbq-compact-height", `${val}px`);
+                  document.documentElement.style.setProperty("--bbq-compact-height", `${nextVal}px`);
+                  document.documentElement.style.setProperty("--bbq-peek-height", `${nextVal + 6}px`);
                 }
               }}
               onCommit={commitHeight}

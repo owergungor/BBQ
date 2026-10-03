@@ -268,6 +268,44 @@ export const Slider: React.FC<SliderProps> = ({
           value={value}
           disabled={disabled}
           onChange={(e) => onChange(Number(e.target.value))}
+          onKeyDown={(e) => {
+            if (disabled) return;
+            if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+              e.preventDefault();
+              let nextVal: number;
+              if (value < min) {
+                nextVal = min;
+              } else if (value >= max) {
+                nextVal = max;
+              } else {
+                const rem = value % step;
+                if (rem === 0) {
+                  nextVal = Math.min(max, value + step);
+                } else {
+                  nextVal = Math.min(max, Math.ceil(value / step) * step);
+                }
+              }
+              onChange(nextVal);
+              onCommit?.(nextVal);
+            } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+              e.preventDefault();
+              let nextVal: number;
+              if (value <= min) {
+                nextVal = min;
+              } else if (value > max) {
+                nextVal = max;
+              } else {
+                const rem = value % step;
+                if (rem === 0) {
+                  nextVal = Math.max(min, value - step);
+                } else {
+                  nextVal = Math.max(min, Math.floor(value / step) * step);
+                }
+              }
+              onChange(nextVal);
+              onCommit?.(nextVal);
+            }
+          }}
           onPointerUp={() => onCommit && onCommit(value)}
           onKeyUp={() => onCommit && onCommit(value)}
           aria-label={ariaLabel || label}

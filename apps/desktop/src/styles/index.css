@@ -1953,13 +1953,28 @@ html, body {
 .bbq-timer-widget {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
   height: 100%;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 4px 12px;
+  padding: 6px 12px;
+  box-sizing: border-box;
+}
+
+.bbq-timer-content-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .bbq-timer-mode-bar {
@@ -1970,6 +1985,8 @@ html, body {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .bbq-timer-mode-btn {
@@ -2024,6 +2041,45 @@ html, body {
   font-size: 10px;
   color: var(--text-secondary);
   font-weight: 500;
+}
+
+/* Stopwatch Direct Display (no circular container) */
+.bbq-stopwatch-display-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+  width: 100%;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.bbq-stopwatch-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.bbq-stopwatch-digits {
+  font-family: var(--bbq-font-mono);
+  font-size: clamp(26px, 7vw, 36px);
+  font-weight: 700;
+  font-feature-settings: var(--bbq-font-features-tabular, "tnum" 1);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1.5px;
+  color: var(--bbq-text-primary);
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: visible;
 }
 
 /* Timer Ring Centerpiece */
@@ -2240,7 +2296,7 @@ html, body {
 
 .bbq-pomodoro-input-label {
   font-weight: 500;
-  min-width: 32px;
+  min-width: 48px;
 }
 
 .bbq-pomodoro-mini-input {
@@ -4010,6 +4066,7 @@ html, body {
   position: fixed;
   z-index: 9999;
   min-width: 190px;
+  pointer-events: auto;
   padding: 6px;
   background: var(--bbq-surface, rgba(30, 30, 32, 0.96));
   border: 1px solid var(--bbq-border, rgba(255, 255, 255, 0.12));
@@ -4133,6 +4190,7 @@ html, body {
 /* Submenu Popover */
 .bbq-context-submenu {
   position: absolute;
+  pointer-events: auto;
   left: calc(100% + 4px);
   top: 0;
   min-width: 160px;
@@ -4147,6 +4205,11 @@ html, body {
   flex-direction: column;
   gap: 2px;
   z-index: 10000;
+}
+
+.bbq-context-menu.flip-submenu .bbq-context-submenu {
+  left: auto;
+  right: calc(100% + 4px);
 }
 
 [data-theme="light"] .bbq-context-submenu {
