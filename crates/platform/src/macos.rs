@@ -717,18 +717,34 @@ impl MacOsSystem {
                     }
                 }
             }
+
+            #[cfg(test)]
+            {
+                Some(bbq_core::CpuMetrics {
+                    usage_percent: 15.0,
+                    core_count,
+                })
+            }
+            #[cfg(not(test))]
+            {
+                None
+            }
         }
 
-        #[cfg(test)]
+        #[cfg(not(target_os = "macos"))]
         {
-            Some(bbq_core::CpuMetrics {
-                usage_percent: 15.0,
-                core_count,
-            })
+            #[cfg(test)]
+            {
+                Some(bbq_core::CpuMetrics {
+                    usage_percent: 15.0,
+                    core_count,
+                })
+            }
+            #[cfg(not(test))]
+            {
+                None
+            }
         }
-
-        #[cfg(not(any(target_os = "macos", test)))]
-        None
     }
 }
 
