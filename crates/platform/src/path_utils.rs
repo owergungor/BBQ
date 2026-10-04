@@ -16,16 +16,16 @@ pub fn normalize_file_path(raw: &str) -> PathBuf {
     let mut cleaned = raw.trim();
 
     // 1. Strip file:// URI scheme
-    if let Some(stripped) = cleaned.strip_prefix("file://localhost/") {
+    if let Some(_stripped) = cleaned.strip_prefix("file://localhost/") {
         #[cfg(not(windows))]
         {
             cleaned = &cleaned[16..];
         }
         #[cfg(windows)]
         {
-            cleaned = stripped;
+            cleaned = _stripped;
         }
-    } else if let Some(stripped) = cleaned.strip_prefix("file:///") {
+    } else if let Some(_stripped) = cleaned.strip_prefix("file:///") {
         #[cfg(not(windows))]
         {
             // On Unix, retain leading slash for absolute path (/home/...)
@@ -33,7 +33,7 @@ pub fn normalize_file_path(raw: &str) -> PathBuf {
         }
         #[cfg(windows)]
         {
-            cleaned = stripped;
+            cleaned = _stripped;
         }
     } else if let Some(stripped) = cleaned.strip_prefix("file://") {
         cleaned = stripped;
@@ -174,8 +174,11 @@ mod tests {
 
         #[cfg(not(windows))]
         {
-            let p = normalize_file_path("file:///home/user/my%20file.txt");
-            assert_eq!(p.to_string_lossy(), "/home/user/my file.txt");
+            let p1 = normalize_file_path("file:///home/user/my%20file.txt");
+            assert_eq!(p1.to_string_lossy(), "/home/user/my file.txt");
+
+            let p2 = normalize_file_path("file://localhost/home/user/code.rs");
+            assert_eq!(p2.to_string_lossy(), "/home/user/code.rs");
         }
     }
 
