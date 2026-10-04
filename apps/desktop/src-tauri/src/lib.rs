@@ -346,6 +346,7 @@ pub fn run() {
                 let initial_target_display_id = initial_settings.target_display_id.clone();
                 let initial_island_width = initial_settings.island_width;
                 let initial_island_height = initial_settings.island_height;
+                let initial_island_position = initial_settings.island_position.clone();
                 let handle_geo = handle.clone();
                 tauri::async_runtime::spawn(async move {
                     use bbq_services::DisplayServiceTrait;
@@ -367,11 +368,13 @@ pub fn run() {
                                 }),
                             ),
                         };
+                        let anchor =
+                            bbq_core::IslandAnchor::from_str_name(&initial_island_position);
                         let geo = bbq_core::calculate_island_geometry(
                             &target_display,
                             calc_state,
                             dims,
-                            bbq_core::IslandAnchor::TopCenter,
+                            anchor,
                         );
                         if let Some(state_ref) = handle_geo.try_state::<AppState>() {
                             if let Ok(mut last) = state_ref.last_geometry.lock() {

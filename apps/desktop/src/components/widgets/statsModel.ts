@@ -132,20 +132,23 @@ export function normalizeStats(
 
   // CPU
   const rawCpuUsage = state.cpu?.usage_percent;
-  const cpuPercent = clampPercent(rawCpuUsage);
+  const isCpuMeasured =
+    typeof rawCpuUsage === "number" &&
+    !Number.isNaN(rawCpuUsage) &&
+    rawCpuUsage >= 0;
+  const hasCpu = capabilities?.can_read_cpu !== false && state.cpu != null && isCpuMeasured;
+  const cpuPercent = hasCpu ? clampPercent(rawCpuUsage) : 0;
   const coreCount = state.cpu?.core_count && state.cpu.core_count > 0 ? state.cpu.core_count : 1;
-  const hasCpu =
-    capabilities?.can_read_cpu !== false &&
-    state.cpu !== null &&
-    state.cpu !== undefined &&
-    rawCpuUsage !== undefined;
+
   let cpuLabel = "0%";
-  if (typeof rawCpuUsage === "number" && !Number.isNaN(rawCpuUsage)) {
-    if (rawCpuUsage > 0 && rawCpuUsage < 1) {
-      cpuLabel = "<1%";
-    } else {
-      cpuLabel = `${cpuPercent}%`;
-    }
+  if (capabilities?.can_read_cpu === false) {
+    cpuLabel = "0%";
+  } else if (!hasCpu) {
+    cpuLabel = "--";
+  } else if (rawCpuUsage > 0 && rawCpuUsage < 1) {
+    cpuLabel = "<1%";
+  } else {
+    cpuLabel = `${cpuPercent}%`;
   }
 
   // Memory

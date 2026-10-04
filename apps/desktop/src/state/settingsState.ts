@@ -112,6 +112,10 @@ export const defaultSettings: BbqSettings = {
   compact_indicator_order: [],
   first_run_completed: false,
   onboarding_completed: false,
+  island_position: "top-center",
+  island_transparency: 0,
+  auto_update_schedule: "startup",
+  last_update_check_at: null,
 };
 
 export function isEffectiveLight(theme: BbqSettings["theme"]): boolean {
@@ -258,7 +262,50 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
           `${settings.island_height + 6}px`
         );
       }
+      if (typeof settings.island_transparency === "number") {
+        const clamped = Math.min(80, Math.max(0, settings.island_transparency));
+        const opacity = (100 - clamped) / 100;
+        document.documentElement.style.setProperty(
+          "--bbq-island-opacity",
+          `${opacity}`
+        );
+        document.documentElement.style.setProperty(
+          "--bbq-island-transparency",
+          `${clamped}%`
+        );
+      }
     }
+  }
+}
+
+export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+export const ONE_WEEK_MS = 7 * ONE_DAY_MS;
+export const ONE_MONTH_MS = 30 * ONE_DAY_MS;
+
+/**
+ * Evaluates whether an update check is due based on user schedule and last checked timestamp.
+ */
+export function isUpdateCheckDue(
+  schedule: BbqSettings["auto_update_schedule"] = "startup",
+  lastCheckedAt?: number | null,
+  now = Date.now()
+): boolean {
+  if (schedule === "startup") {
+    return true;
+  }
+  if (!lastCheckedAt || typeof lastCheckedAt !== "number" || lastCheckedAt <= 0) {
+    return true;
+  }
+  const elapsed = Math.max(0, now - lastCheckedAt);
+  switch (schedule) {
+    case "daily":
+      return elapsed >= ONE_DAY_MS;
+    case "weekly":
+      return elapsed >= ONE_WEEK_MS;
+    case "monthly":
+      return elapsed >= ONE_MONTH_MS;
+    default:
+      return true;
   }
 }
 

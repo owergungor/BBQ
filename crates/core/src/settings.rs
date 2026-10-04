@@ -54,6 +54,18 @@ fn default_accent_color() -> String {
     "blue".to_string()
 }
 
+fn default_island_position() -> String {
+    "top-center".to_string()
+}
+
+fn default_island_transparency() -> u32 {
+    0
+}
+
+fn default_auto_update_schedule() -> String {
+    "startup".to_string()
+}
+
 /// Strongly typed, persistent user preferences for BBQ
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BbqSettings {
@@ -80,6 +92,14 @@ pub struct BbqSettings {
     pub compact_indicator_order: Vec<String>,
     pub first_run_completed: bool,
     pub onboarding_completed: bool,
+    #[serde(default = "default_island_position")]
+    pub island_position: String,
+    #[serde(default = "default_island_transparency")]
+    pub island_transparency: u32,
+    #[serde(default = "default_auto_update_schedule")]
+    pub auto_update_schedule: String,
+    #[serde(default)]
+    pub last_update_check_at: Option<u64>,
 }
 
 pub fn is_valid_hex_color(s: &str) -> bool {
@@ -120,6 +140,10 @@ impl Default for BbqSettings {
             compact_indicator_order: Vec::new(),
             first_run_completed: false,
             onboarding_completed: false,
+            island_position: "top-center".to_string(),
+            island_transparency: 0,
+            auto_update_schedule: "startup".to_string(),
+            last_update_check_at: None,
         }
     }
 }
@@ -207,6 +231,36 @@ impl BbqSettings {
                 self.disabled_widgets.len(),
                 MAX_DISABLED_WIDGETS
             )));
+        }
+
+        let pos_lower = self.island_position.trim().to_lowercase();
+        match pos_lower.as_str() {
+            "top-center" | "top-left" | "top-right" | "bottom-left" | "bottom-center"
+            | "bottom-right" => {}
+            _ => {
+                return Err(BbqError::Validation(format!(
+                    "Invalid island_position '{}'. Must be one of: top-center, top-left, top-right, bottom-left, bottom-center, bottom-right",
+                    self.island_position
+                )));
+            }
+        }
+
+        if self.island_transparency > 100 {
+            return Err(BbqError::Validation(format!(
+                "island_transparency {} out of bounds [0, 100]",
+                self.island_transparency
+            )));
+        }
+
+        let sched_lower = self.auto_update_schedule.trim().to_lowercase();
+        match sched_lower.as_str() {
+            "startup" | "daily" | "weekly" | "monthly" => {}
+            _ => {
+                return Err(BbqError::Validation(format!(
+                    "Invalid auto_update_schedule '{}'. Must be one of: startup, daily, weekly, monthly",
+                    self.auto_update_schedule
+                )));
+            }
         }
 
         Ok(())
@@ -341,6 +395,56 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
                 )));
             }
         }
+        "island_position" => {
+            let lower = value.trim().to_lowercase();
+            match lower.as_str() {
+                "top-center" | "top-left" | "top-right" | "bottom-left" | "bottom-center"
+                | "bottom-right" => {}
+                _ => {
+                    return Err(BbqError::Validation(format!(
+                        "Invalid island_position '{}'",
+                        value
+                    )));
+                }
+            }
+        }
+        "island_transparency" => {
+            let tr: u32 = value.parse().map_err(|_| {
+                BbqError::Validation(format!(
+                    "Invalid integer for island_transparency: '{}'",
+                    value
+                ))
+            })?;
+            if tr > 100 {
+                return Err(BbqError::Validation(format!(
+                    "island_transparency {} out of bounds [0, 100]",
+                    tr
+                )));
+            }
+        }
+        "auto_update_schedule" => {
+            let lower = value.trim().to_lowercase();
+            match lower.as_str() {
+                "startup" | "daily" | "weekly" | "monthly" => {}
+                _ => {
+                    return Err(BbqError::Validation(format!(
+                        "Invalid auto_update_schedule '{}'",
+                        value
+                    )));
+                }
+            }
+        }
+        "last_update_check_at" => {
+            let trimmed = value.trim();
+            if trimmed != "null" && !trimmed.is_empty() {
+                let _: u64 = trimmed.parse().map_err(|_| {
+                    BbqError::Validation(format!(
+                        "Invalid u64 for last_update_check_at: '{}'",
+                        value
+                    ))
+                })?;
+            }
+        }
         unknown => {
             return Err(BbqError::Validation(format!(
                 "Unknown setting key '{}'",
@@ -427,5 +531,47 @@ mod tests {
     fn test_settings_default_accent_is_blue() {
         let settings = BbqSettings::default();
         assert_eq!(settings.accent_color, "blue");
+    }
+
+    #[test]
+    fn test_v23_settings_defaults_and_validation() {
+        let settings = BbqSettings::default();
+        assert_eq!(settings.island_position, "top-center");
+        assert_eq!(settings.island_transparency, 0);
+        assert_eq!(settings.auto_update_schedule, "startup");
+        assert_eq!(settings.last_update_check_at, None);
+
+        // Position validation
+        for pos in &[
+            "top-center",
+            "top-left",
+            "top-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right",
+        ] {
+            assert!(validate_setting_entry("island_position", pos).is_ok());
+        }
+        assert!(validate_setting_entry("island_position", "middle-center").is_err());
+        assert!(validate_setting_entry("island_position", "").is_err());
+
+        // Transparency validation (0..=100)
+        assert!(validate_setting_entry("island_transparency", "0").is_ok());
+        assert!(validate_setting_entry("island_transparency", "50").is_ok());
+        assert!(validate_setting_entry("island_transparency", "100").is_ok());
+        assert!(validate_setting_entry("island_transparency", "101").is_err());
+        assert!(validate_setting_entry("island_transparency", "-1").is_err());
+
+        // Auto update schedule validation
+        for sched in &["startup", "daily", "weekly", "monthly"] {
+            assert!(validate_setting_entry("auto_update_schedule", sched).is_ok());
+        }
+        assert!(validate_setting_entry("auto_update_schedule", "yearly").is_err());
+        assert!(validate_setting_entry("auto_update_schedule", "never").is_err());
+
+        // Last update check timestamp validation
+        assert!(validate_setting_entry("last_update_check_at", "null").is_ok());
+        assert!(validate_setting_entry("last_update_check_at", "1728000000").is_ok());
+        assert!(validate_setting_entry("last_update_check_at", "invalid_timestamp").is_err());
     }
 }

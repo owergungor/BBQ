@@ -1480,55 +1480,54 @@ impl WindowsSystem {
         {
             use windows::Win32::Foundation::FILETIME;
             use windows::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};
-            use windows::Win32::System::Threading::{GetCurrentProcess, GetProcessTimes};
+            use windows::Win32::System::Threading::GetSystemTimes;
 
             let mut sys_info = SYSTEM_INFO::default();
             unsafe { GetSystemInfo(&mut sys_info) };
             let core_count = sys_info.dwNumberOfProcessors.max(1);
 
-            let mut creation = FILETIME::default();
-            let mut exit = FILETIME::default();
+            let mut idle = FILETIME::default();
             let mut kernel = FILETIME::default();
             let mut user = FILETIME::default();
 
-            let handle = unsafe { GetCurrentProcess() };
-            if unsafe { GetProcessTimes(handle, &mut creation, &mut exit, &mut kernel, &mut user) }
+            if unsafe { GetSystemTimes(Some(&mut idle), Some(&mut kernel), Some(&mut user)) }
                 .is_ok()
             {
                 let to_u64 =
                     |ft: FILETIME| ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64);
+                let idle_time = to_u64(idle);
                 let kernel_time = to_u64(kernel);
                 let user_time = to_u64(user);
-                let process_time = kernel_time.saturating_add(user_time);
 
                 use std::sync::Mutex;
-                static PREV_PROCESS_CPU: Mutex<Option<(u64, std::time::Instant)>> =
+                static PREV_SYSTEM_CPU: Mutex<Option<(u64, u64, u64, std::time::Instant)>> =
                     Mutex::new(None);
 
                 let now = std::time::Instant::now();
-                let usage_percent = if let Ok(mut lock) = PREV_PROCESS_CPU.lock() {
-                    let pct = if let Some((prev_process_time, prev_inst)) = *lock {
-                        let proc_delta = process_time.saturating_sub(prev_process_time);
+                let usage_percent = if let Ok(mut lock) = PREV_SYSTEM_CPU.lock() {
+                    let pct = if let Some((prev_kernel, prev_user, prev_idle, prev_inst)) = *lock {
+                        let kernel_delta = kernel_time.saturating_sub(prev_kernel);
+                        let user_delta = user_time.saturating_sub(prev_user);
+                        let idle_delta = idle_time.saturating_sub(prev_idle);
+                        let total_delta = kernel_delta.saturating_add(user_delta);
                         let elapsed = now.duration_since(prev_inst);
-                        let elapsed_100ns = (elapsed.as_nanos() / 100) as u64;
 
-                        // Total available capacity across all CPU cores in 100-nanosecond units
-                        let total_capacity = elapsed_100ns.saturating_mul(core_count as u64);
-
-                        if total_capacity > 0 && elapsed.as_millis() >= 80 {
-                            ((proc_delta as f64 / total_capacity as f64) * 100.0).clamp(0.0, 100.0)
+                        if total_delta > 0 && elapsed.as_millis() >= 80 {
+                            let busy_delta = total_delta.saturating_sub(idle_delta);
+                            ((busy_delta as f64 / total_delta as f64) * 100.0).clamp(0.0, 100.0)
                                 as f32
                         } else {
-                            0.0
+                            return None;
                         }
                     } else {
-                        // First sample: graceful baseline
-                        0.0
+                        // First sample: baseline recorded, measurement not ready yet
+                        *lock = Some((kernel_time, user_time, idle_time, now));
+                        return None;
                     };
-                    *lock = Some((process_time, now));
+                    *lock = Some((kernel_time, user_time, idle_time, now));
                     pct
                 } else {
-                    0.0
+                    return None;
                 };
 
                 return Some(bbq_core::CpuMetrics {
@@ -1565,6 +1564,7 @@ impl WindowsSystem {
 #[async_trait]
 impl PlatformSystem for WindowsSystem {
     async fn initialize(&self) -> BbqResult<()> {
+        let _ = Self::read_cpu();
         Ok(())
     }
 

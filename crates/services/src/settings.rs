@@ -195,6 +195,35 @@ impl SettingsServiceTrait for SettingsService {
         if let Ok(Some(oc)) = self.repo.get("onboarding_completed") {
             settings.onboarding_completed = oc == "true";
         }
+        if let Ok(Some(pos)) = self.repo.get("island_position") {
+            let trimmed = pos.trim().to_lowercase();
+            match trimmed.as_str() {
+                "top-center" | "top-left" | "top-right" | "bottom-left" | "bottom-center"
+                | "bottom-right" => {
+                    settings.island_position = trimmed;
+                }
+                _ => {}
+            }
+        }
+        if let Ok(Some(tr)) = self.repo.get("island_transparency") {
+            if let Ok(num) = tr.parse::<u32>() {
+                settings.island_transparency = num.min(100);
+            }
+        }
+        if let Ok(Some(aus)) = self.repo.get("auto_update_schedule") {
+            let trimmed = aus.trim().to_lowercase();
+            match trimmed.as_str() {
+                "startup" | "daily" | "weekly" | "monthly" => {
+                    settings.auto_update_schedule = trimmed;
+                }
+                _ => {}
+            }
+        }
+        if let Ok(Some(luc)) = self.repo.get("last_update_check_at") {
+            if let Ok(num) = luc.parse::<u64>() {
+                settings.last_update_check_at = Some(num);
+            }
+        }
 
         Ok(settings)
     }
@@ -347,6 +376,17 @@ impl SettingsServiceTrait for SettingsService {
                 "false"
             },
         )?;
+        self.repo
+            .set("island_position", &settings.island_position)?;
+        self.repo.set(
+            "island_transparency",
+            &settings.island_transparency.to_string(),
+        )?;
+        self.repo
+            .set("auto_update_schedule", &settings.auto_update_schedule)?;
+        if let Some(luc) = settings.last_update_check_at {
+            self.repo.set("last_update_check_at", &luc.to_string())?;
+        }
 
         self.notify_change(settings);
         Ok(())

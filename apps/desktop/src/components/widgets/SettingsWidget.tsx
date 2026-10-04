@@ -12,7 +12,7 @@ import {
   resolveEffectiveIndicatorOrder,
 } from "../../island/compactOrder.ts";
 import { useHotkeyState } from "../../state/hotkeyState.ts";
-import type { ThemePreference, AccentColor, PlatformCapabilities } from "@bbq/types";
+import type { ThemePreference, AccentColor, PlatformCapabilities, BbqSettings } from "@bbq/types";
 import { bbqCommands } from "../../ipc/commands.ts";
 import {
   ThemeSwitcher,
@@ -37,6 +37,22 @@ import {
 } from "./settingsModel.ts";
 
 type SettingsTab = "appearance" | "island" | "hotkey" | "privacy" | "notifications" | "widgets" | "about";
+
+const POSITION_OPTIONS: { value: BbqSettings["island_position"]; label: string }[] = [
+  { value: "top-center", label: "Orta üst" },
+  { value: "top-left", label: "Sol üst" },
+  { value: "top-right", label: "Sağ üst" },
+  { value: "bottom-left", label: "Sol alt" },
+  { value: "bottom-center", label: "Orta alt" },
+  { value: "bottom-right", label: "Sağ alt" },
+];
+
+const AUTO_UPDATE_OPTIONS: { value: BbqSettings["auto_update_schedule"]; label: string }[] = [
+  { value: "startup", label: "Açılışta" },
+  { value: "daily", label: "Günlük" },
+  { value: "weekly", label: "Haftalık" },
+  { value: "monthly", label: "Aylık" },
+];
 
 export const SettingsWidget: React.FC = () => {
   const { settings, isLoading } = useSettingsState();
@@ -63,6 +79,7 @@ export const SettingsWidget: React.FC = () => {
   // Local draft states for sliders and text inputs to prevent IPC write storms
   const [draftWidth, setDraftWidth] = useState(settings.island_width);
   const [draftHeight, setDraftHeight] = useState(settings.island_height);
+  const [draftTransparency, setDraftTransparency] = useState(settings.island_transparency ?? 0);
   const [draftClipboardMax, setDraftClipboardMax] = useState(settings.clipboard_max_entries);
   const [draftRetention, setDraftRetention] = useState(settings.clipboard_retention_days);
   const [draftHotkey, setDraftHotkey] = useState(settings.global_hotkey);
@@ -76,6 +93,10 @@ export const SettingsWidget: React.FC = () => {
   useEffect(() => {
     setDraftHeight(settings.island_height);
   }, [settings.island_height]);
+
+  useEffect(() => {
+    setDraftTransparency(settings.island_transparency ?? 0);
+  }, [settings.island_transparency]);
 
   useEffect(() => {
     setDraftClipboardMax(settings.clipboard_max_entries);
@@ -144,9 +165,17 @@ export const SettingsWidget: React.FC = () => {
     showStatus(`Custom accent set to ${validated.normalized}`);
   };
 
-  const handleToggle = async (key: keyof typeof settings, value: boolean) => {
+  const handleToggle = async (key: keyof typeof settings, value: any) => {
     await updateSettingsBatch({ [key]: value });
     showStatus("Preference updated");
+  };
+
+  const commitTransparency = async (val: number) => {
+    const clamped = Math.max(0, Math.min(80, Math.round(val)));
+    if (clamped !== settings.island_transparency) {
+      await updateSettingsBatch({ island_transparency: clamped });
+      showStatus("Ada saydamlığı güncellendi");
+    }
   };
 
   const commitWidth = async () => {
@@ -426,7 +455,15 @@ export const SettingsWidget: React.FC = () => {
         id={`settings-panel-${activeTab}`}
         role="tabpanel"
         aria-labelledby={`settings-tab-${activeTab}`}
-        style={{ flex: 1, minHeight: 0, overflowY: "auto", fontSize: "12px" }}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          overflowX: "hidden",
+          fontSize: "12px",
+          paddingRight: "6px",
+          scrollbarWidth: "thin",
+        }}
       >
         {/* APPEARANCE */}
         {activeTab === "appearance" && (
@@ -557,6 +594,61 @@ export const SettingsWidget: React.FC = () => {
                 }
               }}
               onCommit={commitHeight}
+            />
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <label
+                  htmlFor="island-position-select"
+                  style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}
+                >
+                  Ada Konumu
+                </label>
+                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
+                  Adanın ekrandaki fiziksel yerleşim konumu.
+                </span>
+              </div>
+              <select
+                id="island-position-select"
+                value={settings.island_position || "top-center"}
+                onChange={(e) => handleToggle("island_position", e.target.value)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--bbq-border)",
+                  background: "var(--bbq-surface)",
+                  color: "var(--bbq-text)",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                  outline: "none",
+                }}
+              >
+                {POSITION_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <Slider
+              id="island-transparency-slider"
+              label="Ada Saydamlığı"
+              value={draftTransparency}
+              min={0}
+              max={80}
+              step={5}
+              valueDisplay={`%${draftTransparency}`}
+              onChange={(val) => {
+                const nextVal = Math.max(0, Math.min(80, Math.round(val)));
+                setDraftTransparency(nextVal);
+                if (typeof document !== "undefined") {
+                  const opacity = (100 - nextVal) / 100;
+                  document.documentElement.style.setProperty("--bbq-island-opacity", `${opacity}`);
+                  document.documentElement.style.setProperty("--bbq-island-transparency", `${nextVal}%`);
+                }
+              }}
+              onCommit={commitTransparency}
             />
 
             <Switch
@@ -807,7 +899,10 @@ export const SettingsWidget: React.FC = () => {
 
         {/* PRIVACY */}
         {activeTab === "privacy" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div
+            id="settings-panel-privacy-content"
+            style={{ display: "flex", flexDirection: "column", gap: "14px", paddingBottom: "12px" }}
+          >
             {!clipboardLiveSupported && capabilities && (
               <div
                 id="clipboard-platform-notice"
@@ -1080,11 +1175,48 @@ export const SettingsWidget: React.FC = () => {
               <div>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>BBQ Desktop</h3>
                 <span style={{ fontSize: "12px", color: "var(--bbq-accent)", fontWeight: 600 }}>
-                  Version 2.0.0 (Production Edition)
+                  Version 2.3.0 (Production Edition)
                 </span>
                 <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--bbq-text-muted)" }}>
                   Lightweight, hardware-accelerated desktop productivity island.
                 </p>
+              </div>
+            </div>
+
+            {/* Auto Update Section */}
+            <div style={{ paddingTop: "8px", borderTop: "1px solid var(--bbq-border)", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <label htmlFor="auto-update-schedule-select" style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}>
+                    Auto Update
+                  </label>
+                  <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
+                    {settings.last_update_check_at
+                      ? `Son kontrol: ${new Date(settings.last_update_check_at).toLocaleDateString()}`
+                      : "Güncelleme denetleme sıklığı"}
+                  </span>
+                </div>
+                <select
+                  id="auto-update-schedule-select"
+                  value={settings.auto_update_schedule || "startup"}
+                  onChange={(e) => handleToggle("auto_update_schedule", e.target.value)}
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--bbq-border)",
+                    background: "var(--bbq-surface)",
+                    color: "var(--bbq-text)",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                >
+                  {AUTO_UPDATE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1193,12 +1325,13 @@ export const SettingsWidget: React.FC = () => {
       {/* Footer Actions */}
       <div
         style={{
-          marginTop: "16px",
+          marginTop: "auto",
           paddingTop: "12px",
           borderTop: "1px solid var(--bbq-border)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          flexShrink: 0,
         }}
       >
         <button

@@ -55,12 +55,8 @@ pub async fn set_island_mode(
             ),
         };
 
-        let geo = bbq_core::calculate_island_geometry(
-            &target_disp,
-            calc_state,
-            dims,
-            bbq_core::IslandAnchor::TopCenter,
-        );
+        let anchor = bbq_core::IslandAnchor::from_str_name(&settings.island_position);
+        let geo = bbq_core::calculate_island_geometry(&target_disp, calc_state, dims, anchor);
 
         let should_apply = if let Ok(mut last) = state.last_geometry.lock() {
             if let Some(ref last_geo) = *last {

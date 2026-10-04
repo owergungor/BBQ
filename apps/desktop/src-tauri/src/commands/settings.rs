@@ -81,12 +81,8 @@ pub async fn sync_runtime_services_with_settings(
                 mode,
                 IslandMode::Idle | IslandMode::Active | IslandMode::Collapsing
             ) {
-                let geo = bbq_core::calculate_island_geometry(
-                    &display,
-                    layout_state,
-                    dims,
-                    bbq_core::IslandAnchor::TopCenter,
-                );
+                let anchor = bbq_core::IslandAnchor::from_str_name(&current.island_position);
+                let geo = bbq_core::calculate_island_geometry(&display, layout_state, dims, anchor);
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
                         width: geo.width as f64,

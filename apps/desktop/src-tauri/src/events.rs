@@ -28,6 +28,7 @@ pub fn wire_service_events(handle: &AppHandle, state: &AppState) {
     let hotkey_clone = state.hotkey_service.clone();
     let hotkey_disp_svc = state.display_service.clone();
     let hotkey_win_svc = state.window_service.clone();
+    let hotkey_settings_svc = state.settings_service.clone();
 
     tauri::async_runtime::spawn(async move {
         // 0. Authoritative centralized service startup initialization
@@ -249,13 +250,20 @@ pub fn wire_service_events(handle: &AppHandle, state: &AppState) {
                     let window_opt = app_hk.get_webview_window("main");
                     let d_svc = disp_svc.clone();
                     let w_svc = win_svc.clone();
+                    let s_svc = hotkey_settings_svc.clone();
                     tauri::async_runtime::spawn(async move {
                         if let Ok(active_display) = d_svc.get_active_display().await {
+                            use bbq_services::SettingsServiceTrait;
+                            let pos_name = s_svc
+                                .get_settings()
+                                .map(|s| s.island_position)
+                                .unwrap_or_else(|_| "top-center".to_string());
+                            let anchor = bbq_core::IslandAnchor::from_str_name(&pos_name);
                             let geo = bbq_core::calculate_island_geometry(
                                 &active_display,
                                 bbq_core::IslandLayoutState::Expanded,
                                 None,
-                                bbq_core::IslandAnchor::TopCenter,
+                                anchor,
                             );
                             if let Some(ref window) = window_opt {
                                 let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {

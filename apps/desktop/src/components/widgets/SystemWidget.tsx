@@ -170,8 +170,12 @@ export const SystemWidget: React.FC = () => {
           aria-label="CPU Usage"
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={stats.cpu.usagePercent}
-          aria-valuetext={`${stats.cpu.usagePercent}% CPU Usage, ${stats.cpu.coreCount} Cores`}
+          aria-valuenow={stats.cpu.available ? stats.cpu.usagePercent : undefined}
+          aria-valuetext={
+            stats.cpu.available
+              ? `${stats.cpu.usagePercent}% CPU Usage, ${stats.cpu.coreCount} Cores`
+              : "CPU telemetry measuring..."
+          }
         >
           <div className="bbq-stats-gauge-svg-wrap">
             <svg className="bbq-stats-gauge-svg" viewBox="0 0 90 90" aria-hidden="true">

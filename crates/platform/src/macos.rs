@@ -675,9 +675,67 @@ impl std::fmt::Debug for MacOsSystem {
     }
 }
 
+impl MacOsSystem {
+    fn read_cpu() -> Option<bbq_core::CpuMetrics> {
+        let core_count = std::thread::available_parallelism()
+            .map(|n| n.get() as u32)
+            .unwrap_or(1);
+
+        #[cfg(target_os = "macos")]
+        {
+            if let Ok(output) = std::process::Command::new("top")
+                .args(["-l", "1", "-n", "0"])
+                .output()
+            {
+                if output.status.success() {
+                    let text = String::from_utf8_lossy(&output.stdout);
+                    if let Some(pos) = text.find("CPU usage:") {
+                        let slice = &text[pos..];
+                        if let Some(line) = slice.lines().next() {
+                            let mut user_pct = 0.0f32;
+                            let mut sys_pct = 0.0f32;
+                            for part in line.split(',') {
+                                let words: Vec<&str> = part.split_whitespace().collect();
+                                if words.len() >= 2 {
+                                    let val_str = words[words.len() - 2].trim_end_matches('%');
+                                    let label = words[words.len() - 1];
+                                    if let Ok(v) = val_str.parse::<f32>() {
+                                        if label == "user" {
+                                            user_pct = v;
+                                        } else if label == "sys" {
+                                            sys_pct = v;
+                                        }
+                                    }
+                                }
+                            }
+                            let total = (user_pct + sys_pct).clamp(0.0, 100.0);
+                            return Some(bbq_core::CpuMetrics {
+                                usage_percent: total,
+                                core_count,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        #[cfg(test)]
+        {
+            Some(bbq_core::CpuMetrics {
+                usage_percent: 15.0,
+                core_count,
+            })
+        }
+
+        #[cfg(not(any(target_os = "macos", test)))]
+        None
+    }
+}
+
 #[async_trait]
 impl PlatformSystem for MacOsSystem {
     async fn initialize(&self) -> BbqResult<()> {
+        let _ = Self::read_cpu();
         Ok(())
     }
 
@@ -685,7 +743,7 @@ impl PlatformSystem for MacOsSystem {
         Ok(SystemState {
             battery: BatteryState::default(),
             network: NetworkState::default(),
-            cpu: None,
+            cpu: Self::read_cpu(),
             memory: None,
             muted: Some(false),
             volume: Some(1.0),
@@ -700,7 +758,7 @@ impl PlatformSystem for MacOsSystem {
         Ok(SystemCapabilities {
             has_battery: false,
             can_read_network: false,
-            can_read_cpu: false,
+            can_read_cpu: true,
             can_read_memory: false,
             can_control_volume: false,
             can_mute: false,

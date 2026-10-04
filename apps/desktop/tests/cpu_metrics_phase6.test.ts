@@ -92,34 +92,51 @@ describe("BBQ v2.1 — Phase 6: Process CPU Metrics Contracts", () => {
       assert.strictEqual(normalized.cpu.available, false);
       assert.strictEqual(normalized.cpu.label, "0%");
     });
+
+    it("displays '--' loading/measuring state when CPU telemetry is pending initial sample (not forced 0%)", () => {
+      const statePending: SystemState = {
+        battery: { available: true, percentage: 80, charging: false, plugged_in: false, time_remaining_seconds: null, power_source: null },
+        network: { connected: true, connection_type: "wifi", interface_name: null, signal_strength: null },
+        cpu: null,
+        memory: { total_bytes: 16000000000, used_bytes: 8000000000, usage_percent: 50.0 },
+        operating_system: "Windows",
+        platform: "windows",
+      };
+
+      const normalized = normalizeStats(statePending, baseCaps);
+      assert.strictEqual(normalized.cpu.available, false);
+      assert.strictEqual(normalized.cpu.label, "--");
+    });
   });
 
-  describe("6B. Rust Native Process CPU Implementation Verification", () => {
-    it("proves Windows implementation uses GetCurrentProcess and GetProcessTimes (not GetSystemTimes)", () => {
+  describe("6B. Rust Native System CPU Implementation Verification", () => {
+    it("proves Windows implementation uses GetSystemTimes for real system-wide CPU metrics", () => {
       const windowsRsPath = path.join(ROOT_DIR, "crates/platform/src/windows.rs");
       const content = fs.readFileSync(windowsRsPath, "utf-8");
 
       assert.ok(
-        content.includes("GetCurrentProcess"),
-        "Must use GetCurrentProcess to measure host process CPU"
-      );
-      assert.ok(
-        content.includes("GetProcessTimes"),
-        "Must use GetProcessTimes to measure host process CPU"
-      );
-      assert.ok(
-        !content.includes("GetSystemTimes"),
-        "Must NOT use GetSystemTimes (defect in v2.0)"
+        content.includes("GetSystemTimes"),
+        "Must use GetSystemTimes to measure real system-wide CPU"
       );
     });
 
-    it("proves Linux implementation uses /proc/self/stat", () => {
+    it("proves Linux implementation uses /proc/stat for real system-wide CPU metrics", () => {
       const linuxRsPath = path.join(ROOT_DIR, "crates/platform/src/linux.rs");
       const content = fs.readFileSync(linuxRsPath, "utf-8");
 
       assert.ok(
-        content.includes("/proc/self/stat"),
-        "Must use /proc/self/stat for process CPU on Linux"
+        content.includes("/proc/stat"),
+        "Must use /proc/stat for system-wide CPU on Linux"
+      );
+    });
+
+    it("proves macOS implementation enables system CPU telemetry", () => {
+      const macosRsPath = path.join(ROOT_DIR, "crates/platform/src/macos.rs");
+      const content = fs.readFileSync(macosRsPath, "utf-8");
+
+      assert.ok(
+        content.includes("can_read_cpu: true"),
+        "Must report can_read_cpu: true on macOS platform"
       );
     });
   });

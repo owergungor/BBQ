@@ -38,7 +38,24 @@ export type IslandAnchor =
   | 'topCenter'
   | 'topLeft'
   | 'topRight'
+  | 'bottomLeft'
+  | 'bottomCenter'
+  | 'bottomRight'
   | { custom: { offset_x: number; offset_y: number } };
+
+export type IslandPosition =
+  | 'top-center'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
+
+export type AutoUpdateSchedule =
+  | 'startup'
+  | 'daily'
+  | 'weekly'
+  | 'monthly';
 
 export type ContentPolicy = 'fixed' | 'contentDriven' | 'boundedExpansion' | 'content-driven' | 'bounded-expansion';
 
@@ -258,6 +275,10 @@ export interface BbqSettings {
   compact_indicator_order: string[];
   first_run_completed: boolean;
   onboarding_completed: boolean;
+  island_position?: IslandPosition;
+  island_transparency?: number;
+  auto_update_schedule?: AutoUpdateSchedule;
+  last_update_check_at?: number | null;
 }
 
 export interface FileEntry {

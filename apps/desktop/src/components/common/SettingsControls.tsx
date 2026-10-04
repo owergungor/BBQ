@@ -8,129 +8,13 @@ import { CromiaColorPicker } from "./CromiaColorPicker.tsx";
 export { ThemeTabs, ThemeSwitcher } from "./ThemeTabs.tsx";
 
 /* ==========================================================================
-   2. Modern Switch (Inspired by 21st.dev HeroUI Switch)
+   2. Apple-Style Switch (Human Interface Guidelines compliant)
    ========================================================================== */
-interface SwitchProps {
-  id: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  label: string;
-  description?: string;
-  disabled?: boolean;
-  ariaLabel?: string;
-}
+export { AppleSwitch, type AppleSwitchProps } from "./AppleSwitch.tsx";
+import { AppleSwitch, type AppleSwitchProps } from "./AppleSwitch.tsx";
 
-export const Switch: React.FC<SwitchProps> = ({
-  id,
-  checked,
-  onChange,
-  label,
-  description,
-  disabled = false,
-  ariaLabel,
-}) => {
-  return (
-    <div
-      className={`bbq-switch-row ${disabled ? "disabled" : ""}`}
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: "12px",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <label
-          htmlFor={id}
-          style={{
-            fontWeight: 500,
-            display: "block",
-            fontSize: "12px",
-            color: "var(--bbq-text)",
-            cursor: disabled ? "not-allowed" : "pointer",
-          }}
-        >
-          {label}
-        </label>
-        {description && (
-          <span
-            style={{
-              fontSize: "11px",
-              color: "var(--bbq-text-muted)",
-              display: "block",
-              marginTop: "2px",
-              lineHeight: 1.35,
-            }}
-          >
-            {description}
-          </span>
-        )}
-      </div>
-
-      <button
-        type="button"
-        role="switch"
-        id={id}
-        aria-checked={checked}
-        aria-label={ariaLabel || label}
-        disabled={disabled}
-        onClick={() => !disabled && onChange(!checked)}
-        onKeyDown={(e) => {
-          if (!disabled && (e.key === " " || e.key === "Enter")) {
-            e.preventDefault();
-            onChange(!checked);
-          }
-        }}
-        style={{
-          width: "38px",
-          height: "22px",
-          borderRadius: "9999px",
-          background: checked ? "var(--bbq-accent)" : "rgba(255, 255, 255, 0.15)",
-          border: `1px solid ${checked ? "var(--bbq-accent)" : "rgba(255, 255, 255, 0.1)"}`,
-          padding: "2px",
-          display: "flex",
-          alignItems: "center",
-          cursor: disabled ? "not-allowed" : "pointer",
-          transition: "background 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms ease",
-          position: "relative",
-          flexShrink: 0,
-          outline: "none",
-        }}
-      >
-        {/* Hidden native checkbox for test automation & accessibility fallback */}
-        <input
-          id={`${id}-checkbox`}
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) => !disabled && onChange(e.target.checked)}
-          tabIndex={-1}
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            opacity: 0,
-            pointerEvents: "none",
-            width: "1px",
-            height: "1px",
-          }}
-        />
-        <div
-          className="bbq-switch-thumb"
-          style={{
-            width: "16px",
-            height: "16px",
-            borderRadius: "50%",
-            background: "#ffffff",
-            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.35)",
-            transform: checked ? "translateX(16px)" : "translateX(0px)",
-            transition: "transform 180ms cubic-bezier(0.16, 1, 0.3, 1)",
-          }}
-        />
-      </button>
-    </div>
-  );
-};
+export type SwitchProps = AppleSwitchProps;
+export const Switch = AppleSwitch;
 
 /* ==========================================================================
    3. Modern Slider (Inspired by 21st.dev HeroUI Slider)

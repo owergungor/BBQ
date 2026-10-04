@@ -849,56 +849,62 @@ impl std::fmt::Debug for LinuxSystem {
 }
 
 impl LinuxSystem {
-    fn read_process_cpu() -> Option<bbq_core::CpuMetrics> {
-        let content = std::fs::read_to_string("/proc/self/stat").ok()?;
-        let rparen = content.rfind(')')?;
-        let rest = content.get(rparen + 2..)?;
-        let fields: Vec<&str> = rest.split_whitespace().collect();
-        if fields.len() > 12 {
-            let utime: u64 = fields[11].parse().ok()?;
-            let stime: u64 = fields[12].parse().ok()?;
-            let process_ticks = utime.saturating_add(stime);
-
-            let core_count = std::thread::available_parallelism()
-                .map(|n| n.get() as u32)
-                .unwrap_or(1);
-
-            use std::sync::Mutex;
-            static PREV_LINUX_CPU: Mutex<Option<(u64, std::time::Instant)>> = Mutex::new(None);
-
-            let now = std::time::Instant::now();
-            let usage_percent = if let Ok(mut lock) = PREV_LINUX_CPU.lock() {
-                let pct = if let Some((prev_ticks, prev_inst)) = *lock {
-                    let ticks_delta = process_ticks.saturating_sub(prev_ticks);
-                    let elapsed_secs = now.duration_since(prev_inst).as_secs_f64();
-                    let clk_tck = 100.0;
-                    let total_capacity = elapsed_secs * clk_tck * (core_count as f64);
-                    if total_capacity > 0.0 && elapsed_secs >= 0.08 {
-                        ((ticks_delta as f64 / total_capacity) * 100.0).clamp(0.0, 100.0) as f32
-                    } else {
-                        0.0
-                    }
-                } else {
-                    0.0
-                };
-                *lock = Some((process_ticks, now));
-                pct
-            } else {
-                0.0
-            };
-
-            return Some(bbq_core::CpuMetrics {
-                usage_percent,
-                core_count,
-            });
+    fn read_cpu() -> Option<bbq_core::CpuMetrics> {
+        let content = std::fs::read_to_string("/proc/stat").ok()?;
+        let first_line = content.lines().next()?;
+        if !first_line.starts_with("cpu ") {
+            return None;
         }
-        None
+
+        let parts: Vec<u64> = first_line
+            .split_whitespace()
+            .skip(1)
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        if parts.len() < 4 {
+            return None;
+        }
+
+        let idle = parts[3] + parts.get(4).copied().unwrap_or(0); // idle + iowait
+        let total: u64 = parts.iter().sum();
+
+        let core_count = std::thread::available_parallelism()
+            .map(|n| n.get() as u32)
+            .unwrap_or(1);
+
+        use std::sync::Mutex;
+        static PREV_LINUX_CPU: Mutex<Option<(u64, u64, std::time::Instant)>> = Mutex::new(None);
+
+        let now = std::time::Instant::now();
+        let mut lock = PREV_LINUX_CPU.lock().ok()?;
+        let usage_percent = if let Some((prev_total, prev_idle, prev_inst)) = *lock {
+            let total_delta = total.saturating_sub(prev_total);
+            let idle_delta = idle.saturating_sub(prev_idle);
+            let elapsed = now.duration_since(prev_inst);
+
+            if total_delta > 0 && elapsed.as_millis() >= 80 {
+                let busy_delta = total_delta.saturating_sub(idle_delta);
+                ((busy_delta as f64 / total_delta as f64) * 100.0).clamp(0.0, 100.0) as f32
+            } else {
+                return None;
+            }
+        } else {
+            *lock = Some((total, idle, now));
+            return None;
+        };
+        *lock = Some((total, idle, now));
+
+        Some(bbq_core::CpuMetrics {
+            usage_percent,
+            core_count,
+        })
     }
 }
 
 #[async_trait]
 impl PlatformSystem for LinuxSystem {
     async fn initialize(&self) -> BbqResult<()> {
+        let _ = Self::read_cpu();
         Ok(())
     }
 
@@ -906,7 +912,7 @@ impl PlatformSystem for LinuxSystem {
         Ok(SystemState {
             battery: BatteryState::default(),
             network: NetworkState::default(),
-            cpu: Self::read_process_cpu(),
+            cpu: Self::read_cpu(),
             memory: None,
             muted: Some(false),
             volume: Some(1.0),
@@ -921,7 +927,7 @@ impl PlatformSystem for LinuxSystem {
         Ok(SystemCapabilities {
             has_battery: false,
             can_read_network: false,
-            can_read_cpu: std::path::Path::new("/proc/self/stat").exists(),
+            can_read_cpu: std::path::Path::new("/proc/stat").exists(),
             can_read_memory: false,
             can_control_volume: false,
             can_mute: false,

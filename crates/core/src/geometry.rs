@@ -63,6 +63,17 @@ impl DisplayInfo {
             DEFAULT_TOP_MARGIN - insets.top
         }
     }
+
+    /// Computes the safe bottom margin for placing bottom-anchored islands.
+    /// Clears taskbars, docks, and screen edges without double-offsetting.
+    pub fn safe_bottom_margin(&self) -> i32 {
+        let insets = self.insets();
+        if insets.bottom >= DEFAULT_BOTTOM_MARGIN {
+            0
+        } else {
+            DEFAULT_BOTTOM_MARGIN - insets.bottom
+        }
+    }
 }
 
 /// Capability level for display geometry and monitor enumeration on host platform.
@@ -141,6 +152,10 @@ pub const DEFAULT_DROP_HEIGHT: u32 = 200;
 
 /// Default top margin from the top edge of work area in logical pixels.
 pub const DEFAULT_TOP_MARGIN: i32 = 8;
+/// Default bottom margin from the bottom edge of work area in logical pixels.
+pub const DEFAULT_BOTTOM_MARGIN: i32 = 8;
+/// Default side margin from the horizontal edges of work area in logical pixels.
+pub const DEFAULT_SIDE_MARGIN: i32 = 8;
 
 /// Layout state corresponding to Island interaction modes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -291,10 +306,39 @@ pub enum IslandAnchor {
     TopCenter,
     TopLeft,
     TopRight,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
     Custom {
         offset_x: i32,
         offset_y: i32,
     },
+}
+
+impl IslandAnchor {
+    pub fn from_str_name(s: &str) -> Self {
+        match s.trim().to_lowercase().replace('_', "-").as_str() {
+            "top-center" | "topcenter" => Self::TopCenter,
+            "top-left" | "topleft" => Self::TopLeft,
+            "top-right" | "topright" => Self::TopRight,
+            "bottom-left" | "bottomleft" => Self::BottomLeft,
+            "bottom-center" | "bottomcenter" => Self::BottomCenter,
+            "bottom-right" | "bottomright" => Self::BottomRight,
+            _ => Self::TopCenter,
+        }
+    }
+
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::TopCenter => "top-center",
+            Self::TopLeft => "top-left",
+            Self::TopRight => "top-right",
+            Self::BottomLeft => "bottom-left",
+            Self::BottomCenter => "bottom-center",
+            Self::BottomRight => "bottom-right",
+            Self::Custom { .. } => "custom",
+        }
+    }
 }
 
 /// Calculated Island geometry for window positioning and frontend rendering.
@@ -518,6 +562,40 @@ pub fn calculate_island_geometry(
             let x = display.work_area.x + (display.work_area.width as i32 - bounded_w as i32) - 8
                 + x_hover_offset;
             let y = display.work_area.y + display.safe_top_margin() - y_hover_offset;
+            (x, y)
+        }
+        IslandAnchor::BottomLeft => {
+            let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
+                (bounded_w as i32 - idle_w as i32) / 2
+            } else {
+                0
+            };
+            let x = display.work_area.x + DEFAULT_SIDE_MARGIN - x_hover_offset;
+            let y = display.work_area.y + (display.work_area.height as i32 - bounded_h as i32)
+                - display.safe_bottom_margin()
+                + y_hover_offset;
+            (x, y)
+        }
+        IslandAnchor::BottomCenter => {
+            let screen_center_x = display.bounds.x + (display.bounds.width as i32) / 2;
+            let offset_x = screen_center_x - (bounded_w as i32) / 2;
+            let y = display.work_area.y + (display.work_area.height as i32 - bounded_h as i32)
+                - display.safe_bottom_margin()
+                + y_hover_offset;
+            (offset_x, y)
+        }
+        IslandAnchor::BottomRight => {
+            let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
+                (bounded_w as i32 - idle_w as i32) / 2
+            } else {
+                0
+            };
+            let x = display.work_area.x + (display.work_area.width as i32 - bounded_w as i32)
+                - DEFAULT_SIDE_MARGIN
+                + x_hover_offset;
+            let y = display.work_area.y + (display.work_area.height as i32 - bounded_h as i32)
+                - display.safe_bottom_margin()
+                + y_hover_offset;
             (x, y)
         }
         IslandAnchor::Custom { offset_x, offset_y } => {
@@ -1613,5 +1691,157 @@ mod tests {
         );
         assert_eq!(large_geo.width, MAX_ISLAND_WIDTH); // 640
         assert_eq!(large_geo.height, MAX_ISLAND_HEIGHT); // 520
+    }
+
+    #[test]
+    fn test_v23_all_six_anchors_and_positions() {
+        let display = sample_primary_display();
+        // display bounds: x=0, y=0, w=1920, h=1080; work_area: x=0, y=0, w=1920, h=1040 (40px taskbar at bottom)
+        let dims = WidgetDimensions {
+            compact_width: Some(300),
+            compact_height: Some(40),
+            ..Default::default()
+        };
+
+        // 1. TopCenter
+        let tc = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::TopCenter,
+        );
+        assert_eq!(tc.x, (1920 - 300) / 2);
+        assert_eq!(tc.y, 8); // Top margin
+        assert_eq!(tc.anchor, IslandAnchor::TopCenter);
+
+        // 2. TopLeft
+        let tl = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::TopLeft,
+        );
+        assert_eq!(tl.x, 8); // Side margin
+        assert_eq!(tl.y, 8); // Top margin
+        assert_eq!(tl.anchor, IslandAnchor::TopLeft);
+
+        // 3. TopRight
+        let tr = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::TopRight,
+        );
+        assert_eq!(tr.x, 1920 - 300 - 8);
+        assert_eq!(tr.y, 8);
+        assert_eq!(tr.anchor, IslandAnchor::TopRight);
+
+        // 4. BottomLeft
+        let bl = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::BottomLeft,
+        );
+        assert_eq!(bl.x, 8);
+        assert_eq!(bl.y, 1040 - 40 - display.safe_bottom_margin()); // 1000 (taskbar inset clears margin)
+        assert_eq!(bl.anchor, IslandAnchor::BottomLeft);
+
+        // 5. BottomCenter
+        let bc = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::BottomCenter,
+        );
+        assert_eq!(bc.x, (1920 - 300) / 2);
+        assert_eq!(bc.y, 1040 - 40 - display.safe_bottom_margin());
+        assert_eq!(bc.anchor, IslandAnchor::BottomCenter);
+
+        // 6. BottomRight
+        let br = calculate_island_geometry(
+            &display,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::BottomRight,
+        );
+        assert_eq!(br.x, 1920 - 300 - 8);
+        assert_eq!(br.y, 1040 - 40 - display.safe_bottom_margin());
+        assert_eq!(br.anchor, IslandAnchor::BottomRight);
+
+        // String conversions
+        assert_eq!(
+            IslandAnchor::from_str_name("top-center"),
+            IslandAnchor::TopCenter
+        );
+        assert_eq!(
+            IslandAnchor::from_str_name("top-left"),
+            IslandAnchor::TopLeft
+        );
+        assert_eq!(
+            IslandAnchor::from_str_name("top-right"),
+            IslandAnchor::TopRight
+        );
+        assert_eq!(
+            IslandAnchor::from_str_name("bottom-left"),
+            IslandAnchor::BottomLeft
+        );
+        assert_eq!(
+            IslandAnchor::from_str_name("bottom-center"),
+            IslandAnchor::BottomCenter
+        );
+        assert_eq!(
+            IslandAnchor::from_str_name("bottom-right"),
+            IslandAnchor::BottomRight
+        );
+        assert_eq!(
+            IslandAnchor::from_str_name("unknown"),
+            IslandAnchor::TopCenter
+        );
+
+        assert_eq!(IslandAnchor::TopCenter.as_str_name(), "top-center");
+        assert_eq!(IslandAnchor::TopLeft.as_str_name(), "top-left");
+        assert_eq!(IslandAnchor::TopRight.as_str_name(), "top-right");
+        assert_eq!(IslandAnchor::BottomLeft.as_str_name(), "bottom-left");
+        assert_eq!(IslandAnchor::BottomCenter.as_str_name(), "bottom-center");
+        assert_eq!(IslandAnchor::BottomRight.as_str_name(), "bottom-right");
+    }
+
+    #[test]
+    fn test_v23_multimonitor_negative_coordinates_bottom_anchors() {
+        let left_secondary = sample_negative_secondary_display();
+        // left display: x = -1920, y = 0, w = 1920, h = 1080; work_area: x = -1920, y = 0, w = 1920, h = 1080
+        let dims = WidgetDimensions {
+            compact_width: Some(300),
+            compact_height: Some(40),
+            ..Default::default()
+        };
+
+        let bc = calculate_island_geometry(
+            &left_secondary,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::BottomCenter,
+        );
+        assert_eq!(bc.x, -1920 + (1920 - 300) / 2);
+        assert_eq!(bc.y, 1080 - 40 - 8);
+
+        let bl = calculate_island_geometry(
+            &left_secondary,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::BottomLeft,
+        );
+        assert_eq!(bl.x, -1920 + 8);
+        assert_eq!(bl.y, 1080 - 40 - 8);
+
+        let br = calculate_island_geometry(
+            &left_secondary,
+            IslandLayoutState::Idle,
+            Some(dims),
+            IslandAnchor::BottomRight,
+        );
+        assert_eq!(br.x, -1920 + 1920 - 300 - 8);
+        assert_eq!(br.y, 1080 - 40 - 8);
     }
 }
