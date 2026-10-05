@@ -87,6 +87,22 @@ export const ClipboardWidget: React.FC = () => {
     []
   );
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(() => new Set());
+
+  const toggleRevealSensitive = useCallback((id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRevealedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
   const normalizedCards = useMemo(() => {
     const bounded = boundClipboardEntries(entries, MAX_CLIPBOARD_HISTORY_ENTRIES);
     const now = Date.now();
@@ -95,6 +111,16 @@ export const ClipboardWidget: React.FC = () => {
       normalized: normalizeClipboardEntry(entry, now),
     }));
   }, [entries]);
+
+  const filteredCards = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return normalizedCards;
+    return normalizedCards.filter(({ raw, normalized }) => {
+      const content = (raw.content || "").toLowerCase();
+      const preview = normalized.preview.toLowerCase();
+      return content.includes(q) || preview.includes(q);
+    });
+  }, [normalizedCards, searchQuery]);
 
   return (
     <div className="bbq-clipboard-widget" onClick={(e) => e.stopPropagation()}>
@@ -149,6 +175,66 @@ export const ClipboardWidget: React.FC = () => {
         </div>
       </div>
 
+      {/* Real-time search filter */}
+      {enabled && entries.length > 0 && (
+        <div className="bbq-clipboard-search-bar" style={{ padding: "6px 8px 8px 8px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "var(--bbq-surface, rgba(255, 255, 255, 0.05))",
+              borderRadius: "6px",
+              padding: "4px 8px",
+              border: "1px solid var(--bbq-border, rgba(255, 255, 255, 0.1))",
+            }}
+          >
+            <Icon name="search" size={12} aria-hidden="true" style={{ opacity: 0.6 }} />
+            <input
+              id="clipboard-search-input"
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setSearchQuery("");
+                }
+              }}
+              placeholder="Search clippings..."
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                fontSize: "11px",
+                color: "var(--bbq-text, #fff)",
+              }}
+              aria-label="Filter clipboard clippings"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                id="clipboard-search-clear-btn"
+                onClick={() => setSearchQuery("")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--bbq-text-muted)",
+                  cursor: "pointer",
+                  padding: "0 2px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                aria-label="Clear search"
+              >
+                <Icon name="close" size={10} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {!enabled ? (
         <div className="bbq-clipboard-privacy-notice">
           <div className="bbq-clipboard-privacy-header">
@@ -165,65 +251,96 @@ export const ClipboardWidget: React.FC = () => {
           <Icon name="clipboard" size={24} aria-hidden="true" style={{ opacity: 0.4 }} />
           <span>No clipboard items yet. Copy text to stage clippings here.</span>
         </div>
+      ) : filteredCards.length === 0 ? (
+        <div className="bbq-clipboard-empty" id="clipboard-search-empty">
+          <Icon name="search" size={24} aria-hidden="true" style={{ opacity: 0.4 }} />
+          <span>No clippings matching "{searchQuery}"</span>
+        </div>
       ) : (
         <div className="bbq-clipboard-card-grid" role="grid" aria-label="Clipboard history cards">
-          {normalizedCards.map(({ raw, normalized }) => (
-            <div
-              key={normalized.id}
-              className={"bbq-clipboard-card" + (normalized.isSensitive ? " is-sensitive" : "")}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleCopyAgain(e as unknown as React.MouseEvent, raw);
-                } else if (e.key === "Delete" || e.key === "Backspace") {
-                  e.preventDefault();
-                  handleDeleteEntry(e as unknown as React.MouseEvent, raw.id);
-                }
-              }}
-            >
-              <div className="bbq-clipboard-card-header">
-                <div className="bbq-clipboard-card-tag">
-                  <Icon name={normalized.iconName} size={12} aria-hidden="true" />
-                  <span className="bbq-clipboard-card-type">{normalized.contentType}</span>
-                  {normalized.isSensitive && (
-                    <span className="bbq-clipboard-sensitive-pill" title="Sensitive credentials masked">
-                      <Icon name="lock" size={10} aria-hidden="true" />
-                      <span>Protected</span>
-                    </span>
-                  )}
-                </div>
+          {filteredCards.map(({ raw, normalized }) => {
+            const isRevealed = revealedIds.has(raw.id);
+            const previewText =
+              normalized.isSensitive && isRevealed && raw.content
+                ? raw.content.slice(0, 100)
+                : normalized.preview;
 
-                <div className="bbq-clipboard-card-actions">
-                  <span className="bbq-clipboard-time-ago">{normalized.timeAgo}</span>
-                  {raw.content && (
+            return (
+              <div
+                key={normalized.id}
+                className={"bbq-clipboard-card" + (normalized.isSensitive ? " is-sensitive" : "")}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleCopyAgain(e as unknown as React.MouseEvent, raw);
+                  } else if (e.key === "Delete" || e.key === "Backspace") {
+                    e.preventDefault();
+                    handleDeleteEntry(e as unknown as React.MouseEvent, raw.id);
+                  }
+                }}
+              >
+                <div className="bbq-clipboard-card-header">
+                  <div className="bbq-clipboard-card-tag">
+                    <Icon name={normalized.iconName} size={12} aria-hidden="true" />
+                    <span className="bbq-clipboard-card-type">{normalized.contentType}</span>
+                    {normalized.isSensitive && (
+                      <button
+                        type="button"
+                        className="bbq-clipboard-sensitive-pill"
+                        onClick={(e) => toggleRevealSensitive(raw.id, e)}
+                        title={isRevealed ? "Hide sensitive credentials" : "Click to reveal masked credentials"}
+                        aria-label={isRevealed ? "Hide sensitive credentials" : "Click to reveal masked credentials"}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          cursor: "pointer",
+                          background: isRevealed ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.15)",
+                          border: "none",
+                          borderRadius: "4px",
+                          padding: "2px 6px",
+                          color: isRevealed ? "#f87171" : "#fbbf24",
+                          fontSize: "10px",
+                        }}
+                      >
+                        <Icon name={isRevealed ? "eye-off" : "eye"} size={10} aria-hidden="true" />
+                        <span>{isRevealed ? "Hide" : "Protected"}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="bbq-clipboard-card-actions">
+                    <span className="bbq-clipboard-time-ago">{normalized.timeAgo}</span>
+                    {raw.content && (
+                      <button
+                        type="button"
+                        className="bbq-clipboard-action-btn"
+                        onClick={(e) => handleCopyAgain(e, raw)}
+                        title="Copy again"
+                        aria-label={"Copy clipping: " + normalized.preview}
+                      >
+                        <Icon name="copy" size={11} aria-hidden="true" />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      className="bbq-clipboard-action-btn"
-                      onClick={(e) => handleCopyAgain(e, raw)}
-                      title="Copy again"
-                      aria-label={"Copy clipping: " + normalized.preview}
+                      className="bbq-clipboard-action-btn delete"
+                      onClick={(e) => handleDeleteEntry(e, raw.id)}
+                      title="Delete item"
+                      aria-label="Delete clipboard clipping"
                     >
-                      <Icon name="copy" size={11} aria-hidden="true" />
+                      <Icon name="close" size={11} aria-hidden="true" />
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    className="bbq-clipboard-action-btn delete"
-                    onClick={(e) => handleDeleteEntry(e, raw.id)}
-                    title="Delete item"
-                    aria-label="Delete clipboard clipping"
-                  >
-                    <Icon name="close" size={11} aria-hidden="true" />
-                  </button>
+                  </div>
+                </div>
+
+                <div className="bbq-clipboard-card-preview" title={raw.content || normalized.preview}>
+                  {previewText}
                 </div>
               </div>
-
-              <div className="bbq-clipboard-card-preview" title={normalized.preview}>
-                {normalized.preview}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

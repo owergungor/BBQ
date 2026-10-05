@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useMediaState, refreshMediaSession } from "../../state/mediaState.ts";
+import { useSystemState } from "../../state/systemState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon } from "../common/Icon.tsx";
 import {
@@ -13,6 +14,23 @@ import {
 
 export const MediaWidget: React.FC = () => {
   const { currentSession } = useMediaState();
+  const { system } = useSystemState();
+  const volume = system?.volume ?? 1;
+  const isMuted = system?.muted ?? false;
+
+  const handleToggleMuted = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await bbqCommands.systemToggleMuted();
+  }, []);
+
+  const handleVolumeChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val)) {
+      await bbqCommands.systemSetVolume(val);
+    }
+  }, []);
+
   const [ambientPalette, setAmbientPalette] = useState<AmbientPalette>(DEFAULT_AMBIENT_PALETTE);
   const [artError, setArtError] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -404,6 +422,48 @@ export const MediaWidget: React.FC = () => {
             >
               <Icon name="skip-next" size={16} />
             </button>
+
+            {/* Quick System Volume Adjuster */}
+            <div
+              className="bbq-media-volume-control"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                marginLeft: "8px",
+                paddingLeft: "8px",
+                borderLeft: "1px solid var(--bbq-border, rgba(255, 255, 255, 0.1))",
+              }}
+            >
+              <button
+                type="button"
+                id="media-volume-toggle-btn"
+                className="bbq-media-ctrl-btn secondary"
+                onClick={handleToggleMuted}
+                aria-label={isMuted ? "Unmute system volume" : "Mute system volume"}
+                title={isMuted ? "Unmute" : "Mute"}
+                style={{ width: "28px", height: "28px", padding: 0 }}
+              >
+                <Icon name={isMuted || volume === 0 ? "volume-mute" : "volume"} size={14} />
+              </button>
+              <input
+                id="media-volume-slider"
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                aria-label="System volume"
+                title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                style={{
+                  width: "56px",
+                  height: "4px",
+                  cursor: "pointer",
+                  accentColor: "var(--bbq-accent, #0A84FF)",
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
