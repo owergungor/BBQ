@@ -52,8 +52,10 @@ pub async fn sync_runtime_services_with_settings(
         prev.and_then(|p| p.target_display_id.as_deref()) != current.target_display_id.as_deref();
     let dims_changed = prev.map(|p| p.island_width) != Some(current.island_width)
         || prev.map(|p| p.island_height) != Some(current.island_height);
+    let position_changed =
+        prev.map(|p| p.island_position.as_str()) != Some(current.island_position.as_str());
 
-    if target_display_changed || dims_changed {
+    if target_display_changed || dims_changed || position_changed {
         if let Ok(mut last) = state.last_geometry.lock() {
             *last = None;
         }
@@ -72,6 +74,8 @@ pub async fn sync_runtime_services_with_settings(
                     Some(bbq_core::WidgetDimensions {
                         preferred_width: Some(current.island_width),
                         preferred_height: Some(current.island_height),
+                        compact_width: Some(current.island_width),
+                        compact_height: Some(current.island_height),
                         ..Default::default()
                     }),
                 ),

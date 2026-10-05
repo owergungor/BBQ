@@ -39,12 +39,12 @@ import {
 type SettingsTab = "appearance" | "island" | "hotkey" | "privacy" | "notifications" | "widgets" | "about";
 
 const POSITION_OPTIONS: { value: BbqSettings["island_position"]; label: string }[] = [
-  { value: "top-center", label: "Orta üst" },
-  { value: "top-left", label: "Sol üst" },
-  { value: "top-right", label: "Sağ üst" },
-  { value: "bottom-left", label: "Sol alt" },
-  { value: "bottom-center", label: "Orta alt" },
-  { value: "bottom-right", label: "Sağ alt" },
+  { value: "top-center", label: "Orta Üst" },
+  { value: "top-left", label: "Sol Üst" },
+  { value: "top-right", label: "Sağ Üst" },
+  { value: "bottom-left", label: "Sol Alt" },
+  { value: "bottom-center", label: "Orta Alt" },
+  { value: "bottom-right", label: "Sağ Alt" },
 ];
 
 const AUTO_UPDATE_OPTIONS: { value: BbqSettings["auto_update_schedule"]; label: string }[] = [

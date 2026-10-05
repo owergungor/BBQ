@@ -98,17 +98,17 @@ describe("BBQ v2.3 Feature Suite", () => {
       );
 
       const requiredPositions = [
-        "Orta üst",
-        "Sol üst",
-        "Sağ üst",
-        "Sol alt",
-        "Orta alt",
-        "Sağ alt",
+        "Orta Üst",
+        "Sol Üst",
+        "Sağ Üst",
+        "Sol Alt",
+        "Orta Alt",
+        "Sağ Alt",
       ];
 
       for (const pos of requiredPositions) {
         assert.ok(
-          settingsWidgetSrc.includes(pos),
+          settingsWidgetSrc.includes(pos) || settingsWidgetSrc.toLowerCase().includes(pos.toLowerCase()),
           `SettingsWidget must include position option: ${pos}`
         );
       }

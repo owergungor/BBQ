@@ -50,6 +50,8 @@ pub async fn set_island_mode(
                 Some(bbq_core::WidgetDimensions {
                     preferred_width: Some(settings.island_width),
                     preferred_height: Some(settings.island_height),
+                    compact_width: Some(settings.island_width),
+                    compact_height: Some(settings.island_height),
                     ..Default::default()
                 }),
             ),
