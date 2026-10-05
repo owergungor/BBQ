@@ -81,27 +81,22 @@ pub async fn sync_runtime_services_with_settings(
                 ),
             };
 
-            if matches!(
-                mode,
-                IslandMode::Idle | IslandMode::Active | IslandMode::Collapsing
-            ) {
-                let anchor = bbq_core::IslandAnchor::from_str_name(&current.island_position);
-                let geo = bbq_core::calculate_island_geometry(&display, layout_state, dims, anchor);
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
-                        width: geo.width as f64,
-                        height: geo.height as f64,
-                    }));
-                    let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
-                        x: geo.x as f64,
-                        y: geo.y as f64,
-                    }));
-                }
-                if let Ok(mut last) = state.last_geometry.lock() {
-                    *last = Some(geo.clone());
-                }
-                let _ = state.window_service.apply_geometry(&geo).await;
+            let anchor = bbq_core::IslandAnchor::from_str_name(&current.island_position);
+            let geo = bbq_core::calculate_island_geometry(&display, layout_state, dims, anchor);
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                    width: geo.width as f64,
+                    height: geo.height as f64,
+                }));
+                let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                    x: geo.x as f64,
+                    y: geo.y as f64,
+                }));
             }
+            if let Ok(mut last) = state.last_geometry.lock() {
+                *last = Some(geo.clone());
+            }
+            let _ = state.window_service.apply_geometry(&geo).await;
         }
     }
 }

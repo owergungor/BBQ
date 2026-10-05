@@ -872,27 +872,47 @@ impl LinuxSystem {
             .map(|n| n.get() as u32)
             .unwrap_or(1);
 
+        #[derive(Clone, Copy)]
+        struct LinuxCpuSample {
+            total: u64,
+            idle: u64,
+            timestamp: std::time::Instant,
+            last_usage: Option<f32>,
+        }
+
         use std::sync::Mutex;
-        static PREV_LINUX_CPU: Mutex<Option<(u64, u64, std::time::Instant)>> = Mutex::new(None);
+        static PREV_LINUX_CPU: Mutex<Option<LinuxCpuSample>> = Mutex::new(None);
 
         let now = std::time::Instant::now();
         let mut lock = PREV_LINUX_CPU.lock().ok()?;
-        let usage_percent = if let Some((prev_total, prev_idle, prev_inst)) = *lock {
-            let total_delta = total.saturating_sub(prev_total);
-            let idle_delta = idle.saturating_sub(prev_idle);
-            let elapsed = now.duration_since(prev_inst);
+        let usage_percent = if let Some(prev) = *lock {
+            let total_delta = total.saturating_sub(prev.total);
+            let idle_delta = idle.saturating_sub(prev.idle);
+            let elapsed = now.duration_since(prev.timestamp);
 
             if total_delta > 0 && elapsed.as_millis() >= 80 {
                 let busy_delta = total_delta.saturating_sub(idle_delta);
-                ((busy_delta as f64 / total_delta as f64) * 100.0).clamp(0.0, 100.0) as f32
+                let computed =
+                    ((busy_delta as f64 / total_delta as f64) * 100.0).clamp(0.0, 100.0) as f32;
+                *lock = Some(LinuxCpuSample {
+                    total,
+                    idle,
+                    timestamp: now,
+                    last_usage: Some(computed),
+                });
+                computed
             } else {
-                return None;
+                prev.last_usage?
             }
         } else {
-            *lock = Some((total, idle, now));
+            *lock = Some(LinuxCpuSample {
+                total,
+                idle,
+                timestamp: now,
+                last_usage: None,
+            });
             return None;
         };
-        *lock = Some((total, idle, now));
 
         Some(bbq_core::CpuMetrics {
             usage_percent,

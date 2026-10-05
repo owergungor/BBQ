@@ -430,14 +430,28 @@ function coerceSettingValue(key: keyof BbqSettings, value: string): unknown {
         return defaultSettings[key];
       }
 
-    case "theme":
-      return value === "light" || value === "dark" ? value : "system";
+    case "auto_update_schedule":
+      return value === "startup" ||
+        value === "daily" ||
+        value === "weekly" ||
+        value === "monthly"
+        ? value
+        : "startup";
 
-    case "accent_color":
-      return value;
+    case "island_position":
+      return value === "top-center" ||
+        value === "top-left" ||
+        value === "top-right" ||
+        value === "bottom-left" ||
+        value === "bottom-center" ||
+        value === "bottom-right"
+        ? value
+        : "top-center";
 
-    case "global_hotkey":
-      return value;
+    case "island_transparency": {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? Math.min(80, Math.max(0, Math.round(parsed))) : 0;
+    }
 
     default:
       return value;

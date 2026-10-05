@@ -8,7 +8,7 @@ import {
 } from "../../state/launcherState.ts";
 import { Icon } from "../common/Icon.tsx";
 import {
-  mapActionToIconName,
+  resolveLauncherItemIcon,
   filterAndRankLauncherItems,
   getTopQuickActions,
   clampSelectedIndex,
@@ -174,7 +174,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
   const renderItemRow = (item: LauncherItem, idx: number) => {
     const isSelected = idx === selectedIndex;
     const itemDomId = `launcher-item-${item.id}`;
-    const iconName = mapActionToIconName(item.action);
+    const iconName = resolveLauncherItemIcon(item);
 
     return (
       <div
@@ -221,7 +221,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
   const renderGridCard = (item: LauncherItem, idx: number) => {
     const isSelected = idx === selectedIndex;
     const itemDomId = `launcher-item-${item.id}`;
-    const iconName = mapActionToIconName(item.action);
+    const iconName = resolveLauncherItemIcon(item);
 
     return (
       <div

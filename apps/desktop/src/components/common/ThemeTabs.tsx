@@ -22,12 +22,14 @@ export { THEME_OPTIONS, type ThemeOption };
 export interface ThemeTabsProps {
   theme: ThemePreference;
   onChange: (theme: ThemePreference) => void;
+  disabled?: boolean;
   className?: string;
 }
 
 export const ThemeTabs: React.FC<ThemeTabsProps> = ({
   theme,
   onChange,
+  disabled = false,
   className = "",
 }) => {
   const currentIndex = THEME_OPTIONS.findIndex((opt) => opt.id === theme);
@@ -35,6 +37,7 @@ export const ThemeTabs: React.FC<ThemeTabsProps> = ({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (disabled) return;
       let nextIndex = activeIndex;
       if (e.key === "ArrowLeft") {
         e.preventDefault();
@@ -49,7 +52,7 @@ export const ThemeTabs: React.FC<ThemeTabsProps> = ({
         onChange(THEME_OPTIONS[activeIndex].id);
       }
     },
-    [activeIndex, onChange]
+    [activeIndex, disabled, onChange]
   );
 
   return (
@@ -57,8 +60,9 @@ export const ThemeTabs: React.FC<ThemeTabsProps> = ({
       id="bbq-theme-tabs"
       role="radiogroup"
       aria-label="Theme mode switcher"
-      tabIndex={0}
-      className={`bbq-theme-tabs ${className}`.trim()}
+      aria-disabled={disabled}
+      tabIndex={disabled ? -1 : 0}
+      className={`bbq-theme-tabs ${disabled ? "disabled" : ""} ${className}`.trim()}
       onKeyDown={handleKeyDown}
     >
       {/* Sliding active pill indicator */}
@@ -81,8 +85,9 @@ export const ThemeTabs: React.FC<ThemeTabsProps> = ({
             aria-checked={isSelected}
             aria-label={`${opt.label} theme`}
             title={`${opt.label} theme`}
-            tabIndex={isSelected ? 0 : -1}
-            onClick={() => onChange(opt.id)}
+            disabled={disabled}
+            tabIndex={isSelected && !disabled ? 0 : -1}
+            onClick={() => !disabled && onChange(opt.id)}
             className={`bbq-theme-tab-btn${isSelected ? " active" : ""}`}
           >
             <span className="bbq-theme-tab-icon" aria-hidden="true">

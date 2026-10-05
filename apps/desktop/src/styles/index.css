@@ -754,6 +754,7 @@ html, body {
   max-height: var(--bbq-compact-height, 38px);
   border-radius: var(--bbq-radius-compact, 20px);
   background: var(--bbq-surface-glass-idle);
+  background: color-mix(in srgb, var(--bbq-surface-glass-idle) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
   -webkit-backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
   border: 1px solid var(--bbq-border);
@@ -768,6 +769,7 @@ html, body {
   max-height: var(--bbq-peek-height, 44px);
   border-radius: var(--bbq-radius-peek, 22px);
   background: var(--bbq-surface-glass-idle);
+  background: color-mix(in srgb, var(--bbq-surface-glass-idle) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
   -webkit-backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
   border: 1px solid var(--bbq-border-glow);
@@ -782,6 +784,7 @@ html, body {
   max-height: var(--bbq-expanded-height, 360px);
   border-radius: var(--bbq-radius-expanded, 24px);
   background: var(--bbq-surface-glass-expanded);
+  background: color-mix(in srgb, var(--bbq-surface-glass-expanded) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(var(--bbq-glass-blur-expanded)) saturate(var(--bbq-glass-saturation-expanded));
   -webkit-backdrop-filter: blur(var(--bbq-glass-blur-expanded)) saturate(var(--bbq-glass-saturation-expanded));
   border: 1px solid var(--bbq-border-inner);
@@ -4212,6 +4215,40 @@ html, body {
   right: calc(100% + 4px);
 }
 
+.bbq-context-menu.flip-submenu-y .bbq-context-submenu {
+  top: auto;
+  bottom: 0;
+}
+
+/* Apple-style polished native select dropdown */
+.bbq-select {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--bbq-border, rgba(255, 255, 255, 0.12));
+  background: var(--bbq-surface, rgba(255, 255, 255, 0.05));
+  color: var(--bbq-text, #f3f4f6);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.bbq-select:hover:not(:disabled) {
+  border-color: var(--bbq-border-glow, rgba(255, 255, 255, 0.25));
+  background: var(--bbq-surface-elevated, rgba(255, 255, 255, 0.08));
+}
+
+.bbq-select:focus-visible {
+  border-color: var(--bbq-accent, #0a84ff);
+  box-shadow: 0 0 0 2px var(--bbq-focus-ring, rgba(10, 132, 255, 0.35));
+}
+
+.bbq-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 [data-theme="light"] .bbq-context-submenu {
   background: rgba(255, 255, 255, 0.98);
   border-color: rgba(0, 0, 0, 0.12);
@@ -4686,8 +4723,24 @@ html, body {
   transition: color 150ms ease;
 }
 
-.bbq-theme-tab-btn:hover {
+.bbq-theme-tab-btn:hover:not(:disabled) {
   color: var(--bbq-text-primary, #ffffff);
+}
+
+.bbq-theme-tab-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.bbq-theme-tab-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.bbq-theme-tabs.disabled,
+.bbq-theme-tabs[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .bbq-theme-tab-btn.active {
@@ -4811,6 +4864,9 @@ html, body {
   transition: none !important;
 }
 
-
-
+/* Apple Switch focus ring */
+.bbq-apple-switch-track:focus-visible {
+  outline: 2px solid var(--bbq-accent, #0a84ff) !important;
+  outline-offset: 2px !important;
+}
 

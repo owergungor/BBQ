@@ -1499,33 +1499,54 @@ impl WindowsSystem {
                 let kernel_time = to_u64(kernel);
                 let user_time = to_u64(user);
 
+                #[derive(Clone, Copy)]
+                struct WindowsCpuSample {
+                    kernel: u64,
+                    user: u64,
+                    idle: u64,
+                    timestamp: std::time::Instant,
+                    last_usage: Option<f32>,
+                }
+
                 use std::sync::Mutex;
-                static PREV_SYSTEM_CPU: Mutex<Option<(u64, u64, u64, std::time::Instant)>> =
-                    Mutex::new(None);
+                static PREV_SYSTEM_CPU: Mutex<Option<WindowsCpuSample>> = Mutex::new(None);
 
                 let now = std::time::Instant::now();
                 let usage_percent = if let Ok(mut lock) = PREV_SYSTEM_CPU.lock() {
-                    let pct = if let Some((prev_kernel, prev_user, prev_idle, prev_inst)) = *lock {
-                        let kernel_delta = kernel_time.saturating_sub(prev_kernel);
-                        let user_delta = user_time.saturating_sub(prev_user);
-                        let idle_delta = idle_time.saturating_sub(prev_idle);
+                    if let Some(prev) = *lock {
+                        let kernel_delta = kernel_time.saturating_sub(prev.kernel);
+                        let user_delta = user_time.saturating_sub(prev.user);
+                        let idle_delta = idle_time.saturating_sub(prev.idle);
                         let total_delta = kernel_delta.saturating_add(user_delta);
-                        let elapsed = now.duration_since(prev_inst);
+                        let elapsed = now.duration_since(prev.timestamp);
 
                         if total_delta > 0 && elapsed.as_millis() >= 80 {
                             let busy_delta = total_delta.saturating_sub(idle_delta);
-                            ((busy_delta as f64 / total_delta as f64) * 100.0).clamp(0.0, 100.0)
-                                as f32
+                            let computed = ((busy_delta as f64 / total_delta as f64) * 100.0)
+                                .clamp(0.0, 100.0)
+                                as f32;
+                            *lock = Some(WindowsCpuSample {
+                                kernel: kernel_time,
+                                user: user_time,
+                                idle: idle_time,
+                                timestamp: now,
+                                last_usage: Some(computed),
+                            });
+                            computed
                         } else {
-                            return None;
+                            prev.last_usage?
                         }
                     } else {
                         // First sample: baseline recorded, measurement not ready yet
-                        *lock = Some((kernel_time, user_time, idle_time, now));
+                        *lock = Some(WindowsCpuSample {
+                            kernel: kernel_time,
+                            user: user_time,
+                            idle: idle_time,
+                            timestamp: now,
+                            last_usage: None,
+                        });
                         return None;
-                    };
-                    *lock = Some((kernel_time, user_time, idle_time, now));
-                    pct
+                    }
                 } else {
                     return None;
                 };

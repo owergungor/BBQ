@@ -455,6 +455,7 @@ export const SettingsWidget: React.FC = () => {
         id={`settings-panel-${activeTab}`}
         role="tabpanel"
         aria-labelledby={`settings-tab-${activeTab}`}
+        tabIndex={0}
         style={{
           flex: 1,
           minHeight: 0,
@@ -463,6 +464,7 @@ export const SettingsWidget: React.FC = () => {
           fontSize: "12px",
           paddingRight: "6px",
           scrollbarWidth: "thin",
+          scrollbarGutter: "stable",
         }}
       >
         {/* APPEARANCE */}
@@ -610,6 +612,7 @@ export const SettingsWidget: React.FC = () => {
               </div>
               <select
                 id="island-position-select"
+                className="bbq-select"
                 value={settings.island_position || "top-center"}
                 onChange={(e) => handleToggle("island_position", e.target.value)}
                 style={{
@@ -1198,6 +1201,7 @@ export const SettingsWidget: React.FC = () => {
                 </div>
                 <select
                   id="auto-update-schedule-select"
+                  className="bbq-select"
                   value={settings.auto_update_schedule || "startup"}
                   onChange={(e) => handleToggle("auto_update_schedule", e.target.value)}
                   style={{

@@ -40,6 +40,144 @@ export function mapActionToIconName(action: LauncherAction | null | undefined): 
   }
 }
 
+/**
+ * Resolves a semantically meaningful SVG IconName for a launcher item.
+ * Adheres strictly to Apple/macOS minimal iconography:
+ * - File managers / directories -> "folder" / "files"
+ * - Terminals / command line tools -> "terminal"
+ * - System settings / preferences -> "settings"
+ * - Application launcher grid -> "launcher"
+ * - Clean semantic fallbacks for specific system and BBQ actions
+ */
+export function resolveLauncherItemIcon(item: LauncherItem | null | undefined): IconName {
+  if (!item) return "launcher";
+
+  // 1. Explicit icon set on item
+  if (item.icon) {
+    const rawIcon = item.icon.toLowerCase();
+    switch (rawIcon) {
+      case "folder":
+      case "terminal":
+      case "settings":
+      case "files":
+      case "file-text":
+      case "home":
+      case "globe":
+      case "power":
+      case "lock":
+      case "launcher":
+      case "clipboard":
+      case "timer":
+      case "reminders":
+      case "media":
+      case "stats":
+      case "cpu":
+      case "monitor":
+        return rawIcon as IconName;
+    }
+  }
+
+  const titleLower = (item.title || "").toLowerCase();
+  const idLower = (item.id || "").toLowerCase();
+  const subLower = (item.subtitle || "").toLowerCase();
+
+  // 2. Terminal & Shell detection
+  if (
+    titleLower.includes("terminal") ||
+    titleLower.includes("powershell") ||
+    titleLower.includes("command prompt") ||
+    titleLower.includes("bash") ||
+    titleLower.includes("zsh") ||
+    titleLower.includes("wezterm") ||
+    titleLower.includes("alacritty") ||
+    subLower.includes("terminal") ||
+    subLower.includes("powershell") ||
+    subLower.includes("command prompt") ||
+    idLower.includes("terminal") ||
+    idLower.includes("cmd") ||
+    idLower.includes("powershell")
+  ) {
+    return "terminal";
+  }
+
+  // 3. File Manager / Directory detection
+  if (
+    titleLower.includes("file manager") ||
+    titleLower.includes("files & workspace") ||
+    titleLower.includes("downloads") ||
+    titleLower.includes("explorer") ||
+    titleLower.includes("finder") ||
+    titleLower.includes("dosya") ||
+    subLower.includes("folder") ||
+    subLower.includes("directory") ||
+    subLower.includes("explorer") ||
+    idLower.includes("files") ||
+    idLower.includes("downloads")
+  ) {
+    return "folder";
+  }
+
+  // 4. Home Directory
+  if (titleLower.includes("home") || idLower.includes("home")) {
+    return "home";
+  }
+
+  // 5. Settings / Preferences
+  if (
+    titleLower.includes("settings") ||
+    titleLower.includes("preferences") ||
+    titleLower.includes("ayarlar") ||
+    idLower.includes("settings")
+  ) {
+    return "settings";
+  }
+
+  // 6. Action-specific semantics
+  if (item.action) {
+    if (item.action.type === "open_folder") {
+      return "folder";
+    }
+    if (item.action.type === "bbq_action") {
+      const act = item.action.payload.action;
+      switch (act) {
+        case "open_files":
+          return "folder";
+        case "open_settings":
+          return "settings";
+        case "open_clipboard":
+          return "clipboard";
+        case "open_timer":
+          return "timer";
+        case "open_reminders":
+          return "reminders";
+        case "open_system":
+          return "stats";
+        case "open_media":
+          return "media";
+      }
+    }
+    if (item.action.type === "system_action") {
+      const act = item.action.payload.action;
+      switch (act) {
+        case "open_settings":
+          return "settings";
+        case "open_downloads":
+        case "open_home":
+          return "folder";
+        case "lock_screen":
+          return "lock";
+        case "toggle_mute":
+          return "volume-mute";
+        case "show_desktop":
+          return "monitor";
+      }
+    }
+    return mapActionToIconName(item.action);
+  }
+
+  return "launcher";
+}
+
 export interface RankedLauncherItem {
   item: LauncherItem;
   score: number;

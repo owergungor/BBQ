@@ -135,14 +135,35 @@ impl Service for SystemService {
 #[async_trait]
 impl SystemServiceTrait for SystemService {
     async fn get_state(&self) -> BbqResult<SystemState> {
-        let lock = self
-            .current_state
-            .read()
-            .map_err(|e| bbq_core::BbqError::Service {
-                service: "SystemService",
-                message: format!("Failed to read system state: {}", e),
-            })?;
-        Ok(lock.clone())
+        let mut fresh = match self.platform.current_state().await {
+            Ok(s) => s,
+            Err(_) => {
+                let lock = self
+                    .current_state
+                    .read()
+                    .map_err(|e| bbq_core::BbqError::Service {
+                        service: "SystemService",
+                        message: format!("Failed to read system state: {}", e),
+                    })?;
+                lock.clone()
+            }
+        };
+
+        // Merge any event-driven volume or mute state cached locally
+        if let Ok(lock) = self.current_state.read() {
+            if lock.volume.is_some() {
+                fresh.volume = lock.volume;
+            }
+            if lock.muted.is_some() {
+                fresh.muted = lock.muted;
+            }
+        }
+
+        if let Ok(mut lock) = self.current_state.write() {
+            *lock = fresh.clone();
+        }
+
+        Ok(fresh)
     }
 
     async fn get_capabilities(&self) -> BbqResult<SystemCapabilities> {

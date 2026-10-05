@@ -24,11 +24,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
   // Compute screen-edge clamped position and submenu flip
   const [adjustedPos, setAdjustedPos] = useState<{ x: number; y: number }>({ x, y });
   const [flipSubmenu, setFlipSubmenu] = useState<boolean>(false);
+  const [flipSubmenuY, setFlipSubmenuY] = useState<boolean>(false);
 
   useEffect(() => {
     const menuWidth = 200;
     const submenuWidth = 160;
     const menuHeight = 280;
+    const submenuHeight = 260;
     const padding = 8;
     const winW = typeof window !== "undefined" ? window.innerWidth : 800;
     const winH = typeof window !== "undefined" ? window.innerHeight : 600;
@@ -51,24 +53,31 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
     }
 
     setFlipSubmenu(clampedX + menuWidth + submenuWidth + padding > winW);
+    setFlipSubmenuY(clampedY + submenuHeight + padding > winH);
     setAdjustedPos({ x: clampedX, y: clampedY });
   }, [x, y]);
 
   // Click outside to dismiss context menu
   useEffect(() => {
-    const handleDocClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    const handleDocClick = (e: MouseEvent | PointerEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        !document.getElementById("bbq-about-dialog-backdrop")?.contains(e.target as Node)
+      ) {
         onClose();
       }
     };
 
     const timer = setTimeout(() => {
+      document.addEventListener("pointerdown", handleDocClick);
       document.addEventListener("mousedown", handleDocClick);
       document.addEventListener("contextmenu", handleDocClick);
     }, 10);
 
     return () => {
       clearTimeout(timer);
+      document.removeEventListener("pointerdown", handleDocClick);
       document.removeEventListener("mousedown", handleDocClick);
       document.removeEventListener("contextmenu", handleDocClick);
     };
@@ -222,16 +231,18 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
         ref={menuRef}
         role="menu"
         aria-label="BBQ Quick Actions Context Menu"
-        className={`bbq-context-menu${flipSubmenu ? " flip-submenu" : ""}`}
+        className={`bbq-context-menu${flipSubmenu ? " flip-submenu" : ""}${flipSubmenuY ? " flip-submenu-y" : ""}`}
         style={{
           left: `${adjustedPos.x}px`,
           top: `${adjustedPos.y}px`,
         }}
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="bbq-context-menu-header">
           <span className="bbq-context-menu-title">BBQ Island</span>
-          <span className="bbq-context-menu-badge">v2.2</span>
+          <span className="bbq-context-menu-badge">v2.4</span>
         </div>
 
         <div className="bbq-context-menu-divider" role="separator" />
@@ -251,6 +262,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
                   (item.danger ? " danger" : "")
                 }
                 onClick={item.action}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
                 <span className="bbq-context-item-icon">
@@ -274,6 +287,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
             className="bbq-context-submenu"
             role="menu"
             aria-label="Switch Widget Submenu"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             {activeWidgets.map((w) => (
               <button
@@ -284,11 +300,14 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
                   "bbq-context-submenu-item" +
                   (w.id === activeWidgetId ? " active" : "")
                 }
-                onClick={async () => {
+                onClick={async (e) => {
+                  e.stopPropagation();
                   setActiveWidget(w.id);
                   await islandRuntime.transitionTo("Expanded", "mouse");
                   onClose();
                 }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
               >
                 <span className="bbq-context-subitem-icon">{w.icon}</span>
                 <span className="bbq-context-subitem-name">{w.title}</span>
@@ -318,7 +337,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
           >
             <div className="bbq-about-header">
               <span className="bbq-about-brand">BBQ Desktop Island</span>
-              <span className="bbq-about-version">v2.2.0</span>
+              <span className="bbq-about-version">v2.4.0</span>
             </div>
             <p className="bbq-about-desc">
               Lightweight, responsive cross-platform productivity island. Zero-polling native telemetry, media controller, and productivity shelf.
