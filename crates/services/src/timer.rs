@@ -1234,7 +1234,12 @@ mod tests {
 
         // Start very short countdown to finish
         service.start_countdown(20).await.expect("start short");
-        tokio::time::sleep(Duration::from_millis(50)).await;
+        let start = std::time::Instant::now();
+        while completed_events.lock().unwrap().is_empty()
+            && start.elapsed() < Duration::from_millis(2000)
+        {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
 
         // Exactly one completion event
         assert_eq!(completed_events.lock().unwrap().len(), 1);
