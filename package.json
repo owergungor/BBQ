@@ -17,6 +17,8 @@
     "test": "pnpm --filter @bbq/desktop test",
     "lint": "pnpm --filter @bbq/desktop lint",
     "tauri": "pnpm --filter @bbq/desktop tauri",
+    "package:windows": "powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1",
+    "package:macos": "bash scripts/package-macos.sh",
     "cargo:check": "cargo check --workspace",
     "cargo:test": "cargo test --workspace",
     "cargo:clippy": "cargo clippy --workspace -- -D warnings",

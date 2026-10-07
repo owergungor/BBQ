@@ -3,9 +3,15 @@ name: BBQ CI
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'GitHub Release Tag to upload assets to (optional, e.g. v2.5)'
+        required: false
+        default: ''
 
 jobs:
   lint-and-check:
@@ -103,27 +109,74 @@ jobs:
             echo "AppImage packaging not available on this runner (requires FUSE mount / runtime privileges)"
           fi
 
-      - name: Package Verification (macOS bundle & DMG)
+      - name: Package & Standardize Artifacts (macOS ARM64)
         if: runner.os == 'macOS'
         run: |
           pnpm --filter @bbq/desktop tauri build --bundles app,dmg --ci --no-sign
-          APP=$(ls -d target/release/bundle/macos/*.app 2>/dev/null | head -n 1)
-          if [ -z "$APP" ]; then echo "Expected macOS .app bundle was not generated!"; exit 1; fi
-          echo "Generated macOS bundle: $APP"
-          if find "$APP" -name "*.pdb" -o -name "*.log" | grep .; then
-            echo "Forbidden debug/log artifacts found in macOS bundle!"; exit 1
-          fi
-          DMG=$(ls target/release/bundle/dmg/*.dmg 2>/dev/null | head -n 1 || true)
-          if [ -n "$DMG" ]; then
-            echo "Generated macOS DMG: $DMG"
-          fi
+          bash scripts/package-macos.sh
 
-      - name: Package Verification (Windows NSIS)
+      - name: Upload macOS Release Artifacts
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-arm64
+          path: |
+            target/release/release-artifacts/mac-arm64.app.zip
+            target/release/release-artifacts/mac-arm64.dmg
+            target/release/release-artifacts/checksums.txt
+          if-no-files-found: error
+
+      - name: Package & Standardize Artifacts (Windows x64)
         if: runner.os == 'Windows'
         run: |
           pnpm --filter @bbq/desktop tauri build --bundles nsis --ci --no-sign
-          $installers = Get-ChildItem -Path target/release/bundle/nsis/*.exe
-          if ($installers.Count -eq 0) { throw "Expected NSIS installer was not generated!" }
-          Write-Host "Generated Windows NSIS installer: $($installers[0].FullName) ($($installers[0].Length) bytes)"
-          $badFiles = Get-ChildItem -Path target/release/bundle/nsis/ -Include *.pdb,*.log -Recurse
-          if ($badFiles.Count -gt 0) { throw "Forbidden debug/log artifacts found in Windows bundle: $badFiles" }
+          powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1
+
+      - name: Upload Windows Release Artifacts
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-x64
+          path: |
+            target/release/release-artifacts/win-x64-setup.exe
+            target/release/release-artifacts/win-x64.zip
+            target/release/release-artifacts/checksums.txt
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish Release Assets
+    needs: [rust-matrix]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Inspect and upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          mkdir -p release-assets
+          cp artifacts/mac-arm64/mac-arm64.app.zip release-assets/
+          cp artifacts/mac-arm64/mac-arm64.dmg release-assets/
+          cp artifacts/win-x64/win-x64-setup.exe release-assets/
+          cp artifacts/win-x64/win-x64.zip release-assets/
+
+          echo "=== Standardized Release Assets to Upload ==="
+          ls -lh release-assets/
+
+          echo "=== SHA256 Checksums ==="
+          sha256sum release-assets/mac-arm64.app.zip release-assets/mac-arm64.dmg release-assets/win-x64-setup.exe release-assets/win-x64.zip
+
+          echo "Uploading standardized assets to release $TAG_NAME..."
+          gh release upload "$TAG_NAME" \
+            release-assets/mac-arm64.app.zip \
+            release-assets/mac-arm64.dmg \
+            release-assets/win-x64-setup.exe \
+            release-assets/win-x64.zip \
+            --clobber

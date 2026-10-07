@@ -80,14 +80,25 @@ pnpm tauri build
 
 Verify that production bundles are generated in `target/release/bundle/`:
 
-### Artifact Checklist:
-- **MSI Installer**: `target/release/bundle/msi/BBQ_<version>_x64_en-US.msi`
-- **NSIS Installer**: `target/release/bundle/nsis/BBQ_<version>_x64-setup.exe`
-- **Standalone Binary**: `target/release/bbq-desktop.exe`
+### Artifact Checklist & Standardized Release Naming:
+Release artifacts must strictly follow the standardized naming convention:
+
+| Platform / Architecture | Standardized Artifact | Format | Description |
+|---|---|---|---|
+| **macOS ARM64** | `mac-arm64.app.zip` | Zip Archive | Zipped `.app` bundle preserving symlinks and signatures |
+| **macOS ARM64** | `mac-arm64.dmg` | Apple Disk Image | Self-contained Drag-to-Applications installer DMG |
+| **Windows x64** | `win-x64-setup.exe` | NSIS Installer | Standalone currentUser installer |
+| **Windows x64** | `win-x64.zip` | Zip Archive | Standalone portable executable zip |
+| **Linux (x64)** | `*.deb`, `*.AppImage` | Debian / AppImage | Native Linux distribution packages |
 
 ### SHA-256 Hash Verification:
+SHA256 checksums must be computed **after** renaming into standardized artifacts:
 ```powershell
-Get-FileHash target\release\bbq-desktop.exe, target\release\bundle\msi\*, target\release\bundle\nsis\* -Algorithm SHA256
+Get-FileHash target\release\release-artifacts\* -Algorithm SHA256
+```
+or on macOS/Linux:
+```bash
+shasum -a 256 target/release/release-artifacts/*
 ```
 
 ---
