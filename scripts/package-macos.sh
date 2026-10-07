@@ -67,7 +67,7 @@ echo "Creating zip archive -> mac-arm64.app.zip"
 rm -f "$APP_ZIP_DST"
 APP_NAME=$(basename "$APP")
 APP_DIR=$(dirname "$APP")
-(cd "$APP_DIR" && ditto -c -k --sequentially --keepParent "$APP_NAME" "$APP_ZIP_DST") || (cd "$APP_DIR" && zip -r -y "$APP_ZIP_DST" "$APP_NAME")
+(cd "$APP_DIR" && ditto -c -k --keepParent "$APP_NAME" "$APP_ZIP_DST") || (cd "$APP_DIR" && zip -r -y "$APP_ZIP_DST" "$APP_NAME")
 
 # Standardize .dmg -> mac-arm64.dmg
 echo "Standardizing DMG -> mac-arm64.dmg"

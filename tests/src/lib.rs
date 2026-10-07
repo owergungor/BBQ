@@ -259,6 +259,7 @@ mod tests {
         assert!(large_entry.preview.len() <= MAX_PREVIEW_LENGTH + 3);
 
         // 6. Metadata entry (image / files) -> no binary persistence
+        std::thread::sleep(std::time::Duration::from_millis(10));
         mock_platform.simulate_image_metadata();
         let entries_after_img = service
             .get_history()

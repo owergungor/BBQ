@@ -118,7 +118,7 @@ impl ClipboardRepository for SqliteClipboardRepository {
                 r#"
                 SELECT id, content_type, content, preview, size_bytes, created_at, source, possible_sensitive
                 FROM clipboard_entries
-                ORDER BY created_at DESC
+                ORDER BY created_at DESC, rowid DESC
                 LIMIT ?1
                 "#,
             )
@@ -191,7 +191,7 @@ impl ClipboardRepository for SqliteClipboardRepository {
                 DELETE FROM clipboard_entries
                 WHERE id NOT IN (
                     SELECT id FROM clipboard_entries
-                    ORDER BY created_at DESC
+                    ORDER BY created_at DESC, rowid DESC
                     LIMIT ?1
                 )
                 "#,
@@ -249,7 +249,7 @@ impl ClipboardRepository for SqliteClipboardRepository {
                 r#"
                 SELECT content FROM clipboard_entries
                 WHERE content_type = 'text' AND content IS NOT NULL
-                ORDER BY created_at DESC
+                ORDER BY created_at DESC, rowid DESC
                 LIMIT 1
                 "#,
             )
