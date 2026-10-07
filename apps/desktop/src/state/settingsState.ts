@@ -273,6 +273,11 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
           "--bbq-island-transparency",
           `${clamped}%`
         );
+        if (clamped === 0) {
+          document.documentElement.setAttribute("data-opaque", "true");
+        } else {
+          document.documentElement.removeAttribute?.("data-opaque");
+        }
       }
     }
   }

@@ -38,10 +38,9 @@ describe("BBQ v2.4 — Phase 1: Launcher, Context Menu & UI Polish Regression Te
   // 1. Launcher Icon Mapping
   // =========================================================================
   describe("1. Launcher Icon Mapping", () => {
-    it("maps file managers and download directories to 'folder'", () => {
+    it("maps file managers to 'folder'", () => {
       const items: Partial<LauncherItem>[] = [
         { id: "bbq_files", title: "Files & Workspace" },
-        { id: "sys_downloads", title: "Downloads Folder" },
         { id: "custom_explorer", title: "File Explorer" },
         { id: "item_finder", title: "Finder" },
         { id: "tr_dosyalar", title: "Dosya Yöneticisi" },
@@ -62,6 +61,26 @@ describe("BBQ v2.4 — Phase 1: Launcher, Context Menu & UI Polish Regression Te
           resolveLauncherItemIcon(item as LauncherItem),
           "folder",
           `Expected 'folder' icon for item: ${JSON.stringify(item)}`
+        );
+      }
+    });
+
+    it("maps download directories and actions to 'download'", () => {
+      const items: Partial<LauncherItem>[] = [
+        { id: "sys_downloads", title: "Downloads Folder" },
+        { id: "action_downloads", title: "Download Manager" },
+        {
+          id: "bbq_dl_action",
+          title: "Downloads",
+          action: { type: "bbq_action", payload: { action: "open_downloads" } },
+        },
+      ];
+
+      for (const item of items) {
+        assert.equal(
+          resolveLauncherItemIcon(item as LauncherItem),
+          "download",
+          `Expected 'download' icon for item: ${JSON.stringify(item)}`
         );
       }
     });

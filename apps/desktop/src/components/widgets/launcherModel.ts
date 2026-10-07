@@ -57,6 +57,7 @@ export function resolveLauncherItemIcon(item: LauncherItem | null | undefined): 
     const rawIcon = item.icon.toLowerCase();
     switch (rawIcon) {
       case "folder":
+      case "download":
       case "terminal":
       case "settings":
       case "files":
@@ -81,7 +82,17 @@ export function resolveLauncherItemIcon(item: LauncherItem | null | undefined): 
   const idLower = (item.id || "").toLowerCase();
   const subLower = (item.subtitle || "").toLowerCase();
 
-  // 2. Terminal & Shell detection
+  // 2. Download detection (conventional downward arrow)
+  if (
+    titleLower === "downloads" ||
+    titleLower.includes("download") ||
+    idLower.includes("downloads") ||
+    idLower.includes("download")
+  ) {
+    return "download";
+  }
+
+  // 3. Terminal & Shell detection
   if (
     titleLower.includes("terminal") ||
     titleLower.includes("powershell") ||
@@ -100,29 +111,27 @@ export function resolveLauncherItemIcon(item: LauncherItem | null | undefined): 
     return "terminal";
   }
 
-  // 3. File Manager / Directory detection
+  // 4. File Manager / Directory detection
   if (
     titleLower.includes("file manager") ||
     titleLower.includes("files & workspace") ||
-    titleLower.includes("downloads") ||
     titleLower.includes("explorer") ||
     titleLower.includes("finder") ||
     titleLower.includes("dosya") ||
     subLower.includes("folder") ||
     subLower.includes("directory") ||
     subLower.includes("explorer") ||
-    idLower.includes("files") ||
-    idLower.includes("downloads")
+    idLower.includes("files")
   ) {
     return "folder";
   }
 
-  // 4. Home Directory
+  // 5. Home Directory
   if (titleLower.includes("home") || idLower.includes("home")) {
     return "home";
   }
 
-  // 5. Settings / Preferences
+  // 6. Settings / Preferences
   if (
     titleLower.includes("settings") ||
     titleLower.includes("preferences") ||
@@ -132,7 +141,7 @@ export function resolveLauncherItemIcon(item: LauncherItem | null | undefined): 
     return "settings";
   }
 
-  // 6. Action-specific semantics
+  // 7. Action-specific semantics
   if (item.action) {
     if (item.action.type === "open_folder") {
       return "folder";
@@ -162,6 +171,7 @@ export function resolveLauncherItemIcon(item: LauncherItem | null | undefined): 
         case "open_settings":
           return "settings";
         case "open_downloads":
+          return "download";
         case "open_home":
           return "folder";
         case "lock_screen":

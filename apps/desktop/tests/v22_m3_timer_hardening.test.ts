@@ -89,7 +89,7 @@ describe("BBQ v2.2 — FAZ 3: Timer / Stopwatch / Pomodoro UX, Layout and Notifi
       const notif1 = coordinator.evaluate(baseCountdownSession);
       assert.ok(notif1, "First completion must generate notification");
       assert.strictEqual(notif1.title, "Countdown");
-      assert.strictEqual(notif1.body, "Countdown tamamlandı.");
+      assert.strictEqual(notif1.body, "Countdown completed.");
 
       // Duplicate evaluation of the same session must return null
       const notif2 = coordinator.evaluate(baseCountdownSession);
@@ -211,7 +211,7 @@ describe("BBQ v2.2 — FAZ 3: Timer / Stopwatch / Pomodoro UX, Layout and Notifi
       const notif = coordinator.evaluate(workCompleteSession);
       assert.ok(notif);
       assert.strictEqual(notif.title, "Pomodoro");
-      assert.strictEqual(notif.body, "Çalışma süresi tamamlandı. Mola başladı.");
+      assert.strictEqual(notif.body, "Focus session complete. Time for a well-deserved break!");
 
       // Duplicate check
       assert.strictEqual(coordinator.evaluate(workCompleteSession), null);
@@ -234,7 +234,7 @@ describe("BBQ v2.2 — FAZ 3: Timer / Stopwatch / Pomodoro UX, Layout and Notifi
       const notif = coordinator.evaluate(breakCompleteSession);
       assert.ok(notif);
       assert.strictEqual(notif.title, "Pomodoro");
-      assert.strictEqual(notif.body, "Mola tamamlandı. Çalışma başladı.");
+      assert.strictEqual(notif.body, "Break ended. Ready to focus again!");
 
       // Duplicate check
       assert.strictEqual(coordinator.evaluate(breakCompleteSession), null);

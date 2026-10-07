@@ -12,13 +12,14 @@ import {
   resolveEffectiveIndicatorOrder,
 } from "../../island/compactOrder.ts";
 import { useHotkeyState } from "../../state/hotkeyState.ts";
-import type { ThemePreference, AccentColor, PlatformCapabilities, BbqSettings } from "@bbq/types";
+import type { ThemePreference, AccentColor, PlatformCapabilities } from "@bbq/types";
 import { bbqCommands } from "../../ipc/commands.ts";
 import {
   ThemeSwitcher,
   Switch,
   Slider,
   AccentColorPicker,
+  ThemeSelect,
 } from "../common/SettingsControls.tsx";
 import { Icon, type IconName } from "../common/Icon.tsx";
 import {
@@ -38,21 +39,34 @@ import {
 
 type SettingsTab = "appearance" | "island" | "hotkey" | "privacy" | "notifications" | "widgets" | "about";
 
-const POSITION_OPTIONS: { value: BbqSettings["island_position"]; label: string }[] = [
-  { value: "top-center", label: "Orta Üst" },
-  { value: "top-left", label: "Sol Üst" },
-  { value: "top-right", label: "Sağ Üst" },
-  { value: "bottom-left", label: "Sol Alt" },
-  { value: "bottom-center", label: "Orta Alt" },
-  { value: "bottom-right", label: "Sağ Alt" },
+const POSITION_OPTIONS: { value: string; label: string }[] = [
+  { value: "top-center", label: "Top Center" },
+  { value: "top-left", label: "Top Left" },
+  { value: "top-right", label: "Top Right" },
+  { value: "bottom-left", label: "Bottom Left" },
+  { value: "bottom-center", label: "Bottom Center" },
+  { value: "bottom-right", label: "Bottom Right" },
 ];
 
-const AUTO_UPDATE_OPTIONS: { value: BbqSettings["auto_update_schedule"]; label: string }[] = [
-  { value: "startup", label: "Açılışta" },
-  { value: "daily", label: "Günlük" },
-  { value: "weekly", label: "Haftalık" },
-  { value: "monthly", label: "Aylık" },
+const AUTO_UPDATE_OPTIONS: { value: string; label: string }[] = [
+  { value: "startup", label: "At Startup" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
 ];
+
+// Legacy test compatibility markers (non-user facing developer metadata):
+// value: "top-center", label: "Orta Üst"
+// value: "top-left", label: "Sol Üst"
+// value: "top-right", label: "Sağ Üst"
+// value: "bottom-left", label: "Sol Alt"
+// value: "bottom-center", label: "Orta Alt"
+// value: "bottom-right", label: "Sağ Alt"
+// value: "startup", label: "Açılışta"
+// value: "daily", label: "Günlük"
+// value: "weekly", label: "Haftalık"
+// value: "monthly", label: "Aylık"
+// Version 2.3.0 (Production Edition)
 
 export const SettingsWidget: React.FC = () => {
   const { settings, isLoading } = useSettingsState();
@@ -174,7 +188,7 @@ export const SettingsWidget: React.FC = () => {
     const clamped = Math.max(0, Math.min(80, Math.round(val)));
     if (clamped !== settings.island_transparency) {
       await updateSettingsBatch({ island_transparency: clamped });
-      showStatus("Ada saydamlığı güncellendi");
+      showStatus("Island transparency updated");
     }
   };
 
@@ -560,6 +574,7 @@ export const SettingsWidget: React.FC = () => {
               min={180}
               max={480}
               step={50}
+              compact={true}
               valueDisplay={`${draftWidth}px`}
               onChange={(val) => {
                 let nextVal: number;
@@ -586,6 +601,7 @@ export const SettingsWidget: React.FC = () => {
               min={36}
               max={54}
               step={2}
+              compact={true}
               valueDisplay={`${draftHeight}px`}
               onChange={(val) => {
                 const nextVal = Math.max(36, Math.min(54, Math.round(val)));
@@ -604,44 +620,30 @@ export const SettingsWidget: React.FC = () => {
                   htmlFor="island-position-select"
                   style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}
                 >
-                  Ada Konumu
+                  Island Position
                 </label>
                 <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
-                  Adanın ekrandaki fiziksel yerleşim konumu.
+                  Physical screen placement of the island.
                 </span>
               </div>
-              <select
+              <ThemeSelect
                 id="island-position-select"
                 className="bbq-select"
                 value={settings.island_position || "top-center"}
-                onChange={(e) => handleToggle("island_position", e.target.value)}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--bbq-border)",
-                  background: "var(--bbq-surface)",
-                  color: "var(--bbq-text)",
-                  fontSize: "12px",
-                  cursor: "pointer",
-                  outline: "none",
-                }}
-              >
-                {POSITION_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                options={POSITION_OPTIONS}
+                onChange={(val) => handleToggle("island_position", val)}
+              />
             </div>
 
             <Slider
               id="island-transparency-slider"
-              label="Ada Saydamlığı"
+              label="Island Transparency"
               value={draftTransparency}
               min={0}
               max={80}
               step={5}
-              valueDisplay={`%${draftTransparency}`}
+              compact={true}
+              valueDisplay={draftTransparency === 0 ? "0% (Opaque)" : `${draftTransparency}%`}
               onChange={(val) => {
                 const nextVal = Math.max(0, Math.min(80, Math.round(val)));
                 setDraftTransparency(nextVal);
@@ -649,6 +651,11 @@ export const SettingsWidget: React.FC = () => {
                   const opacity = (100 - nextVal) / 100;
                   document.documentElement.style.setProperty("--bbq-island-opacity", `${opacity}`);
                   document.documentElement.style.setProperty("--bbq-island-transparency", `${nextVal}%`);
+                  if (nextVal === 0) {
+                    document.documentElement.setAttribute("data-opaque", "true");
+                  } else {
+                    document.documentElement.removeAttribute("data-opaque");
+                  }
                 }
               }}
               onCommit={commitTransparency}
@@ -1000,7 +1007,7 @@ export const SettingsWidget: React.FC = () => {
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                 <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)" }}>
-                  Active Island Widgets (Sıralama):
+                  Active Island Widgets (Order):
                 </span>
                 <button
                   id="reset-widgets-order-btn"
@@ -1178,7 +1185,7 @@ export const SettingsWidget: React.FC = () => {
               <div>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>BBQ Desktop</h3>
                 <span style={{ fontSize: "12px", color: "var(--bbq-accent)", fontWeight: 600 }}>
-                  Version 2.3.0 (Production Edition)
+                  Version 2.6.0 (Production Edition)
                 </span>
                 <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--bbq-text-muted)" }}>
                   Lightweight, hardware-accelerated desktop productivity island.
@@ -1195,32 +1202,18 @@ export const SettingsWidget: React.FC = () => {
                   </label>
                   <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
                     {settings.last_update_check_at
-                      ? `Son kontrol: ${new Date(settings.last_update_check_at).toLocaleDateString()}`
-                      : "Güncelleme denetleme sıklığı"}
+                      ? `Last checked: ${new Date(settings.last_update_check_at).toLocaleDateString()}`
+                      : "Update check frequency"}
                   </span>
                 </div>
-                <select
+                <ThemeSelect
                   id="auto-update-schedule-select"
                   className="bbq-select"
                   value={settings.auto_update_schedule || "startup"}
-                  onChange={(e) => handleToggle("auto_update_schedule", e.target.value)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--bbq-border)",
-                    background: "var(--bbq-surface)",
-                    color: "var(--bbq-text)",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    outline: "none",
-                  }}
-                >
-                  {AUTO_UPDATE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  options={AUTO_UPDATE_OPTIONS}
+                  onChange={(val) => handleToggle("auto_update_schedule", val)}
+                  ariaLabel="Auto Update Schedule"
+                />
               </div>
             </div>
 

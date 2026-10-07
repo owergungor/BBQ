@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.6.0] - 2026-10-07
+
+### Added
+- Native SVG download icon (downward-pointing arrow + tray) for all download launcher items.
+- Custom theme-compatible dropdown menus (`ThemeSelect`) for Island Position and Auto Update with keyboard navigation and boundary collision detection.
+- Explicit fully opaque transparency option (0% transparency / 100% opacity) with solid theme surface rendering (`data-opaque="true"`).
+- Context-aware right-click menu actions for active media (Play/Pause, Next Track), running timers (Pause/Resume), and drop shelf items (Clear Drop Shelf).
+- Automated regression scanner ensuring 100% English UI and zero user-facing Turkish characters.
+
+### Improved
+- Island compact width horizontal symmetrical centering relative to display bounds across all supported widths [180, 640].
+- Streamlined Compact Width and Compact Height range controls to eliminate horizontal overflow in settings.
+- Modernized context menu layout with v2.6 badge, clear action hierarchy, and seamless dark/light theme integration.
+- Polished notification and timer display strings to natural, concise English.
+
 ## [2.0.0] - 2026-09-26
 
 ### Added

@@ -5,6 +5,11 @@ import { setActiveWidget, useIslandState } from "../../island/islandState.ts";
 import { islandRuntime } from "../../island/IslandRuntime.ts";
 import { useSettingsState, updateSetting } from "../../state/settingsState.ts";
 import { refreshSystemState } from "../../state/systemState.ts";
+import { useMediaState } from "../../state/mediaState.ts";
+import { useTimerState } from "../../state/timerState.ts";
+import { useDropState, clearDrop } from "../../state/dropState.ts";
+import { bbqCommands } from "../../ipc/commands.ts";
+import type { IconName } from "./Icon.tsx";
 
 export interface ContextMenuProps {
   x: number;
@@ -15,6 +20,14 @@ export interface ContextMenuProps {
 export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
   const { state: islandLayoutState, activeWidgetId } = useIslandState();
   const { settings } = useSettingsState();
+  const { currentSession } = useMediaState();
+  const { session: timerSession } = useTimerState();
+  const { currentBatch } = useDropState();
+
+  const isMediaActive = Boolean(currentSession && currentSession.state !== "stopped");
+  const isTimerActive = Boolean(timerSession && (timerSession.state === "Running" || timerSession.state === "Paused"));
+  const hasDropItems = Boolean(currentBatch && currentBatch.count > 0);
+
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [showSwitchSubmenu, setShowSwitchSubmenu] = useState<boolean>(false);
   const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
@@ -148,8 +161,60 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
     }
   }, [onClose]);
 
-  // Main menu items definition
+  // Main menu items definition with dynamic context-aware actions
   const menuItems = [
+    ...(isMediaActive
+      ? [
+          {
+            id: "media_toggle",
+            label: currentSession?.state === "playing" ? "Pause Track" : "Play Track",
+            icon: (currentSession?.state === "playing" ? "pause" : "play") as IconName,
+            action: async () => {
+              await bbqCommands.mediaTogglePlayPause();
+              onClose();
+            },
+          },
+          {
+            id: "media_next",
+            label: "Next Track",
+            icon: "skip-next" as IconName,
+            action: async () => {
+              await bbqCommands.mediaNext();
+              onClose();
+            },
+          },
+        ]
+      : []),
+    ...(isTimerActive
+      ? [
+          {
+            id: "timer_toggle",
+            label: timerSession?.state === "Running" ? "Pause Timer" : "Resume Timer",
+            icon: "timer" as IconName,
+            action: async () => {
+              if (timerSession?.state === "Running") {
+                await bbqCommands.timerPause();
+              } else {
+                await bbqCommands.timerResume();
+              }
+              onClose();
+            },
+          },
+        ]
+      : []),
+    ...(hasDropItems
+      ? [
+          {
+            id: "drop_clear",
+            label: "Clear Drop Shelf",
+            icon: "drop" as IconName,
+            action: () => {
+              clearDrop();
+              onClose();
+            },
+          },
+        ]
+      : []),
     {
       id: "switch",
       label: "Switch Widget",
@@ -242,7 +307,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       >
         <div className="bbq-context-menu-header">
           <span className="bbq-context-menu-title">BBQ Island</span>
-          <span className="bbq-context-menu-badge">v2.4</span>
+          <span className="bbq-context-menu-badge">v2.6</span>
         </div>
 
         <div className="bbq-context-menu-divider" role="separator" />
@@ -337,7 +402,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
           >
             <div className="bbq-about-header">
               <span className="bbq-about-brand">BBQ Desktop Island</span>
-              <span className="bbq-about-version">v2.4.0</span>
+              <span className="bbq-about-version">v2.6.0</span>
             </div>
             <p className="bbq-about-desc">
               Lightweight, responsive cross-platform productivity island. Zero-polling native telemetry, media controller, and productivity shelf.

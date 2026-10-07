@@ -469,7 +469,7 @@ export const TimerWidget: React.FC = () => {
                     className="bbq-timer-custom-input"
                     aria-label="Countdown minutes"
                   />
-                  <span className="bbq-timer-input-unit">dk</span>
+                  <span className="bbq-timer-input-unit">m</span>
                 </div>
                 <div className="bbq-timer-input-col">
                   <input
@@ -485,7 +485,7 @@ export const TimerWidget: React.FC = () => {
                     className="bbq-timer-custom-input"
                     aria-label="Countdown seconds"
                   />
-                  <span className="bbq-timer-input-unit">sn</span>
+                  <span className="bbq-timer-input-unit">s</span>
                 </div>
                 <button
                   id="timer-custom-start-btn"
@@ -510,7 +510,7 @@ export const TimerWidget: React.FC = () => {
         {session.mode === "Pomodoro" && (
           <div className="bbq-pomodoro-settings-section">
             <div className="bbq-pomodoro-inputs-group">
-              <span className="bbq-pomodoro-input-label">Çalışma</span>
+              <span className="bbq-pomodoro-input-label">Work</span>
               <input
                 id="pomodoro-work-minutes"
                 type="number"
@@ -520,9 +520,9 @@ export const TimerWidget: React.FC = () => {
                 value={pomodoroWorkMinutes}
                 onChange={(e) => setPomodoroWorkMinutes(e.target.value)}
                 className="bbq-timer-custom-input bbq-pomodoro-mini-input"
-                aria-label="Çalışma dakikası"
+                aria-label="Work minutes"
               />
-              <span className="bbq-timer-input-unit">dk</span>
+              <span className="bbq-timer-input-unit">m</span>
               <input
                 id="pomodoro-work-seconds"
                 type="number"
@@ -532,12 +532,12 @@ export const TimerWidget: React.FC = () => {
                 value={pomodoroWorkSeconds}
                 onChange={(e) => setPomodoroWorkSeconds(e.target.value)}
                 className="bbq-timer-custom-input bbq-pomodoro-mini-input"
-                aria-label="Çalışma saniyesi"
+                aria-label="Work seconds"
               />
-              <span className="bbq-timer-input-unit">sn</span>
+              <span className="bbq-timer-input-unit">s</span>
             </div>
             <div className="bbq-pomodoro-inputs-group">
-              <span className="bbq-pomodoro-input-label">Mola</span>
+              <span className="bbq-pomodoro-input-label">Break</span>
               <input
                 id="pomodoro-break-minutes"
                 type="number"
@@ -547,9 +547,9 @@ export const TimerWidget: React.FC = () => {
                 value={pomodoroBreakMinutes}
                 onChange={(e) => setPomodoroBreakMinutes(e.target.value)}
                 className="bbq-timer-custom-input bbq-pomodoro-mini-input"
-                aria-label="Mola dakikası"
+                aria-label="Break minutes"
               />
-              <span className="bbq-timer-input-unit">dk</span>
+              <span className="bbq-timer-input-unit">m</span>
               <input
                 id="pomodoro-break-seconds"
                 type="number"
@@ -559,9 +559,9 @@ export const TimerWidget: React.FC = () => {
                 value={pomodoroBreakSeconds}
                 onChange={(e) => setPomodoroBreakSeconds(e.target.value)}
                 className="bbq-timer-custom-input bbq-pomodoro-mini-input"
-                aria-label="Mola saniyesi"
+                aria-label="Break seconds"
               />
-              <span className="bbq-timer-input-unit">sn</span>
+              <span className="bbq-timer-input-unit">s</span>
             </div>
             {!pomodoroValidation.valid && pomodoroValidation.reason && (
               <div className="bbq-timer-input-error" role="alert">

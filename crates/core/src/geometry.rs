@@ -536,8 +536,8 @@ pub fn calculate_island_geometry(
 
     let (x, y) = match anchor {
         IslandAnchor::TopCenter => {
-            // Anchor to the true horizontal center of the display monitor bounds so that side
-            // docks/taskbars or width changes do not shift the island's horizontal anchor.
+            // Anchor to the true horizontal center of the display bounds so that
+            // compact width changes expand symmetrically around the center without dock bias.
             let screen_center_x = display.bounds.x + (display.bounds.width as i32) / 2;
             let offset_x = screen_center_x - (bounded_w as i32) / 2;
             let y = display.work_area.y + display.safe_top_margin() - y_hover_offset;
@@ -577,6 +577,7 @@ pub fn calculate_island_geometry(
             (x, y)
         }
         IslandAnchor::BottomCenter => {
+            // Anchor to the true horizontal center of the display bounds
             let screen_center_x = display.bounds.x + (display.bounds.width as i32) / 2;
             let offset_x = screen_center_x - (bounded_w as i32) / 2;
             let y = display.work_area.y + (display.work_area.height as i32 - bounded_h as i32)
@@ -1571,6 +1572,67 @@ mod tests {
                 "Center must be preserved when width changes to {}",
                 w
             );
+        }
+    }
+
+    #[test]
+    fn test_v26_compact_width_stays_centered_symmetrically() {
+        // Test display with asymmetric work area (e.g. 70px side dock/taskbar on the left)
+        let display = DisplayInfo {
+            id: "dock-left".to_string(),
+            name: "Display with Left Dock".to_string(),
+            is_primary: true,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 70, // Left dock occupies 0..70
+                y: 0,
+                width: 1850, // Usable work area is 1850px wide
+                height: 1040,
+            },
+        };
+
+        let center_x = display.bounds.x + (display.bounds.width as i32) / 2;
+        let test_widths = [180, 240, 300, 360, 420, 480];
+
+        for &anchor in &[IslandAnchor::TopCenter, IslandAnchor::BottomCenter] {
+            for &w in &test_widths {
+                let dims = WidgetDimensions {
+                    compact_width: Some(w),
+                    preferred_width: Some(w),
+                    ..Default::default()
+                };
+                let geo = calculate_island_geometry(
+                    &display,
+                    IslandLayoutState::Idle,
+                    Some(dims),
+                    anchor,
+                );
+
+                assert_eq!(geo.width, w);
+                // 1. Visual center must match display bounds horizontal center exactly
+                let island_center = geo.x + (geo.width as i32) / 2;
+                assert_eq!(
+                    island_center, center_x,
+                    "Visual center must equal display bounds center for anchor {:?} and width {}",
+                    anchor, w
+                );
+
+                // 2. Left margin and right margin relative to display bounds must be identical (symmetric)
+                let left_margin = geo.x - display.bounds.x;
+                let right_margin =
+                    (display.bounds.x + display.bounds.width as i32) - (geo.x + geo.width as i32);
+                assert_eq!(
+                    left_margin, right_margin,
+                    "Margins must be symmetric around display bounds for anchor {:?} and width {}",
+                    anchor, w
+                );
+            }
         }
     }
 

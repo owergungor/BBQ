@@ -27,7 +27,7 @@ export class TimerNotificationCoordinator {
       return {
         id: notifId,
         title: "Countdown",
-        body: "Countdown tamamlandı.",
+        body: "Countdown completed.",
       };
     }
 
@@ -43,13 +43,13 @@ export class TimerNotificationCoordinator {
         return {
           id: notifId,
           title: "Pomodoro",
-          body: "Çalışma süresi tamamlandı. Mola başladı.",
+          body: "Focus session complete. Time for a well-deserved break!",
         };
       } else {
         return {
           id: notifId,
           title: "Pomodoro",
-          body: "Mola tamamlandı. Çalışma başladı.",
+          body: "Break ended. Ready to focus again!",
         };
       }
     }

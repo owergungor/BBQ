@@ -102,21 +102,22 @@ pub fn wire_service_events(handle: &AppHandle, state: &AppState) {
                             format!("timer_finish_{}", session.id),
                             NotificationCategory::Timer,
                             "Countdown",
-                            "Countdown tamamlandı.",
+                            "Countdown completed.",
                         ),
                         TimerMode::Pomodoro => {
-                            // Phase notification bodies:
-                            // Work completed: "Focus session complete. Time for a well-deserved break!" ("Çalışma süresi tamamlandı. Mola başladı.")
-                            // Break completed: "Break ended. Ready to focus again!" ("Mola tamamlandı. Çalışma başladı.")
                             let (title, body) = match session.pomodoro_phase {
-                                Some(PomodoroPhase::Work) => {
-                                    ("Pomodoro", "Çalışma süresi tamamlandı. Mola başladı.")
-                                }
+                                Some(PomodoroPhase::Work) => (
+                                    "Pomodoro",
+                                    "Focus session complete. Time for a well-deserved break!",
+                                ),
                                 Some(PomodoroPhase::ShortBreak)
                                 | Some(PomodoroPhase::LongBreak) => {
-                                    ("Pomodoro", "Mola tamamlandı. Çalışma başladı.")
+                                    ("Pomodoro", "Break ended. Ready to focus again!")
                                 }
-                                None => ("Pomodoro", "Çalışma süresi tamamlandı. Mola başladı."),
+                                None => (
+                                    "Pomodoro",
+                                    "Focus session complete. Time for a well-deserved break!",
+                                ),
                             };
                             NotificationRequest::new(
                                 format!(

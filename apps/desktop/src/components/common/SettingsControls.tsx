@@ -6,6 +6,7 @@ import { CromiaColorPicker } from "./CromiaColorPicker.tsx";
    1. Theme Switcher / Theme Tabs (Inspired by 21st.dev / theme-tabs)
    ========================================================================== */
 export { ThemeTabs, ThemeSwitcher } from "./ThemeTabs.tsx";
+export { ThemeSelect, type ThemeSelectProps, type ThemeSelectOption } from "./ThemeSelect.tsx";
 
 /* ==========================================================================
    2. Apple-Style Switch (Human Interface Guidelines compliant)
@@ -31,6 +32,7 @@ interface SliderProps {
   onCommit?: (val: number) => void;
   disabled?: boolean;
   ariaLabel?: string;
+  compact?: boolean;
 }
 
 export const Slider: React.FC<SliderProps> = ({
@@ -45,8 +47,181 @@ export const Slider: React.FC<SliderProps> = ({
   onCommit,
   disabled = false,
   ariaLabel,
+  compact = false,
 }) => {
   const percentage = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+
+  const trackContent = (
+    <div
+      className="bbq-slider-track-wrapper"
+      style={{
+        position: "relative",
+        width: compact ? "140px" : "100%",
+        maxWidth: compact ? "160px" : "100%",
+        flex: compact ? "0 1 150px" : undefined,
+        height: "20px",
+        display: "flex",
+        alignItems: "center",
+      }}
+    >
+      {/* Custom Track */}
+      <div
+        className="bbq-slider-track"
+        style={{
+          position: "relative",
+          width: "100%",
+          height: "5px",
+          borderRadius: "9999px",
+          background: "rgba(255, 255, 255, 0.12)",
+          overflow: "hidden",
+        }}
+      >
+        {/* Custom Fill */}
+        <div
+          className="bbq-slider-fill"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: `${percentage}%`,
+            background: "var(--bbq-accent)",
+            borderRadius: "9999px",
+          }}
+        />
+      </div>
+
+      {/* Custom Thumb */}
+      <div
+        className="bbq-slider-thumb"
+        style={{
+          position: "absolute",
+          left: `${percentage}%`,
+          top: "50%",
+          width: "14px",
+          height: "14px",
+          borderRadius: "50%",
+          background: "#ffffff",
+          border: "2px solid var(--bbq-accent)",
+          transform: "translate(-50%, -50%)",
+          boxShadow: "0 1px 4px rgba(0, 0, 0, 0.45)",
+          pointerEvents: "none",
+          transition: "transform 100ms ease",
+        }}
+      />
+
+      {/* Interactive native input overlay for keyboard, drag, and tests */}
+      <input
+        id={id}
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+            e.preventDefault();
+            let nextVal: number;
+            if (value < min) {
+              nextVal = min;
+            } else if (value >= max) {
+              nextVal = max;
+            } else {
+              const rem = value % step;
+              if (rem === 0) {
+                nextVal = Math.min(max, value + step);
+              } else {
+                nextVal = Math.min(max, Math.ceil(value / step) * step);
+              }
+            }
+            onChange(nextVal);
+            onCommit?.(nextVal);
+          } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+            e.preventDefault();
+            let nextVal: number;
+            if (value <= min) {
+              nextVal = min;
+            } else if (value > max) {
+              nextVal = max;
+            } else {
+              const rem = value % step;
+              if (rem === 0) {
+                nextVal = Math.max(min, value - step);
+              } else {
+                nextVal = Math.max(min, Math.floor(value / step) * step);
+              }
+            }
+            onChange(nextVal);
+            onCommit?.(nextVal);
+          }
+        }}
+        onPointerUp={() => onCommit && onCommit(value)}
+        onKeyUp={() => onCommit && onCommit(value)}
+        aria-label={ariaLabel || label}
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          opacity: 0,
+          cursor: disabled ? "not-allowed" : "pointer",
+          margin: 0,
+          padding: 0,
+        }}
+      />
+    </div>
+  );
+
+  if (compact) {
+    return (
+      <div
+        className="bbq-slider-container bbq-slider-compact"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "10px",
+          width: "100%",
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: "90px", flexShrink: 0 }}>
+          <label
+            htmlFor={id}
+            style={{
+              fontWeight: 500,
+              fontSize: "12px",
+              color: "var(--bbq-text)",
+              cursor: disabled ? "not-allowed" : "pointer",
+            }}
+          >
+            {label}
+          </label>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 600,
+              color: "var(--bbq-text-muted)",
+              background: "rgba(255, 255, 255, 0.06)",
+              padding: "1px 6px",
+              borderRadius: "4px",
+              border: "1px solid var(--bbq-border-subtle)",
+              width: "fit-content",
+            }}
+          >
+            {valueDisplay || value}
+          </span>
+        </div>
+        {trackContent}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -85,129 +260,7 @@ export const Slider: React.FC<SliderProps> = ({
           {valueDisplay || value}
         </span>
       </div>
-
-      <div
-        className="bbq-slider-track-wrapper"
-        style={{
-          position: "relative",
-          width: "100%",
-          height: "20px",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        {/* Custom Track */}
-        <div
-          className="bbq-slider-track"
-          style={{
-            position: "relative",
-            width: "100%",
-            height: "5px",
-            borderRadius: "9999px",
-            background: "rgba(255, 255, 255, 0.12)",
-            overflow: "hidden",
-          }}
-        >
-          {/* Custom Fill */}
-          <div
-            className="bbq-slider-fill"
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: `${percentage}%`,
-              background: "var(--bbq-accent)",
-              borderRadius: "9999px",
-            }}
-          />
-        </div>
-
-        {/* Custom Thumb */}
-        <div
-          className="bbq-slider-thumb"
-          style={{
-            position: "absolute",
-            left: `${percentage}%`,
-            top: "50%",
-            width: "14px",
-            height: "14px",
-            borderRadius: "50%",
-            background: "#ffffff",
-            border: "2px solid var(--bbq-accent)",
-            transform: "translate(-50%, -50%)",
-            boxShadow: "0 1px 4px rgba(0, 0, 0, 0.45)",
-            pointerEvents: "none",
-            transition: "transform 100ms ease",
-          }}
-        />
-
-        {/* Interactive native input overlay for keyboard, drag, and tests */}
-        <input
-          id={id}
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(Number(e.target.value))}
-          onKeyDown={(e) => {
-            if (disabled) return;
-            if (e.key === "ArrowRight" || e.key === "ArrowUp") {
-              e.preventDefault();
-              let nextVal: number;
-              if (value < min) {
-                nextVal = min;
-              } else if (value >= max) {
-                nextVal = max;
-              } else {
-                const rem = value % step;
-                if (rem === 0) {
-                  nextVal = Math.min(max, value + step);
-                } else {
-                  nextVal = Math.min(max, Math.ceil(value / step) * step);
-                }
-              }
-              onChange(nextVal);
-              onCommit?.(nextVal);
-            } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
-              e.preventDefault();
-              let nextVal: number;
-              if (value <= min) {
-                nextVal = min;
-              } else if (value > max) {
-                nextVal = max;
-              } else {
-                const rem = value % step;
-                if (rem === 0) {
-                  nextVal = Math.max(min, value - step);
-                } else {
-                  nextVal = Math.max(min, Math.floor(value / step) * step);
-                }
-              }
-              onChange(nextVal);
-              onCommit?.(nextVal);
-            }
-          }}
-          onPointerUp={() => onCommit && onCommit(value)}
-          onKeyUp={() => onCommit && onCommit(value)}
-          aria-label={ariaLabel || label}
-          aria-valuenow={value}
-          aria-valuemin={min}
-          aria-valuemax={max}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            opacity: 0,
-            cursor: disabled ? "not-allowed" : "pointer",
-            margin: 0,
-            padding: 0,
-          }}
-        />
-      </div>
+      {trackContent}
     </div>
   );
 };
