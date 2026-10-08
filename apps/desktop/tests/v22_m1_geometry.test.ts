@@ -18,10 +18,15 @@ describe("BBQ v2.2 — Milestone 1: Core Geometry & Layout Invariants", () => {
 
   describe("1. Compact Width 50-Step & Symmetry", () => {
     it("Settings slider step and snap values follow 50-step intervals", () => {
-      const settingsContent = fs.readFileSync(
-        path.resolve(import.meta.dirname, "../src/components/widgets/SettingsWidget.tsx"),
-        "utf8"
-      );
+      const settingsContent =
+        fs.readFileSync(
+          path.resolve(import.meta.dirname, "../src/components/widgets/SettingsWidget.tsx"),
+          "utf8"
+        ) +
+        fs.readFileSync(
+          path.resolve(import.meta.dirname, "../src/components/widgets/settings/IslandSettingsTab.tsx"),
+          "utf8"
+        );
 
       // Verify width slider has step={50}
       assert.ok(
@@ -331,10 +336,15 @@ describe("BBQ v2.2 — Milestone 1: Core Geometry & Layout Invariants", () => {
   describe("8. Phase 1 Required Regression Checklist", () => {
     // 1. compact width 50 px increments
     it("1. compact width 50 px increments", () => {
-      const settingsContent = fs.readFileSync(
-        path.resolve(import.meta.dirname, "../src/components/widgets/SettingsWidget.tsx"),
-        "utf8"
-      );
+      const settingsContent =
+        fs.readFileSync(
+          path.resolve(import.meta.dirname, "../src/components/widgets/SettingsWidget.tsx"),
+          "utf8"
+        ) +
+        fs.readFileSync(
+          path.resolve(import.meta.dirname, "../src/components/widgets/settings/IslandSettingsTab.tsx"),
+          "utf8"
+        );
       assert.ok(settingsContent.includes("step={50}"));
       assert.ok(settingsContent.includes("Math.round(val / 50) * 50"));
     });

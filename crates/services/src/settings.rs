@@ -210,19 +210,8 @@ impl SettingsServiceTrait for SettingsService {
                 settings.island_transparency = num.min(100);
             }
         }
-        if let Ok(Some(aus)) = self.repo.get("auto_update_schedule") {
-            let trimmed = aus.trim().to_lowercase();
-            match trimmed.as_str() {
-                "startup" | "daily" | "weekly" | "monthly" => {
-                    settings.auto_update_schedule = trimmed;
-                }
-                _ => {}
-            }
-        }
-        if let Ok(Some(luc)) = self.repo.get("last_update_check_at") {
-            if let Ok(num) = luc.parse::<u64>() {
-                settings.last_update_check_at = Some(num);
-            }
+        if let Ok(Some(aot)) = self.repo.get("always_on_top") {
+            settings.always_on_top = aot == "true";
         }
 
         Ok(settings)
@@ -382,11 +371,14 @@ impl SettingsServiceTrait for SettingsService {
             "island_transparency",
             &settings.island_transparency.to_string(),
         )?;
-        self.repo
-            .set("auto_update_schedule", &settings.auto_update_schedule)?;
-        if let Some(luc) = settings.last_update_check_at {
-            self.repo.set("last_update_check_at", &luc.to_string())?;
-        }
+        self.repo.set(
+            "always_on_top",
+            if settings.always_on_top {
+                "true"
+            } else {
+                "false"
+            },
+        )?;
 
         self.notify_change(settings);
         Ok(())
@@ -402,5 +394,40 @@ impl SettingsServiceTrait for SettingsService {
         if let Ok(mut sinks) = self.event_sinks.lock() {
             sinks.push(sink);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bbq_storage::DatabaseManager;
+
+    #[test]
+    fn test_settings_always_on_top_persistence_and_legacy_compat() {
+        let db = DatabaseManager::open_in_memory().expect("in-memory db");
+        let repo = db.settings_repository();
+
+        // Seed with legacy obsolete keys as if an older version of BBQ wrote them
+        repo.set("auto_update_schedule", "daily")
+            .expect("set legacy");
+        repo.set("last_update_check_at", "1234567890")
+            .expect("set legacy");
+        repo.set("always_on_top", "false")
+            .expect("set always on top");
+
+        let service = SettingsService::new(repo.clone());
+        let loaded = service.get_settings().expect("load settings");
+
+        // Old obsolete keys are safely ignored and do not fail loading
+        assert!(!loaded.always_on_top);
+
+        // Update always_on_top back to true
+        service
+            .update_setting("always_on_top", "true")
+            .expect("update always_on_top");
+
+        let updated = service.get_settings().expect("get updated");
+        assert!(updated.always_on_top);
+        assert_eq!(repo.get("always_on_top").unwrap().as_deref(), Some("true"));
     }
 }

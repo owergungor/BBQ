@@ -14,6 +14,7 @@ pub trait WindowServiceTrait: Service {
     ) -> BbqResult<()>;
     async fn apply_geometry(&self, geometry: &bbq_core::IslandGeometry) -> BbqResult<()>;
     async fn set_interactive(&self, interactive: bool) -> BbqResult<()>;
+    async fn set_always_on_top(&self, enabled: bool) -> BbqResult<()>;
 }
 
 pub struct WindowService {
@@ -88,6 +89,10 @@ impl WindowServiceTrait for WindowService {
 
     async fn set_interactive(&self, interactive: bool) -> BbqResult<()> {
         self.platform.set_interactive(interactive).await
+    }
+
+    async fn set_always_on_top(&self, enabled: bool) -> BbqResult<()> {
+        self.platform.set_always_on_top(enabled).await
     }
 }
 

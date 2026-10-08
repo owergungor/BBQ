@@ -242,7 +242,8 @@ describe("BBQ v2 — Milestone 16 Production Hardening & GA Polish Tests", () =>
   describe("5. Accessibility Live Regions", () => {
     it("ensures SettingsWidget contains polite live region for status feedback", () => {
       const widgetPath = path.join(__dirname, "../src/components/widgets/SettingsWidget.tsx");
-      const content = fs.readFileSync(widgetPath, "utf-8");
+      const aboutTabPath = path.join(__dirname, "../src/components/widgets/settings/AboutSettingsTab.tsx");
+      const content = `${fs.readFileSync(widgetPath, "utf-8")}\n${fs.readFileSync(aboutTabPath, "utf-8")}`;
 
       assert.match(
         content,

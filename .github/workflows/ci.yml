@@ -176,6 +176,11 @@ jobs:
           echo "=== SHA256 Checksums ==="
           sha256sum release-assets/mac-arm64.app.zip release-assets/mac-arm64.dmg release-assets/win-x64-setup.exe release-assets/win-x64.zip
 
+          echo "Ensuring release $TAG_NAME exists..."
+          if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" --title "BBQ $TAG_NAME" --notes "Release $TAG_NAME"
+          fi
+
           echo "Uploading standardized assets to release $TAG_NAME..."
           gh release upload "$TAG_NAME" \
             release-assets/mac-arm64.app.zip \

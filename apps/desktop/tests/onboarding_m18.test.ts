@@ -126,7 +126,12 @@ describe("BBQ — Milestone 18: Production Packaging, Onboarding & First-Run Exp
       __dirname,
       "../src/components/widgets/SettingsWidget.tsx"
     );
+    const aboutPath = path.resolve(
+      __dirname,
+      "../src/components/widgets/settings/AboutSettingsTab.tsx"
+    );
     const settingsCode = fs.readFileSync(settingsPath, "utf-8");
+    const aboutCode = fs.readFileSync(aboutPath, "utf-8");
 
     it("declares the About tab in SettingsWidget", () => {
       assert.ok(
@@ -135,25 +140,27 @@ describe("BBQ — Milestone 18: Production Packaging, Onboarding & First-Run Exp
       );
     });
 
-    it("displays version 2.3.0 and MIT License in About section", () => {
+    it("displays version and MIT License in About section", () => {
       assert.ok(
-        settingsCode.includes("Version 2.3.0 (Production Edition)") ||
-          settingsCode.includes("Version 2.0.0 (Production Edition)"),
+        aboutCode.includes("Version {APP_VERSION} (Production Edition)") ||
+          aboutCode.includes("Version 2.3.0 (Production Edition)") ||
+          aboutCode.includes("Version 2.0.0 (Production Edition)"),
         "SettingsWidget missing version badge"
       );
       assert.ok(
-        settingsCode.includes("MIT License (Open Source)"),
+        aboutCode.includes("MIT License (Open Source)"),
         "SettingsWidget missing MIT license description"
       );
     });
 
     it("provides Replay Welcome Tour action in About section", () => {
       assert.ok(
-        settingsCode.includes("Replay Welcome Tour"),
+        aboutCode.includes("Replay Welcome Tour"),
         "SettingsWidget missing Replay Welcome Tour button"
       );
       assert.ok(
-        settingsCode.includes("onboarding_completed: false"),
+        settingsCode.includes("onboarding_completed: false") ||
+          aboutCode.includes("onboarding_completed: false"),
         "SettingsWidget missing onboarding_completed reset action"
       );
     });

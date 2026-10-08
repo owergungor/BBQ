@@ -14,6 +14,13 @@ export const ClipboardWidget: React.FC = () => {
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(() => new Set());
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
   useEffect(() => {
     return () => {
       if (copyFeedbackTimerRef.current) {
@@ -87,9 +94,6 @@ export const ClipboardWidget: React.FC = () => {
     []
   );
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [revealedIds, setRevealedIds] = useState<Set<string>>(() => new Set());
-
   const toggleRevealSensitive = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setRevealedIds((prev) => {
@@ -122,14 +126,22 @@ export const ClipboardWidget: React.FC = () => {
     });
   }, [normalizedCards, searchQuery]);
 
+  // Safely reset/clamp selectedIndex when filtered results change
+  useEffect(() => {
+    if (filteredCards.length === 0) {
+      if (selectedIndex !== -1) {
+        setSelectedIndex(-1);
+      }
+    } else if (selectedIndex >= filteredCards.length) {
+      setSelectedIndex(filteredCards.length - 1);
+    }
+  }, [filteredCards.length, selectedIndex]);
+
   return (
     <div className="bbq-clipboard-widget" onClick={(e) => e.stopPropagation()}>
       <div className="bbq-clipboard-header">
         <div className="bbq-clipboard-title-group">
-          <span
-            className="bbq-status-dot"
-            style={{ background: enabled ? "var(--bbq-accent, #0A84FF)" : "#666" }}
-          />
+          <span className={"bbq-status-dot " + (enabled ? "enabled" : "disabled")} />
           <span className="bbq-clipboard-title">Clipboard History</span>
           {enabled && (
             <span className="bbq-clipboard-badge">
@@ -137,12 +149,7 @@ export const ClipboardWidget: React.FC = () => {
             </span>
           )}
           {copyFeedback && (
-            <span
-              className="bbq-clipboard-feedback"
-              role="status"
-              aria-live="polite"
-              style={{ fontSize: "11px", color: "var(--bbq-accent, #0A84FF)", fontWeight: 500 }}
-            >
+            <span className="bbq-clipboard-feedback" role="status" aria-live="polite">
               {copyFeedback}
             </span>
           )}
@@ -177,55 +184,43 @@ export const ClipboardWidget: React.FC = () => {
 
       {/* Real-time search filter */}
       {enabled && entries.length > 0 && (
-        <div className="bbq-clipboard-search-bar" style={{ padding: "6px 8px 8px 8px" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "var(--bbq-surface, rgba(255, 255, 255, 0.05))",
-              borderRadius: "6px",
-              padding: "4px 8px",
-              border: "1px solid var(--bbq-border, rgba(255, 255, 255, 0.1))",
-            }}
-          >
-            <Icon name="search" size={12} aria-hidden="true" style={{ opacity: 0.6 }} />
+        <div className="bbq-clipboard-search-bar">
+          <div className="bbq-clipboard-search-box">
+            <Icon name="search" size={12} aria-hidden="true" className="bbq-clipboard-search-icon" />
             <input
+              ref={searchInputRef}
               id="clipboard-search-input"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  setSearchQuery("");
+                if (e.key === "ArrowDown") {
+                  if (filteredCards.length > 0) {
+                    e.preventDefault();
+                    setSelectedIndex(0);
+                    cardRefs.current[0]?.focus();
+                  }
+                } else if (e.key === "Escape") {
+                  if (searchQuery) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSearchQuery("");
+                  }
                 }
               }}
               placeholder="Search clippings..."
-              style={{
-                flex: 1,
-                background: "transparent",
-                border: "none",
-                outline: "none",
-                fontSize: "11px",
-                color: "var(--bbq-text, #fff)",
-              }}
+              className="bbq-clipboard-search-input"
               aria-label="Filter clipboard clippings"
             />
             {searchQuery && (
               <button
                 type="button"
                 id="clipboard-search-clear-btn"
-                onClick={() => setSearchQuery("")}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--bbq-text-muted)",
-                  cursor: "pointer",
-                  padding: "0 2px",
-                  display: "flex",
-                  alignItems: "center",
+                onClick={() => {
+                  setSearchQuery("");
+                  searchInputRef.current?.focus();
                 }}
+                className="bbq-clipboard-search-clear"
                 aria-label="Clear search"
               >
                 <Icon name="close" size={10} aria-hidden="true" />
@@ -239,7 +234,7 @@ export const ClipboardWidget: React.FC = () => {
         <div className="bbq-clipboard-privacy-notice">
           <div className="bbq-clipboard-privacy-header">
             <Icon name="lock" size={16} aria-hidden="true" />
-            <span style={{ fontWeight: 600 }}>Privacy Protected</span>
+            <span>Privacy Protected</span>
           </div>
           <div className="bbq-clipboard-privacy-body">
             Clipboard history is strictly local-first and disabled by default.
@@ -248,18 +243,19 @@ export const ClipboardWidget: React.FC = () => {
         </div>
       ) : entries.length === 0 ? (
         <div className="bbq-clipboard-empty">
-          <Icon name="clipboard" size={24} aria-hidden="true" style={{ opacity: 0.4 }} />
+          <Icon name="clipboard" size={24} aria-hidden="true" className="bbq-clipboard-search-icon" />
           <span>No clipboard items yet. Copy text to stage clippings here.</span>
         </div>
       ) : filteredCards.length === 0 ? (
         <div className="bbq-clipboard-empty" id="clipboard-search-empty">
-          <Icon name="search" size={24} aria-hidden="true" style={{ opacity: 0.4 }} />
+          <Icon name="search" size={24} aria-hidden="true" className="bbq-clipboard-search-icon" />
           <span>No clippings matching "{searchQuery}"</span>
         </div>
       ) : (
         <div className="bbq-clipboard-card-grid" role="grid" aria-label="Clipboard history cards">
-          {filteredCards.map(({ raw, normalized }) => {
+          {filteredCards.map(({ raw, normalized }, index) => {
             const isRevealed = revealedIds.has(raw.id);
+            const isSelected = selectedIndex === index;
             const previewText =
               normalized.isSensitive && isRevealed && raw.content
                 ? raw.content.slice(0, 100)
@@ -268,10 +264,35 @@ export const ClipboardWidget: React.FC = () => {
             return (
               <div
                 key={normalized.id}
-                className={"bbq-clipboard-card" + (normalized.isSensitive ? " is-sensitive" : "")}
+                ref={(el) => {
+                  cardRefs.current[index] = el;
+                }}
+                className={
+                  "bbq-clipboard-card" +
+                  (isSelected ? " selected" : "") +
+                  (normalized.isSensitive ? " is-sensitive" : "")
+                }
                 tabIndex={0}
+                role="row"
+                aria-selected={isSelected}
+                onMouseEnter={() => setSelectedIndex(index)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    const nextIndex = Math.min(index + 1, filteredCards.length - 1);
+                    setSelectedIndex(nextIndex);
+                    cardRefs.current[nextIndex]?.focus();
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    if (index === 0) {
+                      setSelectedIndex(-1);
+                      searchInputRef.current?.focus();
+                    } else {
+                      const prevIndex = index - 1;
+                      setSelectedIndex(prevIndex);
+                      cardRefs.current[prevIndex]?.focus();
+                    }
+                  } else if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     handleCopyAgain(e as unknown as React.MouseEvent, raw);
                   } else if (e.key === "Delete" || e.key === "Backspace") {
@@ -288,21 +309,10 @@ export const ClipboardWidget: React.FC = () => {
                       <button
                         type="button"
                         className="bbq-clipboard-sensitive-pill"
+                        data-state={isRevealed ? "revealed" : "protected"}
                         onClick={(e) => toggleRevealSensitive(raw.id, e)}
                         title={isRevealed ? "Hide sensitive credentials" : "Click to reveal masked credentials"}
                         aria-label={isRevealed ? "Hide sensitive credentials" : "Click to reveal masked credentials"}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          cursor: "pointer",
-                          background: isRevealed ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.15)",
-                          border: "none",
-                          borderRadius: "4px",
-                          padding: "2px 6px",
-                          color: isRevealed ? "#f87171" : "#fbbf24",
-                          fontSize: "10px",
-                        }}
                       >
                         <Icon name={isRevealed ? "eye-off" : "eye"} size={10} aria-hidden="true" />
                         <span>{isRevealed ? "Hide" : "Protected"}</span>

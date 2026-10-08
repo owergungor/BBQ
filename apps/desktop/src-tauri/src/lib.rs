@@ -334,6 +334,7 @@ pub fn run() {
                 let display_svc = state.display_service.clone();
                 let win_svc = state.window_service.clone();
                 let initial_settings = state.settings_service.get_settings().unwrap_or_default();
+                let _ = window.set_always_on_top(initial_settings.always_on_top);
                 let initial_layout = if !initial_settings.onboarding_completed {
                     if let Ok(mut current) = state.current_mode.lock() {
                         *current = IslandMode::Expanded;

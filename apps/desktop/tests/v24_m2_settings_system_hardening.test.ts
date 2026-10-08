@@ -33,6 +33,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "../../..");
 
+const readSettingsSources = (): string => {
+  const base = fs.readFileSync(path.join(ROOT_DIR, "apps/desktop/src/components/widgets/SettingsWidget.tsx"), "utf8");
+  const settingsDir = path.join(ROOT_DIR, "apps/desktop/src/components/widgets/settings");
+  const tabs = fs.readdirSync(settingsDir).map((f) => fs.readFileSync(path.join(settingsDir, f), "utf8")).join("\n");
+  return `${base}\n${tabs}`;
+};
+
 describe("BBQ v2.4 — Phase 2: Settings & System UI Hardening Regression Tests", () => {
   beforeEach(() => {
     bbqCommands.updateSettings = async () => true;
@@ -210,10 +217,7 @@ describe("BBQ v2.4 — Phase 2: Settings & System UI Hardening Regression Tests"
   // =========================================================================
   describe("5. Privacy Panel Scroll & Layout Containment", () => {
     it("guarantees non-overflowing flex scroll chain with tabIndex and stable scrollbar", () => {
-      const widgetSrc = fs.readFileSync(
-        path.join(ROOT_DIR, "apps/desktop/src/components/widgets/SettingsWidget.tsx"),
-        "utf8"
-      );
+      const widgetSrc = readSettingsSources();
 
       assert.ok(widgetSrc.includes('id={`settings-panel-${activeTab}`'));
       assert.ok(widgetSrc.includes("tabIndex={0}"));
@@ -307,19 +311,16 @@ describe("BBQ v2.4 — Phase 2: Settings & System UI Hardening Regression Tests"
       assert.ok(css.includes(".bbq-select:disabled"));
     });
 
-    it("applies .bbq-select to both island position and auto-update dropdowns", () => {
-      const widgetSrc = fs.readFileSync(
-        path.join(ROOT_DIR, "apps/desktop/src/components/widgets/SettingsWidget.tsx"),
-        "utf8"
-      );
+    it("applies .bbq-select to dropdowns and verifies simulated auto-update select is removed", () => {
+      const widgetSrc = readSettingsSources();
 
       assert.ok(
         widgetSrc.includes('id="island-position-select"') &&
           widgetSrc.includes('className="bbq-select"')
       );
       assert.ok(
-        widgetSrc.includes('id="auto-update-schedule-select"') &&
-          widgetSrc.includes('className="bbq-select"')
+        !widgetSrc.includes('id="auto-update-schedule-select"'),
+        "simulated auto-update select must be removed"
       );
     });
   });

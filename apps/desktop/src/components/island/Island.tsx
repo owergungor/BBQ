@@ -6,9 +6,12 @@ import { initializeClipboardStore } from "../../state/clipboardState.ts";
 import { initializeFileStore } from "../../state/fileState.ts";
 import { initializeSystemStore } from "../../state/systemState.ts";
 import { initializeTimerStore } from "../../state/timerState.ts";
+import { initializeLauncherStore } from "../../state/launcherState.ts";
+import { initializeDropStore } from "../../state/dropState.ts";
+import { initializeReminderStore } from "../../state/reminderState.ts";
 import { initHotkeyStore } from "../../state/hotkeyState.ts";
 import { setDragOver, inspectDrop } from "../../state/dropState.ts";
-import { settingsStore } from "../../state/settingsState.ts";
+import { settingsStore, useSettingsState } from "../../state/settingsState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import {
   subscribeToIslandMode,
@@ -19,6 +22,9 @@ import {
 } from "../../ipc/events.ts";
 import { setActiveWidget } from "../../island/islandState.ts";
 import { widgetRegistry } from "../../island/widgetRegistry.ts";
+import { escapeManager, EscapePriority } from "../../island/escapeManager.ts";
+import { getOrderedActiveWidgets } from "../../island/compactOrder.ts";
+import { handleHudKeyboardNavigation } from "../../island/keyboardNavigation.ts";
 import { IslandShell } from "./IslandShell.tsx";
 import { IslandContent } from "./IslandContent.tsx";
 import { ContextMenu } from "../common/ContextMenu.tsx";
@@ -28,6 +34,18 @@ export const Island: React.FC = () => {
   const { currentSession } = useMediaState();
   const containerRef = useRef<HTMLDivElement>(null);
   const [contextMenuPos, setContextMenuPos] = React.useState<{ x: number; y: number } | null>(null);
+
+  const disabledWidgets = useSettingsState((s) => s.settings.disabled_widgets);
+  const compactIndicatorOrder = useSettingsState((s) => s.settings.compact_indicator_order);
+  const islandPosition = useSettingsState((s) => s.settings.island_position || "top-center");
+
+  const activeWidgets = React.useMemo(() => {
+    return getOrderedActiveWidgets(
+      widgetRegistry.getActiveWidgets(),
+      compactIndicatorOrder,
+      disabledWidgets
+    );
+  }, [compactIndicatorOrder, disabledWidgets]);
 
   const activeWidget = activeWidgetId ? widgetRegistry.get(activeWidgetId) : undefined;
   const sizing = activeWidget?.sizing;
@@ -70,6 +88,9 @@ export const Island: React.FC = () => {
       registerCleanup(await initializeFileStore());
       registerCleanup(await initializeSystemStore());
       registerCleanup(await initializeTimerStore());
+      registerCleanup(await initializeLauncherStore());
+      registerCleanup(await initializeDropStore());
+      registerCleanup(await initializeReminderStore());
       registerCleanup(await initHotkeyStore());
 
       registerCleanup(
@@ -107,18 +128,18 @@ export const Island: React.FC = () => {
     };
   }, []);
 
-  // Keyboard navigation: Escape collapses, Tab navigates
+  // Keyboard navigation: Escape collapses via centralized escapeManager (lowest priority fallback)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
+    const unregister = escapeManager.register(() => {
+      if (state === "Expanded") {
         islandRuntime.handleEvent({ type: "USER_ESCAPE" });
+        return true;
       }
-    };
+      return false;
+    }, EscapePriority.ISLAND_FALLBACK);
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+    return unregister;
+  }, [state]);
 
   // Window blur detection: collapses when expanded and user clicks outside the OS window
   useEffect(() => {
@@ -262,10 +283,30 @@ export const Island: React.FC = () => {
     }
   }, [state]);
 
+  // Fast keyboard navigation between HUD tabs while expanded
+  useEffect(() => {
+    if (state !== "Expanded") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      handleHudKeyboardNavigation({
+        event: e,
+        currentWidgetId: activeWidgetId,
+        activeWidgets,
+        onSelectWidget: (widgetId: string) => {
+          handleSelectWidget(widgetId);
+        },
+      });
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [state, activeWidgetId, activeWidgets, handleSelectWidget]);
+
   return (
     <div
       id="bbq-island-container"
       ref={containerRef}
+      data-anchor={islandPosition}
       className="bbq-island-container"
       onContextMenu={handleContextMenu}
     >

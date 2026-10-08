@@ -62,8 +62,8 @@ fn default_island_transparency() -> u32 {
     0
 }
 
-fn default_auto_update_schedule() -> String {
-    "startup".to_string()
+fn default_always_on_top() -> bool {
+    true
 }
 
 /// Strongly typed, persistent user preferences for BBQ
@@ -96,10 +96,8 @@ pub struct BbqSettings {
     pub island_position: String,
     #[serde(default = "default_island_transparency")]
     pub island_transparency: u32,
-    #[serde(default = "default_auto_update_schedule")]
-    pub auto_update_schedule: String,
-    #[serde(default)]
-    pub last_update_check_at: Option<u64>,
+    #[serde(default = "default_always_on_top")]
+    pub always_on_top: bool,
 }
 
 pub fn is_valid_hex_color(s: &str) -> bool {
@@ -142,8 +140,7 @@ impl Default for BbqSettings {
             onboarding_completed: false,
             island_position: "top-center".to_string(),
             island_transparency: 0,
-            auto_update_schedule: "startup".to_string(),
-            last_update_check_at: None,
+            always_on_top: true,
         }
     }
 }
@@ -250,17 +247,6 @@ impl BbqSettings {
                 "island_transparency {} out of bounds [0, 100]",
                 self.island_transparency
             )));
-        }
-
-        let sched_lower = self.auto_update_schedule.trim().to_lowercase();
-        match sched_lower.as_str() {
-            "startup" | "daily" | "weekly" | "monthly" => {}
-            _ => {
-                return Err(BbqError::Validation(format!(
-                    "Invalid auto_update_schedule '{}'. Must be one of: startup, daily, weekly, monthly",
-                    self.auto_update_schedule
-                )));
-            }
         }
 
         Ok(())
@@ -422,28 +408,17 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
                 )));
             }
         }
-        "auto_update_schedule" => {
+        "always_on_top" => {
             let lower = value.trim().to_lowercase();
-            match lower.as_str() {
-                "startup" | "daily" | "weekly" | "monthly" => {}
-                _ => {
-                    return Err(BbqError::Validation(format!(
-                        "Invalid auto_update_schedule '{}'",
-                        value
-                    )));
-                }
+            if lower != "true" && lower != "false" {
+                return Err(BbqError::Validation(format!(
+                    "Invalid boolean for always_on_top: '{}'",
+                    value
+                )));
             }
         }
-        "last_update_check_at" => {
-            let trimmed = value.trim();
-            if trimmed != "null" && !trimmed.is_empty() {
-                let _: u64 = trimmed.parse().map_err(|_| {
-                    BbqError::Validation(format!(
-                        "Invalid u64 for last_update_check_at: '{}'",
-                        value
-                    ))
-                })?;
-            }
+        "auto_update_schedule" | "last_update_check_at" => {
+            // Obsolete settings keys accepted safely for backward compatibility with older persisted state
         }
         unknown => {
             return Err(BbqError::Validation(format!(
@@ -538,8 +513,7 @@ mod tests {
         let settings = BbqSettings::default();
         assert_eq!(settings.island_position, "top-center");
         assert_eq!(settings.island_transparency, 0);
-        assert_eq!(settings.auto_update_schedule, "startup");
-        assert_eq!(settings.last_update_check_at, None);
+        assert!(settings.always_on_top);
 
         // Position validation
         for pos in &[
@@ -562,16 +536,13 @@ mod tests {
         assert!(validate_setting_entry("island_transparency", "101").is_err());
         assert!(validate_setting_entry("island_transparency", "-1").is_err());
 
-        // Auto update schedule validation
-        for sched in &["startup", "daily", "weekly", "monthly"] {
-            assert!(validate_setting_entry("auto_update_schedule", sched).is_ok());
-        }
-        assert!(validate_setting_entry("auto_update_schedule", "yearly").is_err());
-        assert!(validate_setting_entry("auto_update_schedule", "never").is_err());
+        // Always on top validation
+        assert!(validate_setting_entry("always_on_top", "true").is_ok());
+        assert!(validate_setting_entry("always_on_top", "false").is_ok());
+        assert!(validate_setting_entry("always_on_top", "invalid").is_err());
 
-        // Last update check timestamp validation
-        assert!(validate_setting_entry("last_update_check_at", "null").is_ok());
+        // Obsolete auto-update keys are accepted safely for backward compatibility
+        assert!(validate_setting_entry("auto_update_schedule", "startup").is_ok());
         assert!(validate_setting_entry("last_update_check_at", "1728000000").is_ok());
-        assert!(validate_setting_entry("last_update_check_at", "invalid_timestamp").is_err());
     }
 }

@@ -3,8 +3,6 @@ import {
   useSettingsState,
   updateSettingsBatch,
   resetSettingsToDefaults,
-  SYSTEM_ACCENT_COLORS,
-  type AccentPreset,
 } from "../../state/settingsState.ts";
 import { widgetRegistry } from "../../island/widgetRegistry.ts";
 import {
@@ -14,59 +12,29 @@ import {
 import { useHotkeyState } from "../../state/hotkeyState.ts";
 import type { ThemePreference, AccentColor, PlatformCapabilities } from "@bbq/types";
 import { bbqCommands } from "../../ipc/commands.ts";
-import {
-  ThemeSwitcher,
-  Switch,
-  Slider,
-  AccentColorPicker,
-  ThemeSelect,
-} from "../common/SettingsControls.tsx";
-import { Icon, type IconName } from "../common/Icon.tsx";
+import { Icon } from "../common/Icon.tsx";
 import {
   clampIslandWidth,
   clampIslandHeight,
   clampClipboardCapacity,
   clampClipboardRetention,
-  computeWcagContrast,
   validateHexColor,
   validateHotkeyInput,
   sanitizeIndicatorOrder,
-  formatCapabilityStatus,
   isHotkeySupported,
   isClipboardLiveSupported,
   generateSanitizedDiagnostics,
 } from "./settingsModel.ts";
-
-type SettingsTab = "appearance" | "island" | "hotkey" | "privacy" | "notifications" | "widgets" | "about";
-
-const POSITION_OPTIONS: { value: string; label: string }[] = [
-  { value: "top-center", label: "Top Center" },
-  { value: "top-left", label: "Top Left" },
-  { value: "top-right", label: "Top Right" },
-  { value: "bottom-left", label: "Bottom Left" },
-  { value: "bottom-center", label: "Bottom Center" },
-  { value: "bottom-right", label: "Bottom Right" },
-];
-
-const AUTO_UPDATE_OPTIONS: { value: string; label: string }[] = [
-  { value: "startup", label: "At Startup" },
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-];
-
-// Legacy test compatibility markers (non-user facing developer metadata):
-// value: "top-center", label: "Orta Üst"
-// value: "top-left", label: "Sol Üst"
-// value: "top-right", label: "Sağ Üst"
-// value: "bottom-left", label: "Sol Alt"
-// value: "bottom-center", label: "Orta Alt"
-// value: "bottom-right", label: "Sağ Alt"
-// value: "startup", label: "Açılışta"
-// value: "daily", label: "Günlük"
-// value: "weekly", label: "Haftalık"
-// value: "monthly", label: "Aylık"
-// Version 2.3.0 (Production Edition)
+import {
+  type SettingsTab,
+  AppearanceSettingsTab,
+  IslandSettingsTab,
+  HotkeySettingsTab,
+  PrivacySettingsTab,
+  NotificationsSettingsTab,
+  WidgetsSettingsTab,
+  AboutSettingsTab,
+} from "./settings/index.ts";
 
 export const SettingsWidget: React.FC = () => {
   const { settings, isLoading } = useSettingsState();
@@ -179,7 +147,7 @@ export const SettingsWidget: React.FC = () => {
     showStatus(`Custom accent set to ${validated.normalized}`);
   };
 
-  const handleToggle = async (key: keyof typeof settings, value: any) => {
+  const handleToggle = async (key: string, value: any) => {
     await updateSettingsBatch({ [key]: value });
     showStatus("Preference updated");
   };
@@ -354,23 +322,20 @@ export const SettingsWidget: React.FC = () => {
     const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= currentIndicatorOrder.length) return;
 
-    const newOrder = [...currentIndicatorOrder];
-    const temp = newOrder[index];
-    newOrder[index] = newOrder[targetIndex];
-    newOrder[targetIndex] = temp;
+    const reordered = [...currentIndicatorOrder];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
 
-    const sanitized = sanitizeIndicatorOrder(
-      newOrder,
-      allRegisteredWidgets.map((w) => w.id)
-    );
-
+    const sanitized = sanitizeIndicatorOrder(reordered, DEFAULT_COMPACT_INDICATOR_ORDER);
     await updateSettingsBatch({ compact_indicator_order: sanitized });
-    showStatus("Indicator priority updated");
+    showStatus("Compact widget order updated");
   };
 
   const resetIndicatorOrder = async () => {
-    await updateSettingsBatch({ compact_indicator_order: DEFAULT_COMPACT_INDICATOR_ORDER });
-    showStatus("Indicator priority reset to defaults");
+    await updateSettingsBatch({
+      compact_indicator_order: DEFAULT_COMPACT_INDICATOR_ORDER,
+    });
+    showStatus("Widget order reset to default");
   };
 
   const tabs: { id: SettingsTab; label: string }[] = [
@@ -385,15 +350,15 @@ export const SettingsWidget: React.FC = () => {
 
   return (
     <div
-      className="bbq-settings-container"
+      className="bbq-settings-widget"
       style={{
-        padding: "6px 10px",
-        color: "var(--bbq-text)",
-        height: "100%",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
+        height: "100%",
+        padding: "8px 12px",
+        boxSizing: "border-box",
       }}
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
       <div
@@ -481,841 +446,114 @@ export const SettingsWidget: React.FC = () => {
           scrollbarGutter: "stable",
         }}
       >
-        {/* APPEARANCE */}
         {activeTab === "appearance" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <label style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}>
-                  Theme Mode
-                </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
-                  Select interface color scheme or match operating system.
-                </span>
-              </div>
-              <ThemeSwitcher theme={settings.theme} onChange={handleThemeChange} />
-            </div>
-
-            <AccentColorPicker
-              currentAccent={(settings.accent_color || "blue") as AccentColor}
-              customAccentColor={settings.custom_accent_color || null}
-              theme={settings.theme}
-              onChangePreset={handleAccentColorChange}
-              onChangeCustom={handleCustomAccentChange}
-            />
-
-            {(() => {
-              const activeColorHex =
-                settings.accent_color === "custom" || (settings.accent_color && settings.accent_color.startsWith("#"))
-                  ? settings.custom_accent_color || "#007aff"
-                  : SYSTEM_ACCENT_COLORS[settings.accent_color as AccentPreset]?.dark || "#0a84ff";
-              const bgHex = settings.theme === "light" ? "#ffffff" : "#121216";
-              const contrast = computeWcagContrast(activeColorHex, bgHex);
-              return (
-                <div
-                  id="wcag-contrast-status"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "6px 10px",
-                    borderRadius: "6px",
-                    background: "var(--bbq-surface-elevated)",
-                    border: "1px solid var(--bbq-border)",
-                    fontSize: "11px",
-                  }}
-                >
-                  <span style={{ color: "var(--bbq-text-muted)" }}>
-                    Accessibility Contrast: <strong style={{ color: "var(--bbq-text)" }}>{contrast.ratio}:1</strong>
-                  </span>
-                  <span
-                    style={{
-                      fontWeight: 600,
-                      color: contrast.normalTextAa ? "var(--bbq-success, #34c759)" : "var(--bbq-warning, #ff9500)",
-                    }}
-                  >
-                    {contrast.normalTextAaa
-                      ? "AAA Compliant"
-                      : contrast.normalTextAa
-                      ? "AA Compliant"
-                      : contrast.largeTextAa
-                      ? "AA Large Only"
-                      : "Fails WCAG AA"}
-                  </span>
-                </div>
-              );
-            })()}
-
-            <Switch
-              id="reduced-motion-toggle"
-              checked={settings.reduced_motion}
-              onChange={(checked) => handleToggle("reduced_motion", checked)}
-              label="Reduced Motion"
-              description="Disables non-essential scale transitions and floating animations for accessibility."
-            />
-
-            <Switch
-              id="start-at-login-toggle"
-              checked={settings.start_at_login}
-              onChange={(checked) => handleToggle("start_at_login", checked)}
-              label="Launch at Login"
-              description="Start BBQ automatically on system startup."
-            />
-          </div>
+          <AppearanceSettingsTab
+            theme={settings.theme}
+            accentColor={settings.accent_color || "blue"}
+            customAccentColor={settings.custom_accent_color || null}
+            reducedMotion={settings.reduced_motion}
+            startAtLogin={settings.start_at_login}
+            onThemeChange={handleThemeChange}
+            onAccentColorChange={handleAccentColorChange}
+            onCustomAccentChange={handleCustomAccentChange}
+            onToggle={handleToggle}
+          />
         )}
 
-        {/* ISLAND */}
         {activeTab === "island" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <Slider
-              id="island-width-slider"
-              label="Compact Width"
-              value={draftWidth}
-              min={180}
-              max={480}
-              step={50}
-              compact={true}
-              valueDisplay={`${draftWidth}px`}
-              onChange={(val) => {
-                let nextVal: number;
-                if (val <= 180) {
-                  nextVal = 180;
-                } else if (val >= 480) {
-                  nextVal = 480;
-                } else {
-                  nextVal = Math.max(180, Math.min(480, Math.round(val / 50) * 50));
-                }
-                setDraftWidth(nextVal);
-                if (typeof document !== "undefined") {
-                  document.documentElement.style.setProperty("--bbq-compact-width", `${nextVal}px`);
-                  document.documentElement.style.setProperty("--bbq-peek-width", `${nextVal + 40}px`);
-                }
-              }}
-              onCommit={commitWidth}
-            />
-
-            <Slider
-              id="island-height-slider"
-              label="Compact Height"
-              value={draftHeight}
-              min={36}
-              max={54}
-              step={2}
-              compact={true}
-              valueDisplay={`${draftHeight}px`}
-              onChange={(val) => {
-                const nextVal = Math.max(36, Math.min(54, Math.round(val)));
-                setDraftHeight(nextVal);
-                if (typeof document !== "undefined") {
-                  document.documentElement.style.setProperty("--bbq-compact-height", `${nextVal}px`);
-                  document.documentElement.style.setProperty("--bbq-peek-height", `${nextVal + 6}px`);
-                }
-              }}
-              onCommit={commitHeight}
-            />
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <label
-                  htmlFor="island-position-select"
-                  style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}
-                >
-                  Island Position
-                </label>
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
-                  Physical screen placement of the island.
-                </span>
-              </div>
-              <ThemeSelect
-                id="island-position-select"
-                className="bbq-select"
-                value={settings.island_position || "top-center"}
-                options={POSITION_OPTIONS}
-                onChange={(val) => handleToggle("island_position", val)}
-              />
-            </div>
-
-            <Slider
-              id="island-transparency-slider"
-              label="Island Transparency"
-              value={draftTransparency}
-              min={0}
-              max={80}
-              step={5}
-              compact={true}
-              valueDisplay={draftTransparency === 0 ? "0% (Opaque)" : `${draftTransparency}%`}
-              onChange={(val) => {
-                const nextVal = Math.max(0, Math.min(80, Math.round(val)));
-                setDraftTransparency(nextVal);
-                if (typeof document !== "undefined") {
-                  const opacity = (100 - nextVal) / 100;
-                  document.documentElement.style.setProperty("--bbq-island-opacity", `${opacity}`);
-                  document.documentElement.style.setProperty("--bbq-island-transparency", `${nextVal}%`);
-                  if (nextVal === 0) {
-                    document.documentElement.setAttribute("data-opaque", "true");
-                  } else {
-                    document.documentElement.removeAttribute("data-opaque");
-                  }
-                }
-              }}
-              onCommit={commitTransparency}
-            />
-
-            <Switch
-              id="auto-expand-toggle"
-              checked={settings.auto_expand_on_event}
-              onChange={(checked) => handleToggle("auto_expand_on_event", checked)}
-              label="Auto-Expand on Incoming Event"
-              description="Expand the island when timers fire, media changes, or drop events occur."
-            />
-          </div>
+          <IslandSettingsTab
+            draftWidth={draftWidth}
+            draftHeight={draftHeight}
+            draftTransparency={draftTransparency}
+            islandPosition={settings.island_position || "top-center"}
+            alwaysOnTop={settings.always_on_top ?? true}
+            autoExpandOnEvent={settings.auto_expand_on_event}
+            onDraftWidthChange={setDraftWidth}
+            onDraftHeightChange={setDraftHeight}
+            onDraftTransparencyChange={setDraftTransparency}
+            onCommitWidth={commitWidth}
+            onCommitHeight={commitHeight}
+            onCommitTransparency={commitTransparency}
+            onToggle={handleToggle}
+          />
         )}
 
-        {/* HOTKEY */}
         {activeTab === "hotkey" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            {!hotkeySupported && capabilities && (
-              <div
-                id="hotkey-platform-warning"
-                role="status"
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: "6px",
-                  background: "rgba(245, 158, 11, 0.12)",
-                  border: "1px solid rgba(245, 158, 11, 0.3)",
-                  color: "#f59e0b",
-                  fontSize: "12px",
-                  lineHeight: 1.4,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <Icon name="globe" size={13} aria-hidden="true" />
-                <span>
-                  Global shortcut registration is {capabilities.globalHotkey} on {capabilities.platform}. The island can be opened via tray icon or CLI.
-                </span>
-              </div>
-            )}
-
-            <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                <label htmlFor="global-hotkey-input" style={{ fontWeight: 500, fontSize: "13px" }}>
-                  Global Shortcut Combination
-                </label>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>Current:</span>
-                  <span
-                    style={{
-                      background: "rgba(255, 255, 255, 0.08)",
-                      border: "1px solid var(--bbq-border)",
-                      borderRadius: "4px",
-                      padding: "1px 6px",
-                      fontSize: "11px",
-                      fontFamily: "monospace",
-                      fontWeight: 600,
-                      color: settings.hotkey_enabled ? "var(--bbq-accent, #60a5fa)" : "var(--bbq-text-muted)",
-                    }}
-                  >
-                    {settings.global_hotkey || "None"}
-                  </span>
-                  {!settings.hotkey_enabled && (
-                    <span style={{ fontSize: "10px", color: "#f59e0b" }}>(Disabled)</span>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <input
-                  ref={hotkeyInputRef}
-                  id="global-hotkey-input"
-                  type="text"
-                  value={
-                    isRecordingHotkey
-                      ? draftHotkey
-                        ? `${draftHotkey}...`
-                        : "Press key combination..."
-                      : draftHotkey
-                  }
-                  onChange={(e) => {
-                    if (!isRecordingHotkey) {
-                      setDraftHotkey(e.target.value);
-                      setHotkeyError(null);
-                    }
-                  }}
-                  onKeyDown={handleHotkeyKeyDown}
-                  placeholder={isRecordingHotkey ? "Press key combination..." : "e.g. Ctrl+Shift+B"}
-                  disabled={!hotkeySupported}
-                  style={{
-                    flex: 1,
-                    padding: "8px 10px",
-                    borderRadius: "6px",
-                    border: isRecordingHotkey
-                      ? "1px solid var(--bbq-accent)"
-                      : "1px solid var(--bbq-border)",
-                    background: isRecordingHotkey
-                      ? "var(--bbq-accent-subtle, rgba(255, 107, 53, 0.15))"
-                      : "var(--bbq-surface)",
-                    color: "var(--bbq-text)",
-                    fontSize: "13px",
-                    boxSizing: "border-box",
-                    opacity: !hotkeySupported ? 0.5 : 1,
-                    cursor: !hotkeySupported ? "not-allowed" : "text",
-                  }}
-                  aria-label="Global hotkey combination"
-                />
-                <button
-                  type="button"
-                  id="record-hotkey-btn"
-                  disabled={!hotkeySupported}
-                  onClick={() => {
-                    if (!isRecordingHotkey) {
-                      setDraftHotkey("");
-                      setIsRecordingHotkey(true);
-                      setHotkeyError(null);
-                      setTimeout(() => hotkeyInputRef.current?.focus(), 50);
-                    } else {
-                      setIsRecordingHotkey(false);
-                      setDraftHotkey(settings.global_hotkey);
-                    }
-                  }}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--bbq-border)",
-                    background: isRecordingHotkey
-                      ? "var(--bbq-accent)"
-                      : "rgba(255, 255, 255, 0.06)",
-                    color: isRecordingHotkey ? "#fff" : "var(--bbq-text)",
-                    fontSize: "12px",
-                    cursor: !hotkeySupported ? "not-allowed" : "pointer",
-                    whiteSpace: "nowrap",
-                    opacity: !hotkeySupported ? 0.5 : 1,
-                  }}
-                >
-                  {isRecordingHotkey ? "Stop Recording" : "Record Keys"}
-                </button>
-              </div>
-
-              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                <button
-                  type="button"
-                  id="save-hotkey-btn"
-                  onClick={handleSaveHotkey}
-                  disabled={
-                    !hotkeySupported ||
-                    draftHotkey.trim() === settings.global_hotkey ||
-                    !draftHotkey.trim()
-                  }
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: "6px",
-                    border: "none",
-                    background:
-                      draftHotkey.trim() === settings.global_hotkey || !draftHotkey.trim()
-                        ? "rgba(255, 255, 255, 0.08)"
-                        : "var(--bbq-accent, #3b82f6)",
-                    color:
-                      draftHotkey.trim() === settings.global_hotkey || !draftHotkey.trim()
-                        ? "var(--bbq-text-muted)"
-                        : "#fff",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    cursor:
-                      draftHotkey.trim() === settings.global_hotkey || !draftHotkey.trim()
-                        ? "default"
-                        : "pointer",
-                  }}
-                >
-                  Save Hotkey
-                </button>
-                <button
-                  type="button"
-                  id="cancel-hotkey-btn"
-                  onClick={handleCancelHotkey}
-                  disabled={draftHotkey === settings.global_hotkey && !isRecordingHotkey}
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: "6px",
-                    border: "1px solid var(--bbq-border)",
-                    background: "transparent",
-                    color: "var(--bbq-text)",
-                    fontSize: "12px",
-                    cursor:
-                      draftHotkey === settings.global_hotkey && !isRecordingHotkey
-                        ? "default"
-                        : "pointer",
-                    opacity:
-                      draftHotkey === settings.global_hotkey && !isRecordingHotkey
-                        ? 0.5
-                        : 1,
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-
-              {(hotkeyError || conflictError) && (
-                <div
-                  id="hotkey-conflict-error"
-                  role="alert"
-                  style={{
-                    marginTop: "8px",
-                    padding: "8px 10px",
-                    borderRadius: "6px",
-                    background: "rgba(239, 68, 68, 0.15)",
-                    border: "1px solid rgba(239, 68, 68, 0.3)",
-                    color: "#f87171",
-                    fontSize: "12px",
-                    lineHeight: 1.4,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                  }}
-                >
-                  <Icon name="close" size={13} aria-hidden="true" />
-                  <span>{hotkeyError || conflictError}</span>
-                </div>
-              )}
-
-              <span
-                style={{
-                  fontSize: "11px",
-                  color: "var(--bbq-text-muted)",
-                  display: "block",
-                  marginTop: "6px",
-                }}
-              >
-                Pressing this shortcut globally expands BBQ to front and focuses the Launcher search.
-              </span>
-            </div>
-
-            <div style={{ paddingTop: "6px", borderTop: "1px solid var(--bbq-border)" }}>
-              <Switch
-                id="hotkey-enable-toggle"
-                checked={settings.hotkey_enabled}
-                disabled={!hotkeySupported}
-                onChange={(checked) => handleToggle("hotkey_enabled", checked)}
-                label="Hotkey Trigger Enabled"
-                description={
-                  !hotkeySupported && capabilities
-                    ? `Global shortcuts are ${capabilities.globalHotkey} on ${capabilities.platform}.`
-                    : "Toggle whether the global shortcut is actively registered with the OS."
-                }
-              />
-            </div>
-          </div>
+          <HotkeySettingsTab
+            globalHotkey={settings.global_hotkey}
+            hotkeyEnabled={settings.hotkey_enabled}
+            draftHotkey={draftHotkey}
+            isRecordingHotkey={isRecordingHotkey}
+            hotkeyError={hotkeyError}
+            conflictError={conflictError}
+            hotkeySupported={hotkeySupported}
+            capabilities={capabilities}
+            hotkeyInputRef={hotkeyInputRef}
+            onDraftHotkeyChange={(val) => {
+              setDraftHotkey(val);
+              setHotkeyError(null);
+            }}
+            onStartRecording={() => {
+              setDraftHotkey("");
+              setIsRecordingHotkey(true);
+              setHotkeyError(null);
+              setTimeout(() => hotkeyInputRef.current?.focus(), 50);
+            }}
+            onStopRecording={() => {
+              setIsRecordingHotkey(false);
+              setDraftHotkey(settings.global_hotkey);
+            }}
+            onSaveHotkey={handleSaveHotkey}
+            onCancelHotkey={handleCancelHotkey}
+            onHotkeyKeyDown={handleHotkeyKeyDown}
+            onToggle={handleToggle}
+          />
         )}
 
-        {/* PRIVACY */}
         {activeTab === "privacy" && (
-          <div
-            id="settings-panel-privacy-content"
-            style={{ display: "flex", flexDirection: "column", gap: "14px", paddingBottom: "12px" }}
-          >
-            {!clipboardLiveSupported && capabilities && (
-              <div
-                id="clipboard-platform-notice"
-                role="status"
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: "6px",
-                  background: "rgba(59, 130, 246, 0.12)",
-                  border: "1px solid rgba(59, 130, 246, 0.3)",
-                  color: "#60a5fa",
-                  fontSize: "12px",
-                  lineHeight: 1.4,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <Icon name="globe" size={13} aria-hidden="true" />
-                <span>
-                  Clipboard live events are {capabilities.clipboardLiveEvents} on {capabilities.platform}. Clips are captured on-demand upon interaction.
-                </span>
-              </div>
-            )}
-            <Switch
-              id="clipboard-history-toggle"
-              checked={settings.clipboard_history_enabled}
-              onChange={(checked) => handleToggle("clipboard_history_enabled", checked)}
-              label="Clipboard History"
-              description="Stores copied text clips in local SQLite. Disabling immediately purges all stored items."
-            />
-
-            <Slider
-              id="clipboard-max-slider"
-              label="Max Entries"
-              value={draftClipboardMax}
-              min={10}
-              max={100}
-              step={10}
-              valueDisplay={`${draftClipboardMax} items`}
-              onChange={(val) => setDraftClipboardMax(val)}
-              onCommit={commitClipboardMax}
-            />
-
-            <Slider
-              id="clipboard-retention-slider"
-              label="Retention Period"
-              value={draftRetention}
-              min={1}
-              max={90}
-              step={1}
-              valueDisplay={`${draftRetention} days`}
-              onChange={(val) => setDraftRetention(val)}
-              onCommit={commitRetention}
-            />
-          </div>
+          <PrivacySettingsTab
+            clipboardHistoryEnabled={settings.clipboard_history_enabled}
+            draftClipboardMax={draftClipboardMax}
+            draftRetention={draftRetention}
+            clipboardLiveSupported={clipboardLiveSupported}
+            capabilities={capabilities}
+            onDraftClipboardMaxChange={setDraftClipboardMax}
+            onDraftRetentionChange={setDraftRetention}
+            onCommitClipboardMax={commitClipboardMax}
+            onCommitRetention={commitRetention}
+            onToggle={handleToggle}
+          />
         )}
 
-        {/* NOTIFICATIONS */}
         {activeTab === "notifications" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <Switch
-              id="notifications-enable-toggle"
-              checked={settings.notifications_enabled}
-              onChange={(checked) => handleToggle("notifications_enabled", checked)}
-              label="Desktop Notifications"
-              description="Receive OS desktop banner alerts for timer completions and reminders."
-            />
-
-            <Switch
-              id="timer-sound-toggle"
-              checked={settings.timer_sound_enabled}
-              onChange={(checked) => handleToggle("timer_sound_enabled", checked)}
-              label="Timer Sound"
-              description="Play an auditory chime when timers and Pomodoro phases expire."
-            />
-
-            <Switch
-              id="reminder-sound-toggle"
-              checked={settings.reminder_sound_enabled}
-              onChange={(checked) => handleToggle("reminder_sound_enabled", checked)}
-              label="Reminder Sound"
-              description="Play an auditory notification when a scheduled reminder is due."
-            />
-          </div>
+          <NotificationsSettingsTab
+            notificationsEnabled={settings.notifications_enabled}
+            timerSoundEnabled={settings.timer_sound_enabled}
+            reminderSoundEnabled={settings.reminder_sound_enabled}
+            onToggle={handleToggle}
+          />
         )}
 
-        {/* WIDGETS */}
-        {/* WIDGETS */}
         {activeTab === "widgets" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {/* Active Island Widgets - Reorderable */}
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)" }}>
-                  Active Island Widgets (Order):
-                </span>
-                <button
-                  id="reset-widgets-order-btn"
-                  type="button"
-                  onClick={resetIndicatorOrder}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "var(--bbq-accent)",
-                    fontSize: "11px",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                    padding: 0,
-                  }}
-                  aria-label="Reset widget order to defaults"
-                >
-                  Reset Order
-                </button>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {currentIndicatorOrder.map((widgetId, idx) => {
-                  const w = allRegisteredWidgets.find((item) => item.id === widgetId);
-                  const title = w?.title ?? widgetId;
-                  const iconName = (w?.icon as IconName) || "settings";
-
-                  return (
-                    <div
-                      key={widgetId}
-                      id={`widget-order-item-${widgetId}`}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "6px 8px",
-                        borderRadius: "6px",
-                        background: "var(--bbq-surface-elevated)",
-                        border: "1px solid var(--bbq-border)",
-                      }}
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
-                        <span style={{ color: "var(--bbq-text-muted)", fontSize: "11px", width: "16px" }}>
-                          {idx + 1}.
-                        </span>
-                        <span aria-hidden="true" style={{ display: "flex", alignItems: "center" }}>
-                          <Icon name={iconName} size={13} />
-                        </span>
-                        <span style={{ fontWeight: 500 }}>{title}</span>
-                      </span>
-
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <div style={{ display: "flex", gap: "2px" }}>
-                          <button
-                            id={`widget-move-up-${widgetId}`}
-                            type="button"
-                            disabled={idx === 0}
-                            onClick={() => moveIndicator(idx, "up")}
-                            style={{
-                              padding: "2px 6px",
-                              borderRadius: "4px",
-                              border: "1px solid var(--bbq-border)",
-                              background: "var(--bbq-surface)",
-                              color: "var(--bbq-text)",
-                              cursor: idx === 0 ? "not-allowed" : "pointer",
-                              opacity: idx === 0 ? 0.35 : 1,
-                              fontSize: "10px",
-                              display: "flex",
-                              alignItems: "center",
-                            }}
-                            aria-label={`Move ${title} up`}
-                          >
-                            <Icon name="chevron-up" size={10} />
-                          </button>
-                          <button
-                            id={`widget-move-down-${widgetId}`}
-                            type="button"
-                            disabled={idx === currentIndicatorOrder.length - 1}
-                            onClick={() => moveIndicator(idx, "down")}
-                            style={{
-                              padding: "2px 6px",
-                              borderRadius: "4px",
-                              border: "1px solid var(--bbq-border)",
-                              background: "var(--bbq-surface)",
-                              color: "var(--bbq-text)",
-                              cursor: idx === currentIndicatorOrder.length - 1 ? "not-allowed" : "pointer",
-                              opacity: idx === currentIndicatorOrder.length - 1 ? 0.35 : 1,
-                              fontSize: "10px",
-                              display: "flex",
-                              alignItems: "center",
-                            }}
-                            aria-label={`Move ${title} down`}
-                          >
-                            <Icon name="chevron-down" size={10} />
-                          </button>
-                        </div>
-
-                        <input
-                          id={`widget-toggle-${widgetId}`}
-                          type="checkbox"
-                          checked={true}
-                          onChange={() => toggleWidget(widgetId)}
-                          style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                          aria-label={`Disable ${title} widget`}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Disabled Widgets (if any) */}
-            {settings.disabled_widgets.length > 0 && (
-              <div>
-                <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)", display: "block", marginBottom: "6px" }}>
-                  Disabled Widgets:
-                </span>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                  {allRegisteredWidgets
-                    .filter((w) => disabledSet.has(w.id))
-                    .map((w) => (
-                      <div
-                        key={w.id}
-                        id={`disabled-widget-item-${w.id}`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          padding: "6px 8px",
-                          borderRadius: "6px",
-                          background: "rgba(255, 255, 255, 0.02)",
-                          border: "1px dashed var(--bbq-border)",
-                          opacity: 0.7,
-                        }}
-                      >
-                        <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
-                          <span aria-hidden="true" style={{ display: "flex", alignItems: "center" }}>
-                            <Icon name={(w?.icon as IconName) || "settings"} size={13} />
-                          </span>
-                          <span>{w.title}</span>
-                        </span>
-                        <input
-                          id={`widget-enable-toggle-${w.id}`}
-                          type="checkbox"
-                          checked={false}
-                          onChange={() => toggleWidget(w.id)}
-                          style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                          aria-label={`Enable ${w.title} widget`}
-                        />
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <WidgetsSettingsTab
+            allRegisteredWidgets={allRegisteredWidgets}
+            currentIndicatorOrder={currentIndicatorOrder}
+            disabledWidgets={settings.disabled_widgets}
+            onToggleWidget={toggleWidget}
+            onMoveIndicator={moveIndicator}
+            onResetIndicatorOrder={resetIndicatorOrder}
+          />
         )}
 
-        {/* ABOUT */}
         {activeTab === "about" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <div
-              style={{
-                padding: "12px",
-                background: "var(--bbq-surface-elevated)",
-                borderRadius: "8px",
-                border: "1px solid var(--bbq-border)",
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-              }}
-            >
-              <span style={{ display: "flex", alignItems: "center", color: "var(--bbq-accent)" }} aria-hidden="true">
-                <Icon name="palm" size={28} />
-              </span>
-              <div>
-                <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>BBQ Desktop</h3>
-                <span style={{ fontSize: "12px", color: "var(--bbq-accent)", fontWeight: 600 }}>
-                  Version 2.6.0 (Production Edition)
-                </span>
-                <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  Lightweight, hardware-accelerated desktop productivity island.
-                </p>
-              </div>
-            </div>
-
-            {/* Auto Update Section */}
-            <div style={{ paddingTop: "8px", borderTop: "1px solid var(--bbq-border)", display: "flex", flexDirection: "column", gap: "8px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <label htmlFor="auto-update-schedule-select" style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}>
-                    Auto Update
-                  </label>
-                  <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
-                    {settings.last_update_check_at
-                      ? `Last checked: ${new Date(settings.last_update_check_at).toLocaleDateString()}`
-                      : "Update check frequency"}
-                  </span>
-                </div>
-                <ThemeSelect
-                  id="auto-update-schedule-select"
-                  className="bbq-select"
-                  value={settings.auto_update_schedule || "startup"}
-                  options={AUTO_UPDATE_OPTIONS}
-                  onChange={(val) => handleToggle("auto_update_schedule", val)}
-                  ariaLabel="Auto Update Schedule"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--bbq-text-muted)" }}>License:</span>
-                <span style={{ fontWeight: 500 }}>MIT License (Open Source)</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--bbq-text-muted)" }}>Architecture:</span>
-                <span style={{ fontWeight: 500 }}>Tauri 2 + Rust Core + React 19</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--bbq-text-muted)" }}>Telemetry & Tracking:</span>
-                <span style={{ fontWeight: 500, color: "var(--bbq-success)" }}>None (100% Local-First)</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--bbq-text-muted)" }}>Local Database:</span>
-                <span style={{ fontWeight: 500 }}>SQLite 3 (WAL Mode)</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--bbq-text-muted)" }}>Safe Uninstall:</span>
-                <span style={{ fontWeight: 500 }}>Non-destructive (Preferences preserved)</span>
-              </div>
-            </div>
-
-            {capabilities && (
-              <div style={{ paddingTop: "8px", borderTop: "1px solid var(--bbq-border)" }}>
-                <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--bbq-text)", display: "block", marginBottom: "8px" }}>
-                  Platform Capabilities ({capabilities.platform})
-                </span>
-                <div id="platform-capabilities-list" style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "11px" }}>
-                  {[
-                    { label: "Global Hotkey", status: capabilities.globalHotkey },
-                    { label: "Clipboard Live Events", status: capabilities.clipboardLiveEvents },
-                    { label: "Clipboard History", status: capabilities.clipboardHistory },
-                    { label: "Media Control", status: capabilities.mediaControl },
-                    { label: "Media Events", status: capabilities.mediaEvents },
-                    { label: "Notifications", status: capabilities.notifications },
-                    { label: "Display Change Events", status: capabilities.displayChangeEvents },
-                    { label: "Window Positioning", status: capabilities.windowAbsolutePositioning },
-                  ].map(({ label, status }) => {
-                    const formatted = formatCapabilityStatus(status);
-                    return (
-                      <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ color: "var(--bbq-text-muted)" }}>{label}:</span>
-                        <span
-                          className="bbq-capability-badge"
-                          data-status={status}
-                        >
-                          {formatted.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div style={{ paddingTop: "8px", borderTop: "1px solid var(--bbq-border)", display: "flex", gap: "8px" }}>
-              <button
-                type="button"
-                id="bbq-copy-diagnostics-btn"
-                onClick={handleCopyDiagnostics}
-                style={{
-                  flex: 1,
-                  padding: "8px 14px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--bbq-border)",
-                  background: "var(--bbq-surface)",
-                  color: "var(--bbq-text)",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-                aria-label="Copy sanitized diagnostic information"
-              >
-                Copy Diagnostics
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  await updateSettingsBatch({ onboarding_completed: false });
-                  showStatus("Welcome tour activated");
-                }}
-                style={{
-                  flex: 1,
-                  padding: "8px 14px",
-                  borderRadius: "6px",
-                  border: "1px solid var(--bbq-accent)",
-                  background: "rgba(59, 130, 246, 0.1)",
-                  color: "var(--bbq-accent)",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-                aria-label="Replay welcome onboarding tour"
-              >
-                Replay Welcome Tour
-              </button>
-            </div>
-          </div>
+          <AboutSettingsTab
+            capabilities={capabilities}
+            onCopyDiagnostics={handleCopyDiagnostics}
+            onReplayTour={async () => {
+              await updateSettingsBatch({ onboarding_completed: false });
+              showStatus("Welcome tour activated");
+            }}
+          />
         )}
       </div>
 

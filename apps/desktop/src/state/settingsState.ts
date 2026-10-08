@@ -114,8 +114,7 @@ export const defaultSettings: BbqSettings = {
   onboarding_completed: false,
   island_position: "top-center",
   island_transparency: 0,
-  auto_update_schedule: "startup",
-  last_update_check_at: null,
+  always_on_top: true,
 };
 
 export function isEffectiveLight(theme: BbqSettings["theme"]): boolean {
@@ -283,19 +282,62 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
   }
 }
 
+export const OFFICIAL_RELEASES_URL = "https://github.com/owergungor/BBQ/releases/latest";
+
+export const ALLOWED_URL_PREFIXES = [
+  "https://github.com/owergungor/BBQ/releases",
+  "https://github.com/owergungor/BBQ",
+] as const;
+
+/**
+ * Validates that an external URL is strictly HTTPS and targets the official BBQ repository.
+ */
+export function isAllowedExternalUrl(url: string): boolean {
+  if (typeof url !== "string" || !url.trim()) return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return false;
+    return ALLOWED_URL_PREFIXES.some((prefix) => url.startsWith(prefix));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Safely opens an allowlisted external URL without permitting arbitrary shell execution or unsafe URLs.
+ */
+export function openExternalUrl(url: string): boolean {
+  if (!isAllowedExternalUrl(url)) {
+    console.warn(`[Security] Blocked attempt to open non-allowlisted URL: ${url}`);
+    return false;
+  }
+  if (typeof window !== "undefined") {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Opens the official BBQ GitHub releases page in the user's default browser.
+ */
+export function openAllowlistedReleaseUrl(): boolean {
+  return openExternalUrl(OFFICIAL_RELEASES_URL);
+}
+
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 export const ONE_WEEK_MS = 7 * ONE_DAY_MS;
 export const ONE_MONTH_MS = 30 * ONE_DAY_MS;
 
 /**
- * Evaluates whether an update check is due based on user schedule and last checked timestamp.
+ * @deprecated Retained only for legacy unit test backwards compatibility.
  */
 export function isUpdateCheckDue(
-  schedule: BbqSettings["auto_update_schedule"] = "startup",
+  schedule: string = "startup",
   lastCheckedAt?: number | null,
   now = Date.now()
 ): boolean {
-  if (schedule === "startup") {
+  if (schedule === "startup" || !schedule) {
     return true;
   }
   if (!lastCheckedAt || typeof lastCheckedAt !== "number" || lastCheckedAt <= 0) {
@@ -435,13 +477,11 @@ function coerceSettingValue(key: keyof BbqSettings, value: string): unknown {
         return defaultSettings[key];
       }
 
+    case "always_on_top":
+      return value === "true";
+
     case "auto_update_schedule":
-      return value === "startup" ||
-        value === "daily" ||
-        value === "weekly" ||
-        value === "monthly"
-        ? value
-        : "startup";
+      return undefined;
 
     case "island_position":
       return value === "top-center" ||

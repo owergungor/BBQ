@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { updateSettingsBatch, useSettingsState } from "../../state/settingsState.ts";
 import { islandRuntime } from "../../island/IslandRuntime.ts";
+import { escapeManager, EscapePriority } from "../../island/escapeManager.ts";
 import type { ThemePreference } from "@bbq/types";
 import { Icon, type IconName } from "../common/Icon.tsx";
 
@@ -106,6 +107,16 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
       setCurrentStep((prev) => prev - 1);
     }
   }, [currentStep]);
+
+  // Escape handling: skips/finishes onboarding with modal priority
+  useEffect(() => {
+    const unregister = escapeManager.register(() => {
+      handleFinish();
+      return true; // Consumed: prevent parent island collapse
+    }, EscapePriority.MODAL);
+
+    return unregister;
+  }, [handleFinish]);
 
   // Keyboard navigation: Escape skips, Enter/Space advances, ArrowLeft/Right steps
   useEffect(() => {

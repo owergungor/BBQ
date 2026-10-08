@@ -6,6 +6,7 @@ import {
   clearDrop,
   setSelectedActionIndex,
 } from "../../state/dropState.ts";
+import { escapeManager, EscapePriority } from "../../island/escapeManager.ts";
 import { Icon } from "../common/Icon.tsx";
 import {
   normalizeStagedFile,
@@ -24,7 +25,20 @@ export const DropWidget: React.FC = () => {
     isDraggingOver,
   } = useDropState();
 
-  // Keyboard navigation for action items
+  // Register high-priority Escape handler while Drop Shelf has active items or actions.
+  // First Escape clears the drop shelf and prevents parent Island collapse.
+  useEffect(() => {
+    if (!currentBatch && actions.length === 0) return;
+
+    const unregister = escapeManager.register(() => {
+      clearDrop();
+      return true; // Consumed: prevent parent island collapse
+    }, EscapePriority.CHILD_INTERACTION);
+
+    return unregister;
+  }, [currentBatch, actions.length]);
+
+  // Keyboard navigation for action items (Arrow keys and Enter)
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent | KeyboardEvent) => {
       if (actions.length === 0) return;
@@ -43,9 +57,6 @@ export const DropWidget: React.FC = () => {
         if (action && status !== "executing") {
           executeDropAction(action);
         }
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        clearDrop();
       }
     },
     [actions, selectedActionIndex, status]

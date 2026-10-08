@@ -24,6 +24,13 @@ import type { LauncherItem, BbqSettings } from "@bbq/types";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const readSettingsSources = (): string => {
+  const base = fs.readFileSync(path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"), "utf-8");
+  const settingsDir = path.resolve(__dirname, "../src/components/widgets/settings");
+  const tabs = fs.readdirSync(settingsDir).map((f) => fs.readFileSync(path.join(settingsDir, f), "utf-8")).join("\n");
+  return `${base}\n${tabs}`;
+};
+
 describe("BBQ v2.4 — Phase 1: Launcher, Context Menu & UI Polish Regression Tests", () => {
   beforeEach(() => {
     bbqCommands.updateSettings = async () => true;
@@ -488,10 +495,7 @@ describe("BBQ v2.4 — Phase 1: Launcher, Context Menu & UI Polish Regression Te
     });
 
     it("verifies privacy panel scroll containment structure", () => {
-      const settingsWidgetSrc = fs.readFileSync(
-        path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"),
-        "utf-8"
-      );
+      const settingsWidgetSrc = readSettingsSources();
 
       assert.ok(
         settingsWidgetSrc.includes('id="settings-panel-privacy-content"'),
@@ -508,10 +512,7 @@ describe("BBQ v2.4 — Phase 1: Launcher, Context Menu & UI Polish Regression Te
     });
 
     it("verifies .bbq-select class is applied to dropdowns", () => {
-      const settingsWidgetSrc = fs.readFileSync(
-        path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"),
-        "utf-8"
-      );
+      const settingsWidgetSrc = readSettingsSources();
 
       assert.ok(
         settingsWidgetSrc.includes('id="island-position-select"') &&
@@ -519,9 +520,8 @@ describe("BBQ v2.4 — Phase 1: Launcher, Context Menu & UI Polish Regression Te
         "island-position-select must use className='bbq-select'"
       );
       assert.ok(
-        settingsWidgetSrc.includes('id="auto-update-schedule-select"') &&
-          settingsWidgetSrc.includes('className="bbq-select"'),
-        "auto-update-schedule-select must use className='bbq-select'"
+        !settingsWidgetSrc.includes('id="auto-update-schedule-select"'),
+        "auto-update-schedule-select must be removed in favor of honest updates"
       );
     });
   });

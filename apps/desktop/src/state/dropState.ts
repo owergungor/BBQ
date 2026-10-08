@@ -210,35 +210,64 @@ export function formatDropSize(bytes: number): string {
   }
 }
 
-// Subscribe to backend drop events
-if (typeof window !== "undefined") {
-  subscribeToDropChanged((eventData) => {
-    if (typeof eventData === "object" && eventData !== null) {
-      const data = eventData as {
-        type?: string;
-        batch?: DropBatch;
-        result?: DropActionResult;
-      };
+let activeUnlisten: (() => void) | null = null;
+let subscriberCount = 0;
 
-      if (data.type === "inspected" && data.batch) {
-        bbqCommands.dropGetActions(data.batch.id).then((actions) => {
+/**
+ * Initializes drop store with event subscription.
+ * Idempotent: registers backend event listeners exactly once while active.
+ * Returns an unlisten function that decrements subscriber count and tears down
+ * listeners safely when all consumers have unsubscribed.
+ */
+export async function initializeDropStore(): Promise<() => void> {
+  subscriberCount++;
+  if (!activeUnlisten) {
+    const unlisten = await subscribeToDropChanged((eventData) => {
+      if (typeof eventData === "object" && eventData !== null) {
+        const data = eventData as {
+          type?: string;
+          batch?: DropBatch;
+          result?: DropActionResult;
+        };
+
+        if (data.type === "inspected" && data.batch) {
+          bbqCommands
+            .dropGetActions(data.batch.id)
+            .then((actions) => {
+              dropStore.setState({
+                currentBatch: data.batch ?? null,
+                actions,
+                selectedActionIndex: 0,
+                status: "ready",
+                isDraggingOver: false,
+                error: null,
+              });
+            })
+            .catch(console.error);
+        } else if (data.type === "action_executed" && data.result) {
           dropStore.setState({
-            currentBatch: data.batch ?? null,
-            actions,
-            selectedActionIndex: 0,
-            status: "ready",
-            isDraggingOver: false,
-            error: null,
+            status: data.result.failure_count === 0 ? "completed" : "error",
+            resultMessage: data.result.message,
           });
-        }).catch(console.error);
-      } else if (data.type === "action_executed" && data.result) {
-        dropStore.setState({
-          status: data.result.failure_count === 0 ? "completed" : "error",
-          resultMessage: data.result.message,
-        });
+        }
       }
+    });
+    activeUnlisten = unlisten;
+  }
+
+  let cleanedUp = false;
+  return () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    subscriberCount = Math.max(0, subscriberCount - 1);
+    if (subscriberCount === 0 && activeUnlisten) {
+      const teardown = activeUnlisten;
+      activeUnlisten = null;
+      teardown();
     }
-  }).catch((err) => {
-    console.error("Failed to subscribe to drop changes:", err);
-  });
+  };
+}
+
+export function isDropStoreInitialized(): boolean {
+  return activeUnlisten !== null;
 }

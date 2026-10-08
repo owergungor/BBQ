@@ -45,6 +45,7 @@ export const IslandShell: React.FC<IslandShellProps> = ({
   onDrop,
 }) => {
   const userCompactWidth = useSettingsState((s) => s.settings.island_width);
+  const islandPosition = useSettingsState((s) => s.settings.island_position || "top-center");
   const modeClass = `mode-${mode.toLowerCase()}`;
   const stateClass = `state-${state.toLowerCase()}`;
   const mediaClass = hasMedia ? "has-media" : "";
@@ -89,6 +90,7 @@ export const IslandShell: React.FC<IslandShellProps> = ({
       role="region"
       aria-label="BBQ Productivity Island"
       tabIndex={0}
+      data-anchor={islandPosition}
       className={`bbq-island-shell ${modeClass} ${stateClass} ${mediaClass} ${dragClass}`}
       style={dynamicStyle}
       onMouseEnter={onMouseEnter}

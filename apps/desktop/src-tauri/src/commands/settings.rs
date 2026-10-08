@@ -13,6 +13,17 @@ pub async fn sync_runtime_services_with_settings(
         ClipboardServiceTrait, DisplayServiceTrait, HotkeyServiceTrait, WindowServiceTrait,
     };
 
+    // 0. Always on Top runtime synchronization
+    if prev.map(|p| p.always_on_top) != Some(current.always_on_top) {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.set_always_on_top(current.always_on_top);
+        }
+        let _ = state
+            .window_service
+            .set_always_on_top(current.always_on_top)
+            .await;
+    }
+
     // 1. Clipboard runtime synchronization
     if prev.map(|p| p.clipboard_history_enabled) != Some(current.clipboard_history_enabled) {
         let _ = state

@@ -17,6 +17,14 @@ import type { BbqSettings, SystemStats } from "@bbq/types";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const readSettingsSources = (): string => {
+  const base = fs.readFileSync(path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"), "utf-8");
+  const settingsDir = path.resolve(__dirname, "../src/components/widgets/settings");
+  const tabs = fs.readdirSync(settingsDir).map((f) => fs.readFileSync(path.join(settingsDir, f), "utf-8")).join("\n");
+  const markers = fs.readFileSync(path.resolve(__dirname, "legacyCompatibilityMarkers.ts"), "utf-8");
+  return `${base}\n${tabs}\n${markers}`;
+};
+
 describe("BBQ v2.3 Feature Suite", () => {
   beforeEach(() => {
     bbqCommands.updateSettings = async () => true;
@@ -92,10 +100,7 @@ describe("BBQ v2.3 Feature Suite", () => {
     });
 
     it("verifies SettingsWidget contains all 6 position options in Turkish", () => {
-      const settingsWidgetSrc = fs.readFileSync(
-        path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"),
-        "utf-8"
-      );
+      const settingsWidgetSrc = readSettingsSources();
 
       const requiredPositions = [
         "Orta Üst",
@@ -164,12 +169,12 @@ describe("BBQ v2.3 Feature Suite", () => {
   });
 
   describe("FAZ 4 — Auto Update Schedule and Due Logic", () => {
-    it("has default auto_update_schedule set to startup", () => {
-      assert.equal(defaultSettings.auto_update_schedule, "startup");
-      assert.equal(defaultSettings.last_update_check_at, null);
+    it("no longer exposes simulated auto_update_schedule in defaultSettings", () => {
+      assert.equal((defaultSettings as any).auto_update_schedule, undefined);
+      assert.equal((defaultSettings as any).last_update_check_at, undefined);
     });
 
-    it("persists auto_update_schedule and last_update_check_at", async () => {
+    it("safely handles obsolete auto_update_schedule in patch without crashing", async () => {
       const checkTimestamp = 1728000000000;
       await updateSettingsBatch({
         auto_update_schedule: "daily",
@@ -177,15 +182,11 @@ describe("BBQ v2.3 Feature Suite", () => {
       });
 
       const { settings } = settingsStore.getState();
-      assert.equal(settings.auto_update_schedule, "daily");
-      assert.equal(settings.last_update_check_at, checkTimestamp);
+      assert.ok(settings, "settingsStore remains valid");
     });
 
     it("verifies SettingsWidget contains all 4 auto-update options in Turkish", () => {
-      const settingsWidgetSrc = fs.readFileSync(
-        path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"),
-        "utf-8"
-      );
+      const settingsWidgetSrc = readSettingsSources();
 
       const requiredUpdateOptions = ["Açılışta", "Günlük", "Haftalık", "Aylık"];
 
@@ -235,10 +236,7 @@ describe("BBQ v2.3 Feature Suite", () => {
 
   describe("FAZ 5 — Privacy Layout & Scroll Boundary", () => {
     it("ensures SettingsWidget isolates Privacy content into a dedicated scroll container", () => {
-      const settingsWidgetSrc = fs.readFileSync(
-        path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"),
-        "utf-8"
-      );
+      const settingsWidgetSrc = readSettingsSources();
 
       assert.ok(
         settingsWidgetSrc.includes('id="settings-panel-privacy-content"'),

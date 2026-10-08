@@ -172,7 +172,14 @@ describe("BBQ v1.3 — M12 Platform Capability State & Settings UI Tests", () =>
       __dirname,
       "../src/components/widgets/SettingsWidget.tsx"
     );
-    const settingsWidgetSource = fs.readFileSync(settingsWidgetPath, "utf-8");
+    const settingsDir = path.resolve(__dirname, "../src/components/widgets/settings");
+    const settingsWidgetSource =
+      fs.readFileSync(settingsWidgetPath, "utf-8") +
+      "\n" +
+      fs
+        .readdirSync(settingsDir)
+        .map((f) => fs.readFileSync(path.join(settingsDir, f), "utf-8"))
+        .join("\n");
 
     it("verifies platform warning elements are present in SettingsWidget.tsx", () => {
       assert.ok(
@@ -211,11 +218,18 @@ describe("BBQ v1.3 — M12 Platform Capability State & Settings UI Tests", () =>
   describe("6. Light-Theme Capability Badge Contrast & WCAG 2.1 AA Compliance", () => {
     const indexCssPath = path.resolve(__dirname, "../src/styles/index.css");
     const indexCss = fs.readFileSync(indexCssPath, "utf-8");
+    const settingsDir = path.resolve(__dirname, "../src/components/widgets/settings");
     const settingsWidgetPath = path.resolve(
       __dirname,
       "../src/components/widgets/SettingsWidget.tsx"
     );
-    const settingsWidgetSource = fs.readFileSync(settingsWidgetPath, "utf-8");
+    const settingsWidgetSource =
+      fs.readFileSync(settingsWidgetPath, "utf-8") +
+      "\n" +
+      fs
+        .readdirSync(settingsDir)
+        .map((f) => fs.readFileSync(path.join(settingsDir, f), "utf-8"))
+        .join("\n");
 
     it("ensures Light Theme status tokens meet WCAG 2.1 AA >= 4.5:1 against #ffffff", () => {
       // Tokens defined for light theme:

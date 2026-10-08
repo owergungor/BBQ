@@ -424,25 +424,14 @@ export const MediaWidget: React.FC = () => {
             </button>
 
             {/* Quick System Volume Adjuster */}
-            <div
-              className="bbq-media-volume-control"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                marginLeft: "8px",
-                paddingLeft: "8px",
-                borderLeft: "1px solid var(--bbq-border, rgba(255, 255, 255, 0.1))",
-              }}
-            >
+            <div className="bbq-media-volume-control">
               <button
                 type="button"
                 id="media-volume-toggle-btn"
-                className="bbq-media-ctrl-btn secondary"
+                className="bbq-media-ctrl-btn secondary bbq-media-volume-btn"
                 onClick={handleToggleMuted}
                 aria-label={isMuted ? "Unmute system volume" : "Mute system volume"}
                 title={isMuted ? "Unmute" : "Mute"}
-                style={{ width: "28px", height: "28px", padding: 0 }}
               >
                 <Icon name={isMuted || volume === 0 ? "volume-mute" : "volume"} size={14} />
               </button>
@@ -456,12 +445,7 @@ export const MediaWidget: React.FC = () => {
                 onChange={handleVolumeChange}
                 aria-label="System volume"
                 title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
-                style={{
-                  width: "56px",
-                  height: "4px",
-                  cursor: "pointer",
-                  accentColor: "var(--bbq-accent, #0A84FF)",
-                }}
+                className="bbq-media-volume-slider"
               />
             </div>
           </div>

@@ -18,7 +18,7 @@ import { LauncherWidget } from "../widgets/LauncherWidget.tsx";
 import { DropWidget } from "../widgets/DropWidget.tsx";
 import { SettingsWidget } from "../widgets/SettingsWidget.tsx";
 import { useSettingsState, initSettingsState } from "../../state/settingsState.ts";
-import { resolveEffectiveIndicatorOrder } from "../../island/compactOrder.ts";
+import { getOrderedActiveWidgets } from "../../island/compactOrder.ts";
 import { subscribeToDatabaseRecovered } from "../../ipc/events.ts";
 import { Icon } from "../common/Icon.tsx";
 
@@ -109,17 +109,11 @@ export const IslandContent: React.FC<IslandContentProps> = ({
   }
 
   // Expanded View with Navigation and Isolated Active Widget
-  const effectiveOrder = resolveEffectiveIndicatorOrder(
+  const activeWidgets = getOrderedActiveWidgets(
+    widgetRegistry.getActiveWidgets(),
     compactIndicatorOrder,
     disabledWidgets
   );
-  const rawActiveWidgets = widgetRegistry.getActiveWidgets();
-  const orderMap = new Map(effectiveOrder.map((id, index) => [id, index]));
-  const activeWidgets = [...rawActiveWidgets].sort((a, b) => {
-    const orderA = orderMap.has(a.id) ? (orderMap.get(a.id) as number) : 999;
-    const orderB = orderMap.has(b.id) ? (orderMap.get(b.id) as number) : 999;
-    return orderA - orderB;
-  });
 
   const currentWidgetId =
     activeWidgetId && activeWidgets.some((w) => w.id === activeWidgetId)

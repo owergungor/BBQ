@@ -42,3 +42,17 @@ export function resolveEffectiveIndicatorOrder(
 
   return result;
 }
+
+export function getOrderedActiveWidgets<T extends { id: string }>(
+  widgets: T[],
+  persistedOrder: string[] = [],
+  disabledWidgets: string[] = []
+): T[] {
+  const effectiveOrder = resolveEffectiveIndicatorOrder(persistedOrder, disabledWidgets);
+  const orderMap = new Map(effectiveOrder.map((id, index) => [id, index]));
+  return [...widgets].sort((a, b) => {
+    const orderA = orderMap.has(a.id) ? (orderMap.get(a.id) as number) : 999;
+    const orderB = orderMap.has(b.id) ? (orderMap.get(b.id) as number) : 999;
+    return orderA - orderB;
+  });
+}

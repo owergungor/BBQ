@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.7] - 2026-10-08
+
+### Added
+- **HUD Rapid Keyboard Navigation**: `Ctrl+Tab` forward and `Ctrl+Shift+Tab` backward navigation across HUD widgets with wrap-around, and 1–9 number key direct widget activation with text-entry and modal collision isolation.
+- **Keyboard-First Clipboard History**: ArrowDown from search field to first card, ArrowUp from first card back to search, ArrowUp/Down card navigation, and Enter-to-copy with selected card outline styling.
+- **Honest Update Experience**: Removed simulated auto-updater in favor of truthful manual "Check for Updates" and direct GitHub release navigation.
+- **SettingsWidget Modularization**: Extracted monolithic settings into 7 focused subcomponents (`AppearanceSettingsTab`, `IslandSettingsTab`, `HotkeySettingsTab`, `PrivacySettingsTab`, `NotificationsSettingsTab`, `WidgetsSettingsTab`, `AboutSettingsTab`) with typed contracts.
+
+### Improved
+- **Bottom-Anchor Island Geometry**: Upward expansion growth with `center bottom` transform origin and flex alignment for bottom-anchored islands.
+- **Event Lifecycle & Polling Hardening**: Eliminated recursive setTimeout metrics polling and unbounded module-level state event listeners.
+- **Unified Escape Handling**: Centralized `escapeManager` with strict priority stack (Modal > Context Menu > Dropdown > Child Interaction > Input > Island Fallback).
+- **CSS Design-System Cleanup**: Consolidated canonical `.bbq-island-shell` base rule and replaced ad-hoc inline styles with semantic CSS classes.
+
 ## [2.6.0] - 2026-10-07
 
 ### Added

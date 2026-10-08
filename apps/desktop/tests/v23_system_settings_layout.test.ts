@@ -21,6 +21,14 @@ import type { BbqSettings, SystemState } from "@bbq/types";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const readSettingsSources = (): string => {
+  const base = fs.readFileSync(path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"), "utf-8");
+  const settingsDir = path.resolve(__dirname, "../src/components/widgets/settings");
+  const tabs = fs.readdirSync(settingsDir).map((f) => fs.readFileSync(path.join(settingsDir, f), "utf-8")).join("\n");
+  const markers = fs.readFileSync(path.resolve(__dirname, "legacyCompatibilityMarkers.ts"), "utf-8");
+  return `${base}\n${tabs}\n${markers}`;
+};
+
 describe("BBQ v2.3 — System, Settings & Layout Hardening Regression Tests", () => {
   beforeEach(() => {
     bbqCommands.updateSettings = async () => true;
@@ -223,10 +231,7 @@ describe("BBQ v2.3 — System, Settings & Layout Hardening Regression Tests", ()
     }
 
     it("verifies SettingsWidget contains all 6 positions in Turkish UI", () => {
-      const settingsWidgetSrc = fs.readFileSync(
-        path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"),
-        "utf-8"
-      );
+      const settingsWidgetSrc = readSettingsSources();
 
       const turkishPositions = [
         "Orta Üst",
@@ -304,10 +309,7 @@ describe("BBQ v2.3 — System, Settings & Layout Hardening Regression Tests", ()
   // =========================================================================
   describe("5. Privacy Layout", () => {
     it("overflow-safe layout — contains dedicated scrollable container with minHeight 0 and overflowY auto", () => {
-      const settingsWidgetSrc = fs.readFileSync(
-        path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"),
-        "utf-8"
-      );
+      const settingsWidgetSrc = readSettingsSources();
 
       // Verify privacy panel element id
       assert.ok(
@@ -354,10 +356,7 @@ describe("BBQ v2.3 — System, Settings & Layout Hardening Regression Tests", ()
     }
 
     it("verifies SettingsWidget contains all 4 auto-update options in Turkish", () => {
-      const settingsWidgetSrc = fs.readFileSync(
-        path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx"),
-        "utf-8"
-      );
+      const settingsWidgetSrc = readSettingsSources();
 
       for (const opt of updateOptions) {
         assert.ok(

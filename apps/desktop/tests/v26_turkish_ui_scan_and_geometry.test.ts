@@ -192,19 +192,23 @@ describe("BBQ v2.6 — UI Polish, Geometry, Theme Dropdowns & English Invariants
   // =========================================================================
   // 5. Context Menu v2.6 & Dynamic Context-Aware Actions
   // =========================================================================
-  describe("5. Context Menu v2.6 Polish", () => {
-    it("displays v2.6 in context menu header badge and v2.6.0 in about modal", () => {
+  describe("5. Context Menu Application Version Polish", () => {
+    it("displays canonical application version in context menu header badge and about modal", () => {
       const contextSrc = fs.readFileSync(
         path.resolve(SRC_DIR, "components/common/ContextMenu.tsx"),
         "utf-8"
       );
       assert.ok(
-        contextSrc.includes('className="bbq-context-menu-badge">v2.6<'),
-        "Header badge must show v2.6"
+        contextSrc.includes("{APP_VERSION_LABEL}"),
+        "Header badge and about modal must use dynamic APP_VERSION_LABEL"
       );
       assert.ok(
-        contextSrc.includes('className="bbq-about-version">v2.6.0<'),
-        "About modal must show v2.6.0"
+        !contextSrc.includes('className="bbq-context-menu-badge">v2.6<'),
+        "Header badge must not hardcode v2.6"
+      );
+      assert.ok(
+        !contextSrc.includes('className="bbq-about-version">v2.6.0<'),
+        "About modal must not hardcode v2.6.0"
       );
     });
 

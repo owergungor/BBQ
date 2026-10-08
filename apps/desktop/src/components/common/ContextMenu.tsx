@@ -1,14 +1,17 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Icon } from "./Icon.tsx";
 import { widgetRegistry } from "../../island/widgetRegistry.ts";
 import { setActiveWidget, useIslandState } from "../../island/islandState.ts";
 import { islandRuntime } from "../../island/IslandRuntime.ts";
-import { useSettingsState, updateSetting } from "../../state/settingsState.ts";
+import { useSettingsState, updateSetting, openAllowlistedReleaseUrl } from "../../state/settingsState.ts";
 import { refreshSystemState } from "../../state/systemState.ts";
 import { useMediaState } from "../../state/mediaState.ts";
 import { useTimerState } from "../../state/timerState.ts";
 import { useDropState, clearDrop } from "../../state/dropState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
+import { escapeManager, EscapePriority } from "../../island/escapeManager.ts";
+import { APP_VERSION_LABEL } from "../../version.ts";
 import type { IconName } from "./Icon.tsx";
 
 export interface ContextMenuProps {
@@ -31,7 +34,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [showSwitchSubmenu, setShowSwitchSubmenu] = useState<boolean>(false);
   const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
-  const [isPinned, setIsPinned] = useState<boolean>(true);
+  const alwaysOnTop = settings.always_on_top ?? true;
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Compute screen-edge clamped position and submenu flip
@@ -111,19 +114,10 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
     onClose();
   }, [isExpanded, onClose]);
 
-  const handleTogglePin = useCallback(() => {
-    setIsPinned((prev) => !prev);
-    // In Tauri webview or native window, setAlwaysOnTop can be applied
-    if (typeof window !== "undefined" && (window as any).__TAURI__) {
-      try {
-        const { getCurrentWindow } = (window as any).__TAURI__.window;
-        getCurrentWindow().setAlwaysOnTop(!isPinned).catch(() => {});
-      } catch {
-        // Fallback
-      }
-    }
+  const handleTogglePin = useCallback(async () => {
+    await updateSetting("always_on_top", (!alwaysOnTop).toString());
     onClose();
-  }, [isPinned, onClose]);
+  }, [alwaysOnTop, onClose]);
 
   const handleReloadWidget = useCallback(async () => {
     if (activeWidgetId === "system") {
@@ -148,14 +142,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
   const handleQuit = useCallback(() => {
     onClose();
     if (typeof window !== "undefined") {
-      if ((window as any).__TAURI__) {
-        try {
-          const { getCurrentWindow } = (window as any).__TAURI__.window;
-          getCurrentWindow().close().catch(() => window.close());
-        } catch {
-          window.close();
-        }
-      } else {
+      try {
+        getCurrentWindow().close().catch(() => window.close());
+      } catch {
         window.close();
       }
     }
@@ -224,7 +213,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
     },
     {
       id: "pin",
-      label: isPinned ? "Always on Top ✓" : "Always on Top",
+      label: alwaysOnTop ? "Always on Top ✓" : "Always on Top",
       icon: "pin" as const,
       action: handleTogglePin,
     },
@@ -267,6 +256,19 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
     },
   ];
 
+  // Escape handling: closes context menu (or about modal) and prevents parent Island collapse
+  useEffect(() => {
+    const unregister = escapeManager.register(() => {
+      if (showAboutModal) {
+        setShowAboutModal(false);
+      }
+      onClose();
+      return true; // Consumed: prevent parent island collapse
+    }, showAboutModal ? EscapePriority.MODAL : EscapePriority.CONTEXT_MENU);
+
+    return unregister;
+  }, [showAboutModal, onClose]);
+
   // Keyboard navigation: ArrowDown, ArrowUp, Enter, Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -307,7 +309,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       >
         <div className="bbq-context-menu-header">
           <span className="bbq-context-menu-title">BBQ Island</span>
-          <span className="bbq-context-menu-badge">v2.6</span>
+          <span className="bbq-context-menu-badge">{APP_VERSION_LABEL}</span>
         </div>
 
         <div className="bbq-context-menu-divider" role="separator" />
@@ -402,12 +404,22 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
           >
             <div className="bbq-about-header">
               <span className="bbq-about-brand">BBQ Desktop Island</span>
-              <span className="bbq-about-version">v2.6.0</span>
+              <span className="bbq-about-version">{APP_VERSION_LABEL}</span>
             </div>
             <p className="bbq-about-desc">
               Lightweight, responsive cross-platform productivity island. Zero-polling native telemetry, media controller, and productivity shelf.
             </p>
-            <div className="bbq-about-footer">
+            <div className="bbq-about-footer" style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                id="about-check-updates-btn"
+                className="bbq-btn bbq-btn-secondary"
+                onClick={() => {
+                  openAllowlistedReleaseUrl();
+                }}
+              >
+                Check for Updates
+              </button>
               <button
                 type="button"
                 id="about-close-btn"

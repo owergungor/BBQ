@@ -277,7 +277,10 @@ export interface BbqSettings {
   onboarding_completed: boolean;
   island_position?: IslandPosition;
   island_transparency?: number;
+  always_on_top?: boolean;
+  /** @deprecated Obsolete legacy setting retained only for backwards compatibility with older stored configs */
   auto_update_schedule?: AutoUpdateSchedule;
+  /** @deprecated Obsolete legacy setting retained only for backwards compatibility with older stored configs */
   last_update_check_at?: number | null;
 }
 

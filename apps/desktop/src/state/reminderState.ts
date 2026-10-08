@@ -84,11 +84,39 @@ export async function refreshReminders(): Promise<void> {
   }
 }
 
-// Auto-subscribe to backend events in browser/Tauri environment
-if (typeof window !== "undefined") {
-  subscribeToReminderChanged((reminder) => {
-    updateOrAddReminder(reminder);
-  }).catch((err) => {
-    console.error("Failed to subscribe to reminder changes:", err);
-  });
+let activeUnlisten: (() => void) | null = null;
+let subscriberCount = 0;
+
+/**
+ * Initializes reminder store with on-demand initial read and event subscription.
+ * Idempotent: registers backend event listeners exactly once while active.
+ * Returns an unlisten function that decrements subscriber count and tears down
+ * listeners safely when all consumers have unsubscribed.
+ */
+export async function initializeReminderStore(): Promise<() => void> {
+  await refreshReminders();
+
+  subscriberCount++;
+  if (!activeUnlisten) {
+    const unlisten = await subscribeToReminderChanged((reminder) => {
+      updateOrAddReminder(reminder);
+    });
+    activeUnlisten = unlisten;
+  }
+
+  let cleanedUp = false;
+  return () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    subscriberCount = Math.max(0, subscriberCount - 1);
+    if (subscriberCount === 0 && activeUnlisten) {
+      const teardown = activeUnlisten;
+      activeUnlisten = null;
+      teardown();
+    }
+  };
+}
+
+export function isReminderStoreInitialized(): boolean {
+  return activeUnlisten !== null;
 }

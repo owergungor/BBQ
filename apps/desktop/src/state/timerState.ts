@@ -60,10 +60,14 @@ export function setTimerError(error: string | null): void {
   timerStore.setState({ error, isLoading: false });
 }
 
-let isSubscribed = false;
+let activeUnlisten: (() => void) | null = null;
+let subscriberCount = 0;
 
 /**
- * Initializes timer store with on-demand initial read and event subscription
+ * Initializes timer store with on-demand initial read and event subscription.
+ * Idempotent: registers backend event listeners exactly once while active.
+ * Returns an unlisten function that decrements the subscriber count and safely
+ * tears down the listener when all consumers have unsubscribed.
  */
 export async function initializeTimerStore(): Promise<() => void> {
   timerStore.setState({ isLoading: true });
@@ -79,26 +83,27 @@ export async function initializeTimerStore(): Promise<() => void> {
     timerStore.setState({ isLoading: false });
   }
 
-  if (isSubscribed) {
-    return () => {};
+  subscriberCount++;
+  if (!activeUnlisten) {
+    const unlisten = await subscribeToTimerChanged((updatedSession) => {
+      timerStore.setState({ session: updatedSession, isLoading: false, error: null });
+    });
+    activeUnlisten = unlisten;
   }
-  isSubscribed = true;
 
-  const unlisten = await subscribeToTimerChanged((updatedSession) => {
-    timerStore.setState({ session: updatedSession, isLoading: false, error: null });
-  });
-
+  let cleanedUp = false;
   return () => {
-    isSubscribed = false;
-    unlisten();
+    if (cleanedUp) return;
+    cleanedUp = true;
+    subscriberCount = Math.max(0, subscriberCount - 1);
+    if (subscriberCount === 0 && activeUnlisten) {
+      const teardown = activeUnlisten;
+      activeUnlisten = null;
+      teardown();
+    }
   };
 }
 
-// Auto-subscribe to backend events in browser/Tauri environment
-if (typeof window !== "undefined") {
-  subscribeToTimerChanged((updatedSession) => {
-    timerStore.setState({ session: updatedSession, isLoading: false, error: null });
-  }).catch((err) => {
-    console.error("Failed to auto-subscribe to timer changes:", err);
-  });
+export function isTimerStoreInitialized(): boolean {
+  return activeUnlisten !== null;
 }

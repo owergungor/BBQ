@@ -18,66 +18,59 @@ const ROOT_DIR = path.resolve(__dirname, "../../..");
 describe("BBQ v2 — Milestone 15 Final Verification & Polish Tests", () => {
   describe("1. Settings Launch at Login Deduplication", () => {
     it("ensures exactly one start_at_login switch control exists in SettingsWidget", () => {
-      const settingsWidgetPath = path.join(
-        __dirname,
-        "../src/components/widgets/SettingsWidget.tsx"
+      const appearanceContent = fs.readFileSync(
+        path.join(__dirname, "../src/components/widgets/settings/AppearanceSettingsTab.tsx"),
+        "utf-8"
       );
-      const content = fs.readFileSync(settingsWidgetPath, "utf-8");
+      const islandContent = fs.readFileSync(
+        path.join(__dirname, "../src/components/widgets/settings/IslandSettingsTab.tsx"),
+        "utf-8"
+      );
+      const widgetContent = fs.readFileSync(
+        path.join(__dirname, "../src/components/widgets/SettingsWidget.tsx"),
+        "utf-8"
+      );
 
-      // Verify the primary control exists in the General tab
+      // Verify the primary control exists in the Appearance tab
       assert.match(
-        content,
+        appearanceContent,
         /id="start-at-login-toggle"/,
-        "Primary start-at-login-toggle must exist in General tab"
+        "Primary start-at-login-toggle must exist in Appearance tab"
       );
 
       // Verify the duplicate control in Island tab has been removed
       assert.doesNotMatch(
-        content,
+        islandContent,
         /id="start-login-toggle"/,
         "Duplicate start-login-toggle in Island tab must be removed"
       );
 
-      // Verify exactly one control binds to settings.start_at_login
-      const toggleMatches = content.match(/handleToggle\("start_at_login",/g);
-      assert.equal(
-        toggleMatches?.length,
-        1,
-        `Expected exactly 1 start_at_login handleToggle mutation, but found ${toggleMatches?.length}`
-      );
-
-      const checkedMatches = content.match(/checked=\{settings\.start_at_login\}/g);
-      assert.equal(
-        checkedMatches?.length,
-        1,
-        `Expected exactly 1 checked binding for settings.start_at_login, but found ${checkedMatches?.length}`
-      );
+      // Verify exactly one tab mutates start_at_login
+      assert.match(appearanceContent, /onToggle\("start_at_login",/);
+      assert.doesNotMatch(islandContent, /start_at_login/);
+      assert.match(widgetContent, /startAtLogin=\{settings\.start_at_login\}/);
     });
 
     it("verifies start_at_login is located in primary settings tab and not Island tab", () => {
-      const settingsWidgetPath = path.join(
-        __dirname,
-        "../src/components/widgets/SettingsWidget.tsx"
+      const appearanceContent = fs.readFileSync(
+        path.join(__dirname, "../src/components/widgets/settings/AppearanceSettingsTab.tsx"),
+        "utf-8"
       );
-      const content = fs.readFileSync(settingsWidgetPath, "utf-8");
-
-      const appearanceIndex = content.indexOf('{activeTab === "appearance"');
-      const islandIndex = content.indexOf('{activeTab === "island"');
-      const hotkeyIndex = content.indexOf('{activeTab === "hotkey"');
-      const toggleIndex = content.indexOf('id="start-at-login-toggle"');
-
-      assert.ok(appearanceIndex !== -1, "Appearance/General tab must exist");
-      assert.ok(islandIndex !== -1, "Island tab must exist");
-      assert.ok(toggleIndex !== -1, "start-at-login-toggle must exist");
-
-      assert.ok(
-        toggleIndex > appearanceIndex && toggleIndex < islandIndex,
-        "start-at-login-toggle must be inside the primary appearance/general tab"
+      const islandContent = fs.readFileSync(
+        path.join(__dirname, "../src/components/widgets/settings/IslandSettingsTab.tsx"),
+        "utf-8"
+      );
+      const widgetContent = fs.readFileSync(
+        path.join(__dirname, "../src/components/widgets/SettingsWidget.tsx"),
+        "utf-8"
       );
 
-      const islandSection = content.slice(islandIndex, hotkeyIndex);
+      assert.ok(widgetContent.includes('activeTab === "appearance"'), "Appearance tab must exist");
+      assert.ok(widgetContent.includes('activeTab === "island"'), "Island tab must exist");
+      assert.ok(appearanceContent.includes('id="start-at-login-toggle"'), "start-at-login-toggle must exist in appearance tab");
+
       assert.doesNotMatch(
-        islandSection,
+        islandContent,
         /start_at_login/,
         "Island tab section must not contain any start_at_login control"
       );

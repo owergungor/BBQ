@@ -162,7 +162,11 @@ describe("BBQ — Milestone 17: Production UX & Visual System", () => {
 
   describe("4. Settings Widget Structure & Accessibility", () => {
     const settingsPath = path.resolve(__dirname, "../src/components/widgets/SettingsWidget.tsx");
+    const appearancePath = path.resolve(__dirname, "../src/components/widgets/settings/AppearanceSettingsTab.tsx");
+    const widgetsTabPath = path.resolve(__dirname, "../src/components/widgets/settings/WidgetsSettingsTab.tsx");
     const settingsCode = fs.readFileSync(settingsPath, "utf-8");
+    const appearanceCode = fs.readFileSync(appearancePath, "utf-8");
+    const widgetsCode = fs.readFileSync(widgetsTabPath, "utf-8");
 
     it("defines the 6 production UX tabs", () => {
       const requiredTabs = ["appearance", "island", "hotkey", "privacy", "notifications", "widgets"];
@@ -187,22 +191,23 @@ describe("BBQ — Milestone 17: Production UX & Visual System", () => {
 
     it("implements launch at login toggle in appearance preferences", () => {
       assert.ok(
-        settingsCode.includes('handleToggle("start_at_login"'),
+        settingsCode.includes('start_at_login') &&
+          appearanceCode.includes('start_at_login'),
         "SettingsWidget missing start_at_login toggle"
       );
     });
 
     it("implements compact indicator priority reordering controls", () => {
       assert.ok(
-        settingsCode.includes("moveIndicator(idx, \"up\")"),
+        widgetsCode.includes("moveIndicator(idx, \"up\")"),
         "SettingsWidget missing moveIndicator up action"
       );
       assert.ok(
-        settingsCode.includes("moveIndicator(idx, \"down\")"),
+        widgetsCode.includes("moveIndicator(idx, \"down\")"),
         "SettingsWidget missing moveIndicator down action"
       );
       assert.ok(
-        settingsCode.includes("resetIndicatorOrder"),
+        settingsCode.includes("resetIndicatorOrder") || widgetsCode.includes("onResetIndicatorOrder"),
         "SettingsWidget missing resetIndicatorOrder action"
       );
     });

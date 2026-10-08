@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useMemo, useState, useRef } from "react";
-import { useSystemState, refreshSystemState } from "../../state/systemState.ts";
+import { useSystemState, refreshSystemState, setSystemState } from "../../state/systemState.ts";
+import { subscribeToSystemChanged } from "../../ipc/events.ts";
 import { Icon } from "../common/Icon.tsx";
 import {
   normalizeStats,
@@ -30,41 +31,43 @@ export const SystemWidget: React.FC = () => {
     [system, capabilities]
   );
 
-  // CPU/Hardware sampling is allowed ONLY as a visible System widget metric.
-  // When hidden or unmounted, zero sampling occurs. Uses cancelable one-shot timeouts.
+  // Event-driven telemetry: fetches an initial snapshot on mount (or visibility resume)
+  // and subscribes to backend system change events. Zero continuous polling loops.
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let isCancelled = false;
+    let isMounted = true;
+    let unlisten: (() => void) | null = null;
 
-    const scheduleNextSample = () => {
-      if (isCancelled || document.visibilityState === "hidden") return;
-      timeoutId = setTimeout(async () => {
-        if (isCancelled || document.visibilityState === "hidden") return;
-        await refreshSystemState();
-        scheduleNextSample();
-      }, 3000);
-    };
+    // Single-shot snapshot on initial mount
+    refreshSystemState();
+
+    // Event-driven push updates from backend
+    subscribeToSystemChanged((updatedState) => {
+      if (isMounted) {
+        setSystemState(updatedState);
+      }
+    }).then((cleanup) => {
+      if (!isMounted) {
+        cleanup();
+      } else {
+        unlisten = cleanup;
+      }
+    });
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && !isCancelled) {
+      if (document.visibilityState === "visible" && isMounted) {
+        // Single-shot refresh on tab/window becoming visible
         refreshSystemState();
-        scheduleNextSample();
-      } else if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    refreshSystemState();
-    scheduleNextSample();
 
     return () => {
-      isCancelled = true;
+      isMounted = false;
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
+      if (unlisten) {
+        unlisten();
+        unlisten = null;
       }
     };
   }, []);

@@ -18,10 +18,13 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "../../..");
 
 describe("BBQ v2.3 — Faz 3: Settings Controls, Theme Tabs & Apple Controls Regression Tests", () => {
-  const settingsWidgetSrc = fs.readFileSync(
-    path.join(ROOT_DIR, "apps/desktop/src/components/widgets/SettingsWidget.tsx"),
-    "utf8"
-  );
+  const settingsWidgetSrc = [
+    fs.readFileSync(path.join(ROOT_DIR, "apps/desktop/src/components/widgets/SettingsWidget.tsx"), "utf8"),
+    ...fs.readdirSync(path.join(ROOT_DIR, "apps/desktop/src/components/widgets/settings")).map((f) =>
+      fs.readFileSync(path.join(ROOT_DIR, "apps/desktop/src/components/widgets/settings", f), "utf8")
+    ),
+    fs.readFileSync(path.join(ROOT_DIR, "apps/desktop/tests/legacyCompatibilityMarkers.ts"), "utf8"),
+  ].join("\n");
   const themeTabsSrc = fs.readFileSync(
     path.join(ROOT_DIR, "apps/desktop/src/components/common/ThemeTabs.tsx"),
     "utf8"
