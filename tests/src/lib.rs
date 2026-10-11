@@ -1176,7 +1176,8 @@ mod tests {
         let types_pkg = std::fs::read_to_string(root.join("packages/types/package.json"))
             .expect("Should read packages/types/package.json");
         assert!(
-            types_pkg.contains("\"version\": \"2.7\"")
+            types_pkg.contains("\"version\": \"2.7.0\"")
+                || types_pkg.contains("\"version\": \"2.7\"")
                 || types_pkg.contains("\"version\": \"2.0.0\""),
             "packages/types/package.json must declare valid version"
         );
@@ -1212,6 +1213,7 @@ mod tests {
         let defaults = bbq_core::BbqSettings::default();
         assert!(!defaults.first_run_completed);
         assert!(!defaults.onboarding_completed);
+        assert!(!defaults.move_hud);
     }
 
     #[tokio::test]

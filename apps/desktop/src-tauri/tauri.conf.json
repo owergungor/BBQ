@@ -58,6 +58,10 @@
           "librsvg2-2"
         ]
       }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "frameworks": []
     }
   }
 }

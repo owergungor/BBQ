@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback, useRef } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useIslandState, islandStore } from "../../island/islandState.ts";
 import { islandRuntime } from "../../island/IslandRuntime.ts";
 import { useMediaState, initializeMediaStore } from "../../state/mediaState.ts";
@@ -38,6 +39,7 @@ export const Island: React.FC = () => {
   const disabledWidgets = useSettingsState((s) => s.settings.disabled_widgets);
   const compactIndicatorOrder = useSettingsState((s) => s.settings.compact_indicator_order);
   const islandPosition = useSettingsState((s) => s.settings.island_position || "top-center");
+  const moveHud = useSettingsState((s) => s.settings.move_hud ?? false);
 
   const activeWidgets = React.useMemo(() => {
     return getOrderedActiveWidgets(
@@ -189,6 +191,30 @@ export const Island: React.FC = () => {
     }
   }, [state]);
 
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    // Only primary mouse button (left click)
+    if (e.button !== 0) return;
+    // Only if Move HUD is enabled
+    if (!moveHud) return;
+
+    // Guard: ignore clicks on interactive elements (buttons, inputs, tabs, dropdowns)
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      target.closest(
+        "button, input, select, textarea, a, [role='button'], [role='menuitem'], [role='tab'], [role='checkbox'], [contenteditable='true'], .bbq-interactive, .bbq-tab, .bbq-btn, .bbq-context-menu"
+      )
+    ) {
+      return;
+    }
+
+    try {
+      getCurrentWindow().startDragging();
+    } catch {
+      // Non-Tauri fallback
+    }
+  }, [moveHud]);
+
   const handleMouseEnter = useCallback(async () => {
     await islandRuntime.handleEvent({ type: "USER_HOVER" });
   }, []);
@@ -254,7 +280,8 @@ export const Island: React.FC = () => {
     e.stopPropagation();
     setContextMenuPos({ x: e.clientX, y: e.clientY });
 
-    if (state !== "Expanded") {
+    const liveState = islandStore.getState().state;
+    if (liveState !== "Expanded") {
       const currentSettings = settingsStore.getState().settings;
       const targetW = Math.max(currentSettings.island_width, 380);
       const targetH = Math.max(currentSettings.island_height, 44) + 340;
@@ -265,14 +292,15 @@ export const Island: React.FC = () => {
         preferredHeight: targetH,
       });
     }
-  }, [state]);
+  }, []);
 
   const handleContextMenuClose = useCallback(async () => {
     setContextMenuPos(null);
-    if (state !== "Expanded") {
+    const liveState = islandStore.getState().state;
+    if (liveState !== "Expanded") {
       const currentSettings = settingsStore.getState().settings;
       await bbqCommands.resizeIsland(
-        state === "Hovering" ? "hovering" : "idle",
+        liveState === "Hovering" ? "hovering" : "idle",
         {
           compactWidth: currentSettings.island_width,
           compactHeight: currentSettings.island_height,
@@ -281,7 +309,7 @@ export const Island: React.FC = () => {
         }
       );
     }
-  }, [state]);
+  }, []);
 
   // Fast keyboard navigation between HUD tabs while expanded
   useEffect(() => {
@@ -324,6 +352,8 @@ export const Island: React.FC = () => {
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        moveHud={moveHud}
+        onPointerDown={handlePointerDown}
       >
         <IslandContent
           state={state}

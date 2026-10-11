@@ -12,7 +12,7 @@ import {
 import { useHotkeyState } from "../../state/hotkeyState.ts";
 import type { ThemePreference, AccentColor, PlatformCapabilities } from "@bbq/types";
 import { bbqCommands } from "../../ipc/commands.ts";
-import { Icon } from "../common/Icon.tsx";
+import { Icon, type IconName } from "../common/Icon.tsx";
 import {
   clampIslandWidth,
   clampIslandHeight,
@@ -153,7 +153,7 @@ export const SettingsWidget: React.FC = () => {
   };
 
   const commitTransparency = async (val: number) => {
-    const clamped = Math.max(0, Math.min(80, Math.round(val)));
+    const clamped = Math.max(0, Math.min(80, Math.round(val / 10) * 10));
     if (clamped !== settings.island_transparency) {
       await updateSettingsBatch({ island_transparency: clamped });
       showStatus("Island transparency updated");
@@ -338,6 +338,16 @@ export const SettingsWidget: React.FC = () => {
     showStatus("Widget order reset to default");
   };
 
+  const TAB_ICONS: Record<SettingsTab, IconName> = {
+    appearance: "palette",
+    island: "monitor",
+    hotkey: "keyboard",
+    privacy: "lock",
+    notifications: "bell",
+    widgets: "layout",
+    about: "info",
+  };
+
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "appearance", label: "Appearance" },
     { id: "island", label: "Island" },
@@ -347,6 +357,29 @@ export const SettingsWidget: React.FC = () => {
     { id: "widgets", label: "Widgets" },
     { id: "about", label: "About" },
   ];
+
+  const handleTabKeyDown = (e: React.KeyboardEvent, index: number) => {
+    let nextIndex = index;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      nextIndex = (index + 1) % tabs.length;
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      nextIndex = (index - 1 + tabs.length) % tabs.length;
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      nextIndex = 0;
+    } else if (e.key === "End") {
+      e.preventDefault();
+      nextIndex = tabs.length - 1;
+    } else {
+      return;
+    }
+    const nextTab = tabs[nextIndex];
+    setActiveTab(nextTab.id);
+    const btn = document.getElementById(`settings-tab-${nextTab.id}`);
+    btn?.focus();
+  };
 
   return (
     <div
@@ -391,14 +424,15 @@ export const SettingsWidget: React.FC = () => {
         aria-label="Settings Categories"
         style={{
           display: "flex",
-          gap: "2px",
+          gap: "4px",
           marginBottom: "8px",
           borderBottom: "1px solid var(--bbq-border-subtle)",
-          overflowX: "auto",
+          overflowX: "visible",
           flexShrink: 0,
+          position: "relative",
         }}
       >
-        {tabs.map((tab) => {
+        {tabs.map((tab, idx) => {
           const isSelected = activeTab === tab.id;
           return (
             <button
@@ -407,23 +441,20 @@ export const SettingsWidget: React.FC = () => {
               type="button"
               role="tab"
               aria-selected={isSelected}
+              aria-label={tab.label}
+              title={tab.label}
               aria-controls={`settings-panel-${tab.id}`}
+              tabIndex={isSelected ? 0 : -1}
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: "3px 8px",
-                background: isSelected ? "rgba(255, 255, 255, 0.08)" : "transparent",
-                border: "none",
-                borderBottom: isSelected ? "2px solid var(--bbq-accent)" : "2px solid transparent",
-                color: isSelected ? "var(--bbq-text)" : "var(--bbq-text-muted)",
-                cursor: "pointer",
-                fontSize: "11px",
-                fontWeight: isSelected ? 600 : 400,
-                borderRadius: "4px 4px 0 0",
-                whiteSpace: "nowrap",
-                transition: "all 120ms ease",
-              }}
+              onKeyDown={(e) => handleTabKeyDown(e, idx)}
+              className={`bbq-settings-tab-btn ${isSelected ? "active" : ""}`}
             >
-              {tab.label}
+              <span className="bbq-settings-tab-icon" aria-hidden="true">
+                <Icon name={TAB_ICONS[tab.id]} size={15} />
+              </span>
+              <span className="bbq-tab-tooltip" role="tooltip" aria-hidden="true">
+                {tab.label}
+              </span>
             </button>
           );
         })}
@@ -517,11 +548,13 @@ export const SettingsWidget: React.FC = () => {
             draftRetention={draftRetention}
             clipboardLiveSupported={clipboardLiveSupported}
             capabilities={capabilities}
+            isLoading={isLoading}
             onDraftClipboardMaxChange={setDraftClipboardMax}
             onDraftRetentionChange={setDraftRetention}
             onCommitClipboardMax={commitClipboardMax}
             onCommitRetention={commitRetention}
             onToggle={handleToggle}
+            onResetDefaults={handleReset}
           />
         )}
 
@@ -557,36 +590,18 @@ export const SettingsWidget: React.FC = () => {
         )}
       </div>
 
-      {/* Footer Actions */}
+      {/* Footer Info */}
       <div
         style={{
           marginTop: "auto",
-          paddingTop: "12px",
+          paddingTop: "10px",
           borderTop: "1px solid var(--bbq-border)",
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent: "flex-end",
           alignItems: "center",
           flexShrink: 0,
         }}
       >
-        <button
-          type="button"
-          onClick={handleReset}
-          disabled={isLoading}
-          style={{
-            padding: "6px 12px",
-            borderRadius: "6px",
-            border: "1px solid var(--bbq-danger)",
-            background: "rgba(239, 68, 68, 0.1)",
-            color: "var(--bbq-danger)",
-            cursor: "pointer",
-            fontSize: "12px",
-            fontWeight: 500,
-          }}
-          aria-label="Reset all preferences to defaults"
-        >
-          Reset to Defaults
-        </button>
         <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
           Preferences are automatically saved to SQLite
         </span>

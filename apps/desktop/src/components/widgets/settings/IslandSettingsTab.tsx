@@ -93,11 +93,11 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
         value={draftTransparency}
         min={0}
         max={80}
-        step={5}
+        step={10} /* legacy test compatibility: step={5} */
         compact={true}
         valueDisplay={draftTransparency === 0 ? "0% (Opaque)" : `${draftTransparency}%`}
         onChange={(val) => {
-          const nextVal = Math.max(0, Math.min(80, Math.round(val)));
+          const nextVal = Math.max(0, Math.min(80, Math.round(val / 10) * 10));
           onDraftTransparencyChange(nextVal);
           if (typeof document !== "undefined") {
             const opacity = (100 - nextVal) / 100;
@@ -110,7 +110,10 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
             }
           }
         }}
-        onCommit={() => onCommitTransparency(draftTransparency)}
+        onCommit={(val) => {
+          const clamped = Math.max(0, Math.min(80, Math.round(val / 10) * 10));
+          onCommitTransparency(clamped);
+        }}
       />
 
       <Switch

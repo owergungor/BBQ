@@ -72,11 +72,13 @@ export interface PrivacySettingsTabProps {
   draftRetention: number;
   clipboardLiveSupported: boolean;
   capabilities: PlatformCapabilities | null;
+  isLoading?: boolean;
   onDraftClipboardMaxChange: (val: number) => void;
   onDraftRetentionChange: (val: number) => void;
   onCommitClipboardMax: () => Promise<void>;
   onCommitRetention: () => Promise<void>;
   onToggle: (key: string, value: any) => Promise<void>;
+  onResetDefaults?: () => Promise<void>;
 }
 
 export interface NotificationsSettingsTabProps {

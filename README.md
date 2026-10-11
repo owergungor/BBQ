@@ -38,10 +38,10 @@ Pre-built binaries are available from [GitHub Releases](https://github.com/owerg
 
 ### Standard Artifacts
 
-- `win-x64-setup.exe` - Windows installer
-- `win-x64.zip` - Windows portable package
-- `mac-arm64.dmg` - macOS disk image
-- `mac-arm64.app.zip` - macOS standalone app archive
+- `BBQ-win-x64-setup.exe` - Windows installer
+- `BBQ-win-x64.zip` - Windows portable package
+- `BBQ-mac-arm64.dmg` - macOS disk image
+- `BBQ-mac-arm64.app.zip` - macOS standalone app archive
 
 ---
 

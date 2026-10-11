@@ -85,10 +85,10 @@ Release artifacts must strictly follow the standardized naming convention:
 
 | Platform / Architecture | Standardized Artifact | Format | Description |
 |---|---|---|---|
-| **macOS ARM64** | `mac-arm64.app.zip` | Zip Archive | Zipped `.app` bundle preserving symlinks and signatures |
-| **macOS ARM64** | `mac-arm64.dmg` | Apple Disk Image | Self-contained Drag-to-Applications installer DMG |
-| **Windows x64** | `win-x64-setup.exe` | NSIS Installer | Standalone currentUser installer |
-| **Windows x64** | `win-x64.zip` | Zip Archive | Standalone portable executable zip |
+| **macOS ARM64** | `BBQ-mac-arm64.app.zip` | Zip Archive | Zipped `.app` bundle preserving symlinks and signatures |
+| **macOS ARM64** | `BBQ-mac-arm64.dmg` | Apple Disk Image | Self-contained Drag-to-Applications installer DMG |
+| **Windows x64** | `BBQ-win-x64-setup.exe` | NSIS Installer | Standalone currentUser installer |
+| **Windows x64** | `BBQ-win-x64.zip` | Zip Archive | Standalone portable executable zip |
 | **Linux (x64)** | `*.deb`, `*.AppImage` | Debian / AppImage | Native Linux distribution packages |
 
 ### SHA-256 Hash Verification:

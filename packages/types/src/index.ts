@@ -278,6 +278,7 @@ export interface BbqSettings {
   island_position?: IslandPosition;
   island_transparency?: number;
   always_on_top?: boolean;
+  move_hud?: boolean;
   /** @deprecated Obsolete legacy setting retained only for backwards compatibility with older stored configs */
   auto_update_schedule?: AutoUpdateSchedule;
   /** @deprecated Obsolete legacy setting retained only for backwards compatibility with older stored configs */

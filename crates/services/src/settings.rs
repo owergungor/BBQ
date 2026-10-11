@@ -213,6 +213,9 @@ impl SettingsServiceTrait for SettingsService {
         if let Ok(Some(aot)) = self.repo.get("always_on_top") {
             settings.always_on_top = aot == "true";
         }
+        if let Ok(Some(mh)) = self.repo.get("move_hud") {
+            settings.move_hud = mh == "true";
+        }
 
         Ok(settings)
     }
@@ -379,6 +382,8 @@ impl SettingsServiceTrait for SettingsService {
                 "false"
             },
         )?;
+        self.repo
+            .set("move_hud", if settings.move_hud { "true" } else { "false" })?;
 
         self.notify_change(settings);
         Ok(())
@@ -414,20 +419,27 @@ mod tests {
             .expect("set legacy");
         repo.set("always_on_top", "false")
             .expect("set always on top");
+        repo.set("move_hud", "true").expect("set move hud");
 
         let service = SettingsService::new(repo.clone());
         let loaded = service.get_settings().expect("load settings");
 
         // Old obsolete keys are safely ignored and do not fail loading
         assert!(!loaded.always_on_top);
+        assert!(loaded.move_hud);
 
-        // Update always_on_top back to true
+        // Update always_on_top back to true, move_hud to false
         service
             .update_setting("always_on_top", "true")
             .expect("update always_on_top");
+        service
+            .update_setting("move_hud", "false")
+            .expect("update move_hud");
 
         let updated = service.get_settings().expect("get updated");
         assert!(updated.always_on_top);
+        assert!(!updated.move_hud);
         assert_eq!(repo.get("always_on_top").unwrap().as_deref(), Some("true"));
+        assert_eq!(repo.get("move_hud").unwrap().as_deref(), Some("false"));
     }
 }

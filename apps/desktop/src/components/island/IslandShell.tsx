@@ -24,6 +24,8 @@ interface IslandShellProps {
   onDragEnter?: (e: React.DragEvent) => void;
   onDragLeave?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
+  moveHud?: boolean;
+  onPointerDown?: (e: React.PointerEvent) => void;
 }
 
 export const IslandShell: React.FC<IslandShellProps> = ({
@@ -43,6 +45,8 @@ export const IslandShell: React.FC<IslandShellProps> = ({
   onDragEnter,
   onDragLeave,
   onDrop,
+  moveHud = false,
+  onPointerDown,
 }) => {
   const userCompactWidth = useSettingsState((s) => s.settings.island_width);
   const islandPosition = useSettingsState((s) => s.settings.island_position || "top-center");
@@ -50,6 +54,7 @@ export const IslandShell: React.FC<IslandShellProps> = ({
   const stateClass = `state-${state.toLowerCase()}`;
   const mediaClass = hasMedia ? "has-media" : "";
   const dragClass = isDragOver ? "drag-over" : "";
+  const moveClass = moveHud ? "bbq-move-hud-active" : "";
 
   let dynamicStyle: React.CSSProperties = { ...style };
   if (state === "Idle") {
@@ -91,8 +96,10 @@ export const IslandShell: React.FC<IslandShellProps> = ({
       aria-label="BBQ Productivity Island"
       tabIndex={0}
       data-anchor={islandPosition}
-      className={`bbq-island-shell ${modeClass} ${stateClass} ${mediaClass} ${dragClass}`}
+      data-move-hud={moveHud ? "true" : undefined}
+      className={`bbq-island-shell ${modeClass} ${stateClass} ${mediaClass} ${dragClass} ${moveClass}`.trim()}
       style={dynamicStyle}
+      onPointerDown={onPointerDown}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       onClick={onClick}

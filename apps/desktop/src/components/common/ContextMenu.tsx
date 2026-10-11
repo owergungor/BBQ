@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Icon } from "./Icon.tsx";
 import { widgetRegistry } from "../../island/widgetRegistry.ts";
-import { setActiveWidget, useIslandState } from "../../island/islandState.ts";
+import { setActiveWidget, useIslandState, islandStore } from "../../island/islandState.ts";
 import { islandRuntime } from "../../island/IslandRuntime.ts";
 import { useSettingsState, updateSetting, openAllowlistedReleaseUrl } from "../../state/settingsState.ts";
 import { refreshSystemState } from "../../state/systemState.ts";
@@ -11,6 +11,7 @@ import { useTimerState } from "../../state/timerState.ts";
 import { useDropState, clearDrop } from "../../state/dropState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import { escapeManager, EscapePriority } from "../../island/escapeManager.ts";
+import { reportAppError } from "../../state/errorState.ts";
 import { APP_VERSION_LABEL } from "../../version.ts";
 import type { IconName } from "./Icon.tsx";
 
@@ -35,6 +36,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
   const [showSwitchSubmenu, setShowSwitchSubmenu] = useState<boolean>(false);
   const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
   const alwaysOnTop = settings.always_on_top ?? true;
+  const moveHud = Boolean(settings.move_hud);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Compute screen-edge clamped position and submenu flip
@@ -106,18 +108,32 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
   const activeWidgets = Array.from(widgetRegistry.getAll().values());
 
   const handleToggleExpand = useCallback(async () => {
-    if (isExpanded) {
+    const liveIsExpanded = islandStore.getState().state === "Expanded";
+    if (liveIsExpanded) {
       await islandRuntime.handleEvent({ type: "USER_ESCAPE" });
     } else {
       await islandRuntime.transitionTo("Expanded", "mouse");
     }
     onClose();
-  }, [isExpanded, onClose]);
+  }, [onClose]);
 
   const handleTogglePin = useCallback(async () => {
     await updateSetting("always_on_top", (!alwaysOnTop).toString());
     onClose();
   }, [alwaysOnTop, onClose]);
+
+  const handleToggleMoveHud = useCallback(async () => {
+    try {
+      const nextVal = !moveHud;
+      const success = await updateSetting("move_hud", nextVal.toString());
+      if (!success) {
+        reportAppError(new Error("Unable to save Move HUD preference"), { category: "settings" });
+      }
+    } catch (err) {
+      reportAppError(err, { category: "settings" });
+    }
+    onClose();
+  }, [moveHud, onClose]);
 
   const handleReloadWidget = useCallback(async () => {
     if (activeWidgetId === "system") {
@@ -215,7 +231,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       id: "pin",
       label: alwaysOnTop ? "Always on Top ✓" : "Always on Top",
       icon: "pin" as const,
+      role: "menuitemcheckbox" as const,
+      checked: alwaysOnTop,
       action: handleTogglePin,
+    },
+    {
+      id: "move_hud",
+      label: moveHud ? "Move HUD ✓" : "Move HUD",
+      icon: "move" as const,
+      role: "menuitemcheckbox" as const,
+      checked: moveHud,
+      action: handleToggleMoveHud,
     },
     {
       id: "expand",
@@ -321,7 +347,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
               <button
                 key={item.id}
                 id={`context-item-${item.id}`}
-                role="menuitem"
+                role={item.role ?? "menuitem"}
+                aria-checked={item.checked}
                 tabIndex={isSelected ? 0 : -1}
                 className={
                   "bbq-context-menu-item" +

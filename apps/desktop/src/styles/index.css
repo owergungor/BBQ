@@ -262,6 +262,20 @@
 }
 
 /* ==========================================================================
+   Transparent Surface Readability Hardening (WCAG AA Contrast)
+   ========================================================================== */
+html:not([data-opaque="true"]) {
+  /* Enhance contrast of text tokens when background has transparency */
+  --bbq-text-muted: #a1a1aa;
+  --bbq-text-secondary: #e4e4e7;
+}
+
+html[data-theme="light"]:not([data-opaque="true"]) {
+  --bbq-text-muted: #475569;
+  --bbq-text-secondary: #1e293b;
+}
+
+/* ==========================================================================
    System Accent Color Themes — Dark Mode (Default)
    ========================================================================== */
 :root[data-accent="blue"],
@@ -4035,6 +4049,114 @@ html, body {
   display: none;
 }
 
+.bbq-settings-tab-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--bbq-text-muted);
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: all var(--bbq-duration-fast, 120ms) ease;
+}
+
+.bbq-settings-tab-btn:hover {
+  background: var(--bbq-surface-hover, rgba(255, 255, 255, 0.08));
+  color: var(--bbq-text);
+}
+
+.bbq-settings-tab-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--bbq-focus-ring);
+}
+
+.bbq-settings-tab-btn.active {
+  background: var(--bbq-surface-elevated, rgba(255, 255, 255, 0.1));
+  border-bottom: 2px solid var(--bbq-accent);
+  color: var(--bbq-text);
+}
+
+.bbq-tab-tooltip {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--bbq-text);
+  background: var(--bbq-surface-glass-expanded, #18181b);
+  border: 1px solid var(--bbq-border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 100;
+}
+
+.bbq-settings-tab-btn:hover .bbq-tab-tooltip,
+.bbq-settings-tab-btn:focus-visible .bbq-tab-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(6px);
+}
+
+.bbq-number-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bbq-number-input-group.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.bbq-numeric-control-wrapper {
+  width: 100%;
+}
+
+.bbq-privacy-reset-card {
+  background: rgba(239, 68, 68, 0.04);
+  border-radius: 8px;
+  padding: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+/* App-Owned Error Banner */
+.bbq-app-error-banner {
+  animation: bbq-error-slide-in var(--bbq-duration-fast, 120ms) var(--bbq-ease-spring);
+}
+
+@keyframes bbq-error-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.bbq-app-error-banner .bbq-btn-retry:hover {
+  background: rgba(239, 68, 68, 0.3) !important;
+}
+
+.bbq-app-error-banner .bbq-btn-dismiss:hover {
+  color: var(--bbq-text, #ffffff) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
 /* Widget Header and Badges */
 .bbq-widget-header-row {
   display: flex;
@@ -4967,16 +5089,14 @@ html, body {
 }
 
 .bbq-dropdown-menu {
-  position: absolute;
-  left: 0;
-  right: 0;
-  min-width: 100%;
+  position: fixed;
+  min-width: 120px;
   max-height: 220px;
   overflow-y: auto;
   overflow-x: hidden;
-  z-index: 1000;
-  background: var(--bbq-bg-active);
-  background: color-mix(in srgb, var(--bbq-bg-active) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
+  z-index: 9999;
+  background: var(--bbq-surface, rgba(24, 24, 27, 0.98));
+  background: color-mix(in srgb, var(--bbq-surface, #18181b) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(var(--bbq-glass-blur-expanded, 32px)) saturate(180%);
   -webkit-backdrop-filter: blur(var(--bbq-glass-blur-expanded, 32px)) saturate(180%);
   border: 1px solid var(--bbq-border-glow);
@@ -4987,16 +5107,26 @@ html, body {
   gap: 2px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   animation: bbq-menu-fade-in var(--bbq-duration-fast) var(--bbq-ease-spring);
+  box-sizing: border-box;
+}
+
+[data-theme="light"] .bbq-dropdown-menu {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #1a1a1a;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .bbq-dropdown-menu.open-down {
-  top: 100%;
-  margin-top: 4px;
+  margin-top: 0;
 }
 
 .bbq-dropdown-menu.flip-up {
-  bottom: 100%;
-  margin-bottom: 4px;
+  margin-bottom: 0;
+}
+
+.bbq-theme-select-container.dropdown-open {
+  z-index: 50;
 }
 
 .bbq-dropdown-item {
@@ -5186,4 +5316,13 @@ html, body {
   height: 4px;
   cursor: pointer;
   accent-color: var(--bbq-accent, #0A84FF);
+}
+
+/* Move HUD active drag styles */
+.bbq-island-shell.bbq-move-hud-active {
+  cursor: grab !important;
+}
+
+.bbq-island-shell.bbq-move-hud-active:active {
+  cursor: grabbing !important;
 }

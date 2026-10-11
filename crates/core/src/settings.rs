@@ -66,6 +66,10 @@ fn default_always_on_top() -> bool {
     true
 }
 
+fn default_move_hud() -> bool {
+    false
+}
+
 /// Strongly typed, persistent user preferences for BBQ
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BbqSettings {
@@ -98,6 +102,8 @@ pub struct BbqSettings {
     pub island_transparency: u32,
     #[serde(default = "default_always_on_top")]
     pub always_on_top: bool,
+    #[serde(default = "default_move_hud")]
+    pub move_hud: bool,
 }
 
 pub fn is_valid_hex_color(s: &str) -> bool {
@@ -141,6 +147,7 @@ impl Default for BbqSettings {
             island_position: "top-center".to_string(),
             island_transparency: 0,
             always_on_top: true,
+            move_hud: false,
         }
     }
 }
@@ -417,6 +424,15 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
                 )));
             }
         }
+        "move_hud" => {
+            let lower = value.trim().to_lowercase();
+            if lower != "true" && lower != "false" {
+                return Err(BbqError::Validation(format!(
+                    "Invalid boolean for move_hud: '{}'",
+                    value
+                )));
+            }
+        }
         "auto_update_schedule" | "last_update_check_at" => {
             // Obsolete settings keys accepted safely for backward compatibility with older persisted state
         }
@@ -540,6 +556,12 @@ mod tests {
         assert!(validate_setting_entry("always_on_top", "true").is_ok());
         assert!(validate_setting_entry("always_on_top", "false").is_ok());
         assert!(validate_setting_entry("always_on_top", "invalid").is_err());
+
+        // Move HUD validation
+        assert!(!settings.move_hud);
+        assert!(validate_setting_entry("move_hud", "true").is_ok());
+        assert!(validate_setting_entry("move_hud", "false").is_ok());
+        assert!(validate_setting_entry("move_hud", "invalid").is_err());
 
         // Obsolete auto-update keys are accepted safely for backward compatibility
         assert!(validate_setting_entry("auto_update_schedule", "startup").is_ok());

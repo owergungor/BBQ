@@ -1,7 +1,7 @@
 # BBQ Windows Release Packaging Script
 # Standardizes release artifacts to:
-#   - win-x64-setup.exe
-#   - win-x64.zip
+#   - BBQ-win-x64-setup.exe
+#   - BBQ-win-x64.zip
 # Computes SHA256 checksums after renaming and verifies x64 architecture.
 
 param(
@@ -64,15 +64,15 @@ if ($badFiles.Count -gt 0) {
 # 5. Prepare output directory
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
-$setupDst = Join-Path $OutputDir "win-x64-setup.exe"
-$zipDst = Join-Path $OutputDir "win-x64.zip"
+$setupDst = Join-Path $OutputDir "BBQ-win-x64-setup.exe"
+$zipDst = Join-Path $OutputDir "BBQ-win-x64.zip"
 
-# Copy installer -> win-x64-setup.exe
-Write-Host "Standardizing installer -> win-x64-setup.exe"
+# Copy installer -> BBQ-win-x64-setup.exe
+Write-Host "Standardizing installer -> BBQ-win-x64-setup.exe"
 Copy-Item -Path $installer.FullName -Destination $setupDst -Force
 
-# Zip binary -> win-x64.zip
-Write-Host "Creating portable zip -> win-x64.zip"
+# Zip binary -> BBQ-win-x64.zip
+Write-Host "Creating portable zip -> BBQ-win-x64.zip"
 if (Test-Path $zipDst) { Remove-Item -Force $zipDst }
 Compress-Archive -Path $binary.FullName -DestinationPath $zipDst -Force
 

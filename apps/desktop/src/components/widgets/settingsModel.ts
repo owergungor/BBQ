@@ -383,6 +383,7 @@ export interface SanitizedDiagnostics {
     clipboardRetentionDays: number;
     compactModeAuto: boolean;
     alwaysOnTop: boolean;
+    moveHud?: boolean;
     pinned: boolean;
     onboardingCompleted: boolean;
     activeWidgetsCount: number;
@@ -412,6 +413,7 @@ export function generateSanitizedDiagnostics(
     clipboard_retention_days?: number;
     compact_mode_auto?: boolean;
     always_on_top?: boolean;
+    move_hud?: boolean;
     pinned?: boolean;
     onboarding_completed?: boolean;
     disabled_widgets?: string[];
@@ -498,6 +500,7 @@ export function generateSanitizedDiagnostics(
       clipboardRetentionDays: settings.clipboard_retention_days ?? DEFAULT_CLIPBOARD_RETENTION_DAYS,
       compactModeAuto: Boolean(settings.compact_mode_auto),
       alwaysOnTop: Boolean(settings.always_on_top),
+      moveHud: Boolean(settings.move_hud),
       pinned: Boolean(settings.pinned),
       onboardingCompleted: Boolean(settings.onboarding_completed),
       activeWidgetsCount: activeCount,

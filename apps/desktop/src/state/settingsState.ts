@@ -115,6 +115,7 @@ export const defaultSettings: BbqSettings = {
   island_position: "top-center",
   island_transparency: 0,
   always_on_top: true,
+  move_hud: false,
 };
 
 export function isEffectiveLight(theme: BbqSettings["theme"]): boolean {
@@ -440,7 +441,7 @@ if (typeof window !== "undefined") {
   initSettingsState();
 }
 
-function coerceSettingValue(key: keyof BbqSettings, value: string): unknown {
+export function coerceSettingValue(key: keyof BbqSettings, value: string): unknown {
   switch (key) {
     case "reduced_motion":
     case "auto_expand_on_event":
@@ -478,6 +479,7 @@ function coerceSettingValue(key: keyof BbqSettings, value: string): unknown {
       }
 
     case "always_on_top":
+    case "move_hud":
       return value === "true";
 
     case "auto_update_schedule":

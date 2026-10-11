@@ -266,6 +266,224 @@ export const Slider: React.FC<SliderProps> = ({
 };
 
 /* ==========================================================================
+   3.5. Accessible Numeric Input
+   ========================================================================== */
+export interface NumberInputProps {
+  id: string;
+  label: string;
+  description?: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  onChange: (val: number) => void;
+  onCommit?: (val: number) => void;
+  disabled?: boolean;
+}
+
+export const NumberInput: React.FC<NumberInputProps> = ({
+  id,
+  label,
+  description,
+  value,
+  min,
+  max,
+  step = 1,
+  unit,
+  onChange,
+  onCommit,
+  disabled = false,
+}) => {
+  const [textValue, setTextValue] = useState<string>(value.toString());
+  const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setTextValue(value.toString());
+      setError(null);
+    }
+  }, [value, isFocused]);
+
+  const commitValue = (raw: string) => {
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      // Empty input: reject and revert safely to last valid persisted value
+      setTextValue(value.toString());
+      setError(null);
+      return;
+    }
+    const num = Number(trimmed);
+    if (!Number.isFinite(num) || Number.isNaN(num)) {
+      // Non-finite: reject and revert safely
+      setTextValue(value.toString());
+      setError(null);
+      return;
+    }
+    const clamped = Math.max(min, Math.min(max, Math.round(num)));
+    setTextValue(clamped.toString());
+    setError(null);
+    onChange(clamped);
+    onCommit?.(clamped);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitValue(textValue);
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setTextValue(value.toString());
+      setError(null);
+      e.currentTarget.blur();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      const current = Number(textValue);
+      const base = Number.isFinite(current) ? current : value;
+      const next = Math.min(max, base + step);
+      setTextValue(next.toString());
+      setError(null);
+      onChange(next);
+      onCommit?.(next);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      const current = Number(textValue);
+      const base = Number.isFinite(current) ? current : value;
+      const next = Math.max(min, base - step);
+      setTextValue(next.toString());
+      setError(null);
+      onChange(next);
+      onCommit?.(next);
+    }
+  };
+
+  return (
+    <div className={`bbq-number-input-group ${disabled ? "disabled" : ""}`}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <label
+            htmlFor={id}
+            style={{
+              fontWeight: 500,
+              fontSize: "12px",
+              color: "var(--bbq-text)",
+              display: "block",
+            }}
+          >
+            {label}
+          </label>
+          {description && (
+            <span
+              id={`${id}-desc`}
+              style={{
+                fontSize: "11px",
+                color: "var(--bbq-text-muted)",
+                display: "block",
+                marginTop: "2px",
+                lineHeight: 1.4,
+              }}
+            >
+              {description}
+            </span>
+          )}
+        </div>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            background: "var(--bbq-surface-elevated, rgba(255, 255, 255, 0.06))",
+            border: `1px solid ${error ? "var(--bbq-danger)" : "var(--bbq-border)"}`,
+            borderRadius: "6px",
+            padding: "2px 8px",
+            transition: "border-color 120ms ease",
+          }}
+        >
+          <input
+            id={id}
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={textValue}
+            disabled={disabled}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => {
+              setIsFocused(false);
+              commitValue(textValue);
+            }}
+            onChange={(e) => {
+              const val = e.target.value;
+              setTextValue(val);
+              const n = Number(val);
+              if (val.trim() !== "" && Number.isFinite(n)) {
+                if (n < min || n > max) {
+                  setError(`Range: ${min}–${max}`);
+                } else {
+                  setError(null);
+                  onChange(Math.round(n));
+                }
+              }
+            }}
+            onKeyDown={handleKeyDown}
+            aria-invalid={Boolean(error)}
+            aria-describedby={description ? `${id}-desc` : undefined}
+            style={{
+              width: "56px",
+              background: "transparent",
+              border: "none",
+              color: "var(--bbq-text)",
+              fontSize: "12px",
+              fontWeight: 600,
+              textAlign: "right",
+              outline: "none",
+              padding: "2px 0",
+              fontFamily: "var(--bbq-font-mono, monospace)",
+            }}
+          />
+          {unit && (
+            <span
+              style={{
+                fontSize: "11px",
+                color: "var(--bbq-text-muted)",
+                fontWeight: 500,
+                userSelect: "none",
+              }}
+            >
+              {unit}
+            </span>
+          )}
+        </div>
+      </div>
+      {error && (
+        <span
+          role="alert"
+          style={{
+            fontSize: "10px",
+            color: "var(--bbq-danger)",
+            marginTop: "2px",
+            display: "block",
+            textAlign: "right",
+          }}
+        >
+          {error}
+        </span>
+      )}
+    </div>
+  );
+};
+
+/* ==========================================================================
    4. Accent Color Picker (11 Presets + Custom Color Picker)
    ========================================================================== */
 export const ACCENT_PRESETS: {

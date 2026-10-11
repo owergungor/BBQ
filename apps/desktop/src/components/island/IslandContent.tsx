@@ -21,6 +21,7 @@ import { useSettingsState, initSettingsState } from "../../state/settingsState.t
 import { getOrderedActiveWidgets } from "../../island/compactOrder.ts";
 import { subscribeToDatabaseRecovered } from "../../ipc/events.ts";
 import { Icon } from "../common/Icon.tsx";
+import { AppErrorBanner } from "../common/AppErrorBanner.tsx";
 
 export interface WidgetRendererProps {
   onSelectWidget: (widgetId: string) => void;
@@ -138,6 +139,7 @@ export const IslandContent: React.FC<IslandContentProps> = ({
         />
 
         <div className="bbq-expanded-body">
+          <AppErrorBanner />
           {dbRecoveryWarning && (
             <div
               role="status"

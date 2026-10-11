@@ -111,8 +111,16 @@ jobs:
 
       - name: Package & Standardize Artifacts (macOS ARM64)
         if: runner.os == 'macOS'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          BBQ_RELEASE_BUILD: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '') }}
         run: |
-          pnpm --filter @bbq/desktop tauri build --bundles app,dmg --ci --no-sign
+          pnpm --filter @bbq/desktop tauri build --bundles app --ci --no-sign
           bash scripts/package-macos.sh
 
       - name: Upload macOS Release Artifacts
@@ -121,8 +129,8 @@ jobs:
         with:
           name: mac-arm64
           path: |
-            target/release/release-artifacts/mac-arm64.app.zip
-            target/release/release-artifacts/mac-arm64.dmg
+            target/release/release-artifacts/BBQ-mac-arm64.app.zip
+            target/release/release-artifacts/BBQ-mac-arm64.dmg
             target/release/release-artifacts/checksums.txt
           if-no-files-found: error
 
@@ -138,14 +146,14 @@ jobs:
         with:
           name: win-x64
           path: |
-            target/release/release-artifacts/win-x64-setup.exe
-            target/release/release-artifacts/win-x64.zip
+            target/release/release-artifacts/BBQ-win-x64-setup.exe
+            target/release/release-artifacts/BBQ-win-x64.zip
             target/release/release-artifacts/checksums.txt
           if-no-files-found: error
 
   publish-release:
     name: Publish Release Assets
-    needs: [rust-matrix]
+    needs: [lint-and-check, rust-matrix]
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
     runs-on: ubuntu-latest
     permissions:
@@ -165,16 +173,16 @@ jobs:
           TAG_NAME: ${{ inputs.release_tag || github.ref_name }}
         run: |
           mkdir -p release-assets
-          cp artifacts/mac-arm64/mac-arm64.app.zip release-assets/
-          cp artifacts/mac-arm64/mac-arm64.dmg release-assets/
-          cp artifacts/win-x64/win-x64-setup.exe release-assets/
-          cp artifacts/win-x64/win-x64.zip release-assets/
+          cp artifacts/mac-arm64/BBQ-mac-arm64.app.zip release-assets/
+          cp artifacts/mac-arm64/BBQ-mac-arm64.dmg release-assets/
+          cp artifacts/win-x64/BBQ-win-x64-setup.exe release-assets/
+          cp artifacts/win-x64/BBQ-win-x64.zip release-assets/
 
           echo "=== Standardized Release Assets to Upload ==="
           ls -lh release-assets/
 
           echo "=== SHA256 Checksums ==="
-          sha256sum release-assets/mac-arm64.app.zip release-assets/mac-arm64.dmg release-assets/win-x64-setup.exe release-assets/win-x64.zip
+          sha256sum release-assets/BBQ-mac-arm64.app.zip release-assets/BBQ-mac-arm64.dmg release-assets/BBQ-win-x64-setup.exe release-assets/BBQ-win-x64.zip
 
           echo "Ensuring release $TAG_NAME exists..."
           if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
@@ -183,8 +191,8 @@ jobs:
 
           echo "Uploading standardized assets to release $TAG_NAME..."
           gh release upload "$TAG_NAME" \
-            release-assets/mac-arm64.app.zip \
-            release-assets/mac-arm64.dmg \
-            release-assets/win-x64-setup.exe \
-            release-assets/win-x64.zip \
+            release-assets/BBQ-mac-arm64.app.zip \
+            release-assets/BBQ-mac-arm64.dmg \
+            release-assets/BBQ-win-x64-setup.exe \
+            release-assets/BBQ-win-x64.zip \
             --clobber
