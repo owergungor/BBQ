@@ -43,6 +43,8 @@ Pre-built binaries are available from [GitHub Releases](https://github.com/owerg
 - `BBQ-mac-arm64.dmg` - macOS disk image
 - `BBQ-mac-arm64.app.zip` - macOS standalone app archive
 
+> **Note on macOS**: Free distribution builds on macOS are ad-hoc signed and unnotarized. When opening BBQ for the first time, macOS Gatekeeper may prompt that the developer cannot be verified. To open, right-click `BBQ.app` in Finder and select **Open**, or run `xattr -d com.apple.quarantine /Applications/BBQ.app` in Terminal.
+
 ---
 
 ## Quick Start

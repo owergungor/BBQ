@@ -384,5 +384,70 @@ describe("BBQ v2.8 — Phase 3 & 3.1: Error-Safety & macOS Release Pipeline Audi
         "macOS minimumSystemVersion should be 10.15 (Catalina+)"
       );
     });
+
+    it("verifies free-distribution unsigned mode support and honest Gatekeeper guidance", () => {
+      const scriptSrc = fs.readFileSync(
+        path.join(ROOT_DIR, "scripts/package-macos.sh"),
+        "utf8"
+      );
+      const ciSrc = fs.readFileSync(
+        path.join(ROOT_DIR, ".github/workflows/ci.yml"),
+        "utf8"
+      );
+      const readmeSrc = fs.readFileSync(
+        path.join(ROOT_DIR, "README.md"),
+        "utf8"
+      );
+      const releaseDocSrc = fs.readFileSync(
+        path.join(ROOT_DIR, "docs/RELEASE_PROCESS.md"),
+        "utf8"
+      );
+
+      // 1. Script supports BBQ_ALLOW_UNSIGNED_MACOS and ad-hoc fallback
+      assert.ok(
+        scriptSrc.includes("BBQ_ALLOW_UNSIGNED_MACOS"),
+        "package-macos.sh must support BBQ_ALLOW_UNSIGNED_MACOS"
+      );
+      assert.ok(
+        scriptSrc.includes("Free Distribution Mode (Unsigned macOS build)"),
+        "package-macos.sh must explicitly log Free Distribution Mode notice"
+      );
+      assert.ok(
+        scriptSrc.includes("Skipping Apple Notarization (Unsigned free distribution mode)"),
+        "package-macos.sh must log notarization skip notice"
+      );
+      assert.ok(
+        scriptSrc.includes("xattr -d com.apple.quarantine"),
+        "package-macos.sh must disclose Gatekeeper quarantine removal command"
+      );
+
+      // 2. CI workflow passes unsigned flag and implements platform-aware staging
+      assert.ok(
+        ciSrc.includes("BBQ_ALLOW_UNSIGNED_MACOS:"),
+        "CI workflow must pass BBQ_ALLOW_UNSIGNED_MACOS to packaging script"
+      );
+      assert.ok(
+        ciSrc.includes("Platform-aware staging: Windows x64"),
+        "CI must stage Windows x64 artifacts independently"
+      );
+      assert.ok(
+        ciSrc.includes("Platform-aware staging: macOS ARM64"),
+        "CI must stage macOS ARM64 artifacts independently"
+      );
+      assert.ok(
+        ciSrc.includes("macOS Gatekeeper Notice (Free Distribution)"),
+        "CI must inject truthful Gatekeeper warnings into release notes"
+      );
+
+      // 3. Documentation truthfully explains Gatekeeper prompt and manual override
+      assert.ok(
+        readmeSrc.includes("Gatekeeper may prompt that the developer cannot be verified"),
+        "README must honestly disclose Gatekeeper prompt"
+      );
+      assert.ok(
+        releaseDocSrc.includes("Free Distribution Mode & Platform Independence"),
+        "RELEASE_PROCESS must document free distribution mode"
+      );
+    });
   });
 });

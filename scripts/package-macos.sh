@@ -11,13 +11,14 @@ set -euo pipefail
 TARGET_DIR="${1:-target/release}"
 OUTPUT_DIR="${2:-target/release/release-artifacts}"
 IS_RELEASE_BUILD="${BBQ_RELEASE_BUILD:-false}"
+ALLOW_UNSIGNED="${BBQ_ALLOW_UNSIGNED_MACOS:-false}"
 
 # If running in GitHub Actions with a release tag or release input, treat as release build
 if [ "${GITHUB_REF_TYPE:-}" = "tag" ] || [ -n "${RELEASE_TAG:-}" ]; then
   IS_RELEASE_BUILD="true"
 fi
 
-echo "=== Packaging macOS ARM64 Release Artifacts (Release Mode: $IS_RELEASE_BUILD) ==="
+echo "=== Packaging macOS ARM64 Release Artifacts (Release Mode: $IS_RELEASE_BUILD, Allow Unsigned: $ALLOW_UNSIGNED) ==="
 
 if [ ! -d "$TARGET_DIR" ]; then
   echo "Target directory '$TARGET_DIR' does not exist. Run build first."
@@ -90,11 +91,19 @@ fi
 APPLE_SIGNING_IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
 
 if [ "$IS_RELEASE_BUILD" = "true" ] && [ -z "$APPLE_SIGNING_IDENTITY" ]; then
-  echo "ERROR: Release build requires APPLE_SIGNING_IDENTITY. Distributing an unsigned/ad-hoc build causes Gatekeeper rejection." >&2
-  exit 1
-fi
-
-if [ -n "$APPLE_SIGNING_IDENTITY" ]; then
+  if [ "$ALLOW_UNSIGNED" = "true" ]; then
+    echo "=== [NOTICE] Free Distribution Mode (Unsigned macOS build) ==="
+    echo "APPLE_SIGNING_IDENTITY not configured. BBQ_ALLOW_UNSIGNED_MACOS=true is enabled."
+    echo "Applying ad-hoc code signature with hardened runtime for ARM64..."
+    codesign --force --options runtime --deep -s - "$APP"
+    codesign --verify --deep --strict --verbose=2 "$APP" 2>/dev/null || true
+    echo "Ad-hoc code signature applied."
+  else
+    echo "ERROR: Release build requires APPLE_SIGNING_IDENTITY. Distributing an unsigned/ad-hoc build causes Gatekeeper rejection." >&2
+    echo "To explicitly allow unsigned packaging for free distribution, set BBQ_ALLOW_UNSIGNED_MACOS=true." >&2
+    exit 1
+  fi
+elif [ -n "$APPLE_SIGNING_IDENTITY" ]; then
   echo "Verifying presence of signing identity: $APPLE_SIGNING_IDENTITY"
   if ! security find-identity -v -p codesigning 2>/dev/null | grep -Fq "$APPLE_SIGNING_IDENTITY"; then
     echo "ERROR: Configured signing identity '$APPLE_SIGNING_IDENTITY' not found in available keychains!" >&2
@@ -134,6 +143,9 @@ if [ -n "$APPLE_SIGNING_IDENTITY" ]; then
   echo "Signing DMG -> $DMG_DST"
   codesign --force --sign "$APPLE_SIGNING_IDENTITY" "$DMG_DST"
   codesign --verify --verbose=2 "$DMG_DST"
+elif [ "$ALLOW_UNSIGNED" = "true" ]; then
+  echo "Ad-hoc signing DMG -> $DMG_DST"
+  codesign --force -s - "$DMG_DST" 2>/dev/null || true
 fi
 
 # 8. Apple Notarization & Stapling Sequence
@@ -142,11 +154,15 @@ APPLE_PASSWORD="${APPLE_PASSWORD:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
 
 if [ "$IS_RELEASE_BUILD" = "true" ] && ([ -z "$APPLE_ID" ] || [ -z "$APPLE_PASSWORD" ] || [ -z "$APPLE_TEAM_ID" ]); then
-  echo "ERROR: Release build requires Apple notarization credentials (APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID). Unnotarized DMGs are rejected by Gatekeeper." >&2
-  exit 1
-fi
-
-if [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+  if [ "$ALLOW_UNSIGNED" = "true" ]; then
+    echo "=== [NOTICE] Skipping Apple Notarization (Unsigned free distribution mode) ==="
+    echo "WARNING: macOS DMG and app bundle are unnotarized. macOS Gatekeeper will require user override."
+  else
+    echo "ERROR: Release build requires Apple notarization credentials (APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID). Unnotarized DMGs are rejected by Gatekeeper." >&2
+    echo "To explicitly allow unsigned packaging for free distribution, set BBQ_ALLOW_UNSIGNED_MACOS=true." >&2
+    exit 1
+  fi
+elif [ -n "$APPLE_ID" ] && [ -n "$APPLE_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
   echo "Submitting DMG to Apple Notary Service..."
   xcrun notarytool submit "$DMG_DST" --apple-id "$APPLE_ID" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
   echo "Stapling notarization ticket to DMG..."
@@ -183,3 +199,11 @@ CHECKSUMS_FILE="$ABS_OUTPUT_DIR/checksums.txt"
 rm -f "$CHECKSUMS_FILE"
 (cd "$ABS_OUTPUT_DIR" && shasum -a 256 BBQ-mac-arm64.app.zip BBQ-mac-arm64.dmg | tee "$CHECKSUMS_FILE")
 echo "Wrote checksums to $CHECKSUMS_FILE"
+
+if [ "$ALLOW_UNSIGNED" = "true" ] && [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+  echo ""
+  echo "=== [NOTICE] Unsigned macOS Distribution Artifacts Ready ==="
+  echo "Artifacts: BBQ-mac-arm64.app.zip and BBQ-mac-arm64.dmg generated in unsigned mode."
+  echo "Gatekeeper will display an untrusted developer warning to end users."
+  echo "End users can launch via Right-Click > Open or running: xattr -d com.apple.quarantine /Applications/BBQ.app"
+fi

@@ -101,6 +101,12 @@ or on macOS/Linux:
 shasum -a 256 target/release/release-artifacts/*
 ```
 
+### Free Distribution Mode & Platform Independence:
+- **Windows Independence**: Windows release packaging (`BBQ-win-x64-setup.exe`, `BBQ-win-x64.zip`) operates completely independently of Apple signing infrastructure. Windows releases can be validated and published without Apple credentials.
+- **Unsigned macOS Mode (`BBQ_ALLOW_UNSIGNED_MACOS=true`)**: Allows generating `BBQ-mac-arm64.app.zip` and `BBQ-mac-arm64.dmg` in ad-hoc signed mode without paid Apple Developer ID credentials. The release notes explicitly document Gatekeeper override steps.
+- **Signed macOS Mode**: When valid Apple signing credentials (`APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`) are present, the pipeline executes full Developer ID signing, `notarytool` submission, and DMG ticket stapling.
+- **Platform-Aware Publication**: CI release staging inspects available verified artifacts per-platform and guarantees that neither incomplete partial uploads nor unverified packages are published.
+
 ---
 
 ## 5. Phase 4: Clean Install & Uninstall Verification QA
