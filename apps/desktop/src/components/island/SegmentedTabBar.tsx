@@ -239,9 +239,9 @@ export const SegmentedTabBar: React.FC<SegmentedTabBarProps> = ({
             aria-label={`${widget.title} tab${badge ? ` with ${badge}` : ""}`}
           >
             <span className="bbq-segmented-tab-icon" aria-hidden="true">
-              <Icon name={iconName} size={14} strokeWidth={1.75} />
+              <Icon name={iconName} size={15} strokeWidth={1.75} />
             </span>
-            <span className="bbq-segmented-tab-label">{widget.title}</span>
+            <span className="bbq-segmented-tab-label bbq-sr-only">{widget.title}</span>
             {badge && <span className="bbq-segmented-tab-badge">{badge}</span>}
           </button>
         );

@@ -255,7 +255,7 @@ export function ThemeSelect<T extends string = string>({
   return (
     <div
       ref={containerRef}
-      className={`bbq-theme-select-container ${isOpen ? "dropdown-open" : ""} ${className}`.trim()}
+      className={`bbq-theme-select-container ${isOpen ? "dropdown-open" : ""}`.trim()}
       style={{
         position: "relative",
         display: "inline-block",

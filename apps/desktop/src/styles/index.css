@@ -875,6 +875,59 @@ html, body {
   transform: scale(1.01);
 }
 
+/* Restrained Theme-Aware Translucent Backing Material for High Transparency Readability */
+.bbq-island-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--bbq-island-backing, rgba(9, 9, 11, 0.45));
+  opacity: calc(0.2 + (1 - var(--bbq-island-opacity, 1)) * 0.55);
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity var(--bbq-duration-fast) ease;
+}
+
+[data-theme="light"] .bbq-island-shell::before {
+  background: var(--bbq-island-backing-light, rgba(255, 255, 255, 0.55));
+}
+
+[data-opaque="true"] .bbq-island-shell::before {
+  display: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .bbq-island-shell::before {
+    display: none;
+  }
+  .bbq-island-shell.state-idle,
+  .bbq-island-shell.state-hovering {
+    background: var(--bbq-bg-idle) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .bbq-island-shell.state-expanded {
+    background: var(--bbq-bg-expanded) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+[data-reduced-transparency="true"] .bbq-island-shell::before {
+  display: none;
+}
+[data-reduced-transparency="true"] .bbq-island-shell.state-idle,
+[data-reduced-transparency="true"] .bbq-island-shell.state-hovering {
+  background: var(--bbq-bg-idle) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+[data-reduced-transparency="true"] .bbq-island-shell.state-expanded {
+  background: var(--bbq-bg-expanded) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Drop Target Indicator */
 .bbq-drop-target-indicator {
   position: absolute;
@@ -906,6 +959,8 @@ html, body {
    ========================================================================== */
 
 .bbq-island-content {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   display: flex;
@@ -1005,8 +1060,11 @@ html, body {
   z-index: 2;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
+  justify-content: center;
+  gap: 4px;
+  min-width: 28px;
+  height: 26px;
+  padding: 3px 6px;
   font-family: var(--bbq-font-sans);
   font-size: 11px;
   font-weight: 500;
@@ -2852,6 +2910,7 @@ html, body {
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 2px;
+  padding-bottom: 12px;
 }
 
 .bbq-file-item {
@@ -3043,7 +3102,7 @@ html, body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 2px 2px 6px 2px;
+  padding: 2px 2px 14px 2px;
 }
 
 .bbq-clipboard-card {
@@ -4119,6 +4178,55 @@ html, body {
 .bbq-number-input-group.disabled {
   opacity: 0.5;
   pointer-events: none;
+}
+
+/* Theme-Aware Numeric Steppers and Native Spin Hide */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.bbq-number-input-stepper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  margin-left: 2px;
+}
+
+.bbq-number-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 9px;
+  background: transparent;
+  border: none;
+  color: var(--bbq-text-muted);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 2px;
+  transition: color var(--bbq-motion-fast), background var(--bbq-motion-fast);
+}
+
+.bbq-number-stepper-btn:hover:not(:disabled) {
+  color: var(--bbq-text-primary);
+  background: var(--bbq-surface-card);
+}
+
+.bbq-number-stepper-btn:active:not(:disabled) {
+  color: var(--bbq-accent);
+}
+
+.bbq-number-stepper-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .bbq-numeric-control-wrapper {

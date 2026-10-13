@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { ThemePreference, AccentColor } from "@bbq/types";
 import { CromiaColorPicker } from "./CromiaColorPicker.tsx";
+import { Icon } from "./Icon.tsx";
 
 /* ==========================================================================
    1. Theme Switcher / Theme Tabs (Inspired by 21st.dev / theme-tabs)
@@ -360,6 +361,30 @@ export const NumberInput: React.FC<NumberInputProps> = ({
     }
   };
 
+  const handleStepUp = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (disabled) return;
+    const current = Number(textValue);
+    const base = Number.isFinite(current) ? current : value;
+    const next = Math.min(max, base + step);
+    setTextValue(next.toString());
+    setError(null);
+    onChange(next);
+    onCommit?.(next);
+  };
+
+  const handleStepDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (disabled) return;
+    const current = Number(textValue);
+    const base = Number.isFinite(current) ? current : value;
+    const next = Math.max(min, base - step);
+    setTextValue(next.toString());
+    setError(null);
+    onChange(next);
+    onCommit?.(next);
+  };
+
   return (
     <div className={`bbq-number-input-group ${disabled ? "disabled" : ""}`}>
       <div
@@ -405,7 +430,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
             background: "var(--bbq-surface-elevated, rgba(255, 255, 255, 0.06))",
             border: `1px solid ${error ? "var(--bbq-danger)" : "var(--bbq-border)"}`,
             borderRadius: "6px",
-            padding: "2px 8px",
+            padding: "2px 6px 2px 8px",
             transition: "border-color 120ms ease",
           }}
         >
@@ -439,7 +464,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
             aria-invalid={Boolean(error)}
             aria-describedby={description ? `${id}-desc` : undefined}
             style={{
-              width: "56px",
+              width: "48px",
               background: "transparent",
               border: "none",
               color: "var(--bbq-text)",
@@ -463,6 +488,28 @@ export const NumberInput: React.FC<NumberInputProps> = ({
               {unit}
             </span>
           )}
+          <div className="bbq-number-input-stepper" aria-hidden="true">
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={`Increase ${label}`}
+              disabled={disabled || Number(textValue) >= max}
+              className="bbq-number-stepper-btn bbq-number-stepper-up"
+              onClick={handleStepUp}
+            >
+              <Icon name="chevron-up" size={10} strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={`Decrease ${label}`}
+              disabled={disabled || Number(textValue) <= min}
+              className="bbq-number-stepper-btn bbq-number-stepper-down"
+              onClick={handleStepDown}
+            >
+              <Icon name="chevron-down" size={10} strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
       </div>
       {error && (

@@ -258,7 +258,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
 
     it("transitions idle -> checking -> update_available when new version is available", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.1",
+        mockAvailableVersion: "3.2",
         mockReleaseNotes: "New features and bug fixes",
         mockReleaseDate: "2026-10-15T00:00:00Z",
       });
@@ -266,19 +266,19 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       await checkForUpdates();
       const state = updaterStore.getState();
       assert.strictEqual(state.status, "update_available");
-      assert.strictEqual(state.availableVersion, "3.1");
+      assert.strictEqual(state.availableVersion, "3.2");
       assert.strictEqual(state.releaseNotes, "New features and bug fixes");
     });
 
     it("supports download, progress reporting, and completion", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.1",
+        mockAvailableVersion: "3.2",
         downloadDurationMs: 40,
       });
 
       updaterStore.setState({
         status: "update_available",
-        availableVersion: "3.1",
+        availableVersion: "3.2",
       });
 
       await downloadAndInstallUpdate();
@@ -289,7 +289,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
     it("honestly reflects that active downloads cannot be cancelled mid-stream", async () => {
       updaterStore.setState({
         status: "downloading",
-        availableVersion: "3.1",
+        availableVersion: "3.2",
       });
 
       const cancelled = cancelUpdate();
@@ -846,7 +846,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
   // 8. Release Version Consistency & Release Workflow Integrity
   // =========================================================================
   describe("8. Release Version Consistency & Release Workflow Integrity", () => {
-    it("verifies shipped application version is consistently 3.0 across all manifests and sources", () => {
+    it("verifies shipped application version is consistently 3.1 across all manifests and sources", () => {
       const rootPkgPath = path.join(ROOT_DIR, "package.json");
       const desktopPkgPath = path.join(DESKTOP_DIR, "package.json");
       const typesPkgPath = path.join(ROOT_DIR, "packages/types/package.json");
@@ -861,8 +861,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       const desktopCargo = fs.readFileSync(desktopCargoPath, "utf-8");
       const cargoLock = fs.readFileSync(cargoLockPath, "utf-8");
 
-      const EXPECTED_VERSION = "3.0";
-      const CARGO_INTERNAL_VERSION = "3.0.0";
+      const EXPECTED_VERSION = "3.1";
+      const CARGO_INTERNAL_VERSION = "3.1.0";
 
       // 1. Root, desktop, and types package.json
       assert.strictEqual(
@@ -923,7 +923,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       );
     });
 
-    it("fails regression test if any application version source diverges from two-component 3.0 format", () => {
+    it("fails regression test if any application version source diverges from two-component 3.1 format", () => {
       const publicVersions = {
         rootPkg: JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "package.json"), "utf-8")).version,
         desktopPkg: JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "package.json"), "utf-8")).version,
@@ -936,7 +936,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       for (const [source, ver] of Object.entries(publicVersions)) {
         assert.ok(
           twoComponentRegex.test(ver),
-          `Public version source ${source} ("${ver}") must adhere to two-component convention format (e.g. 3.0)`
+          `Public version source ${source} ("${ver}") must adhere to two-component convention format (e.g. 3.1)`
         );
       }
 
@@ -948,8 +948,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       );
       assert.strictEqual(
         Array.from(uniqueVersions)[0],
-        "3.0",
-        `Canonical public version must be two-component 3.0, found: ${Array.from(uniqueVersions)[0]}`
+        "3.1",
+        `Canonical public version must be two-component 3.1, found: ${Array.from(uniqueVersions)[0]}`
       );
     });
 

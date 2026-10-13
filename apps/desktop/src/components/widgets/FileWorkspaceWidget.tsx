@@ -441,6 +441,7 @@ export const FileWorkspaceWidget: React.FC = () => {
             flexDirection: "column",
             gap: "4px",
             paddingRight: "2px",
+            paddingBottom: "12px",
           }}
         >
           {filteredEntries.map((entry) => {

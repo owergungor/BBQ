@@ -414,25 +414,26 @@ export const SettingsWidget: React.FC = () => {
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        padding: "8px 12px",
+        padding: "4px 8px 6px 8px",
         boxSizing: "border-box",
+        overflow: "hidden",
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "6px",
-          flexShrink: 0,
-        }}
-      >
-        <h2 style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 600, margin: 0 }}>
-          <Icon name="settings" size={14} /> Preferences
-        </h2>
-        {statusMessage && (
+      {/* Accessible Landmark Heading */}
+      <h2 className="bbq-sr-only">Settings</h2>
+
+      {/* Header status */}
+      {statusMessage && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            marginBottom: "4px",
+            flexShrink: 0,
+          }}
+        >
           <span
             style={{ fontSize: "11px", color: "var(--bbq-accent)", fontWeight: 500 }}
             role="status"
@@ -440,8 +441,8 @@ export const SettingsWidget: React.FC = () => {
           >
             {statusMessage}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div
@@ -499,6 +500,7 @@ export const SettingsWidget: React.FC = () => {
           overflowX: "hidden",
           fontSize: "12px",
           paddingRight: "6px",
+          paddingBottom: "12px",
           scrollbarWidth: "thin",
           scrollbarGutter: "stable",
         }}
@@ -622,7 +624,8 @@ export const SettingsWidget: React.FC = () => {
       <div
         style={{
           marginTop: "auto",
-          paddingTop: "10px",
+          paddingTop: "6px",
+          paddingBottom: "2px",
           borderTop: "1px solid var(--bbq-border)",
           display: "flex",
           justifyContent: "flex-end",

@@ -12,7 +12,7 @@ import { initializeDropStore } from "../../state/dropState.ts";
 import { initializeReminderStore } from "../../state/reminderState.ts";
 import { initHotkeyStore } from "../../state/hotkeyState.ts";
 import { setDragOver, inspectDrop } from "../../state/dropState.ts";
-import { settingsStore, useSettingsState } from "../../state/settingsState.ts";
+import { settingsStore, useSettingsState, updateSetting } from "../../state/settingsState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import {
   subscribeToIslandMode,
@@ -173,23 +173,43 @@ export const Island: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleDocumentClick);
   }, [state]);
 
+  // One-shot Move HUD escape coordinator
+  useEffect(() => {
+    if (!moveHud) return;
+    const unregister = escapeManager.register(() => {
+      updateSetting("move_hud", "false");
+      return true;
+    }, EscapePriority.CHILD_INTERACTION);
+    return unregister;
+  }, [moveHud]);
+
   const handleToggle = useCallback(async (e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
     }
+    if (moveHud) {
+      // One-shot positioning: clicking finishes positioning mode and disarms moveHud
+      await updateSetting("move_hud", "false");
+      return;
+    }
     if (state !== "Expanded") {
       await islandRuntime.handleEvent({ type: "USER_CLICK" });
     }
-  }, [state]);
+  }, [state, moveHud]);
 
   const handleShellKeyDown = useCallback(async (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
+      if (moveHud) {
+        e.preventDefault();
+        await updateSetting("move_hud", "false");
+        return;
+      }
       if (state !== "Expanded") {
         e.preventDefault();
         await islandRuntime.handleEvent({ type: "USER_CLICK" });
       }
     }
-  }, [state]);
+  }, [state, moveHud]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     // Only primary mouse button (left click)
