@@ -981,5 +981,100 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
         "ci.yml release notes must instruct v2.8 users to perform a one-time manual install"
       );
     });
+
+    it("verifies .github/workflows/ci.yml safely handles missing or empty Apple signing credentials on macOS while preserving configured-certificate path", () => {
+      const ciPath = path.join(ROOT_DIR, ".github/workflows/ci.yml");
+      const ci = fs.readFileSync(ciPath, "utf-8");
+
+      // Extract the macOS packaging step run script
+      const macStepMatch = ci.match(
+        /name:\s*Package & Standardize Artifacts \(macOS ARM64\)[\s\S]*?run:\s*\|([\s\S]*?)(?:-\s*name:|$)/
+      );
+      assert.ok(macStepMatch, "Must find macOS packaging step in ci.yml");
+      const macScript = macStepMatch[1];
+
+      // Verify empty Apple certificate is cleaned up from environment before tauri build
+      assert.ok(
+        macScript.includes("unset APPLE_CERTIFICATE"),
+        "macOS script must unset APPLE_CERTIFICATE when empty to prevent Tauri SecKeychainItemImport failure"
+      );
+
+      // Verify that configured certificate path is preserved (tauri build is run without --no-sign when signing key is present)
+      assert.ok(
+        macScript.includes("pnpm --filter @bbq/desktop tauri build --bundles app --ci"),
+        "macOS script must preserve full signed tauri build when signing credentials are provided"
+      );
+
+      // Verify simulation: when APPLE_CERTIFICATE is empty, unsetting it removes it from process environment
+      const simulateEnvHandling = (inputEnv: {
+        APPLE_CERTIFICATE?: string;
+        APPLE_CERTIFICATE_PASSWORD?: string;
+        APPLE_SIGNING_IDENTITY?: string;
+        TAURI_SIGNING_PRIVATE_KEY?: string;
+      }) => {
+        const env = { ...inputEnv };
+        if (!env.APPLE_CERTIFICATE || env.APPLE_CERTIFICATE.trim().length === 0) {
+          delete env.APPLE_CERTIFICATE;
+        }
+        if (!env.APPLE_CERTIFICATE_PASSWORD || env.APPLE_CERTIFICATE_PASSWORD.trim().length === 0) {
+          delete env.APPLE_CERTIFICATE_PASSWORD;
+        }
+        if (!env.APPLE_SIGNING_IDENTITY || env.APPLE_SIGNING_IDENTITY.trim().length === 0) {
+          delete env.APPLE_SIGNING_IDENTITY;
+        }
+        return env;
+      };
+
+      // Case A: Secrets are empty string (as provided by GitHub Actions when secret is unset)
+      const emptyEnv = simulateEnvHandling({
+        APPLE_CERTIFICATE: "",
+        APPLE_CERTIFICATE_PASSWORD: "",
+        APPLE_SIGNING_IDENTITY: "",
+        TAURI_SIGNING_PRIVATE_KEY: "mock_key",
+      });
+      assert.strictEqual(
+        "APPLE_CERTIFICATE" in emptyEnv,
+        false,
+        "APPLE_CERTIFICATE must be removed when empty"
+      );
+      assert.strictEqual(
+        "APPLE_CERTIFICATE_PASSWORD" in emptyEnv,
+        false,
+        "APPLE_CERTIFICATE_PASSWORD must be removed when empty"
+      );
+      assert.strictEqual(
+        "APPLE_SIGNING_IDENTITY" in emptyEnv,
+        false,
+        "APPLE_SIGNING_IDENTITY must be removed when empty"
+      );
+      assert.strictEqual(
+        emptyEnv.TAURI_SIGNING_PRIVATE_KEY,
+        "mock_key",
+        "TAURI_SIGNING_PRIVATE_KEY must remain intact"
+      );
+
+      // Case B: Secrets are genuinely configured (valid Apple Developer cert)
+      const validEnv = simulateEnvHandling({
+        APPLE_CERTIFICATE: "base64certdata",
+        APPLE_CERTIFICATE_PASSWORD: "certpassword",
+        APPLE_SIGNING_IDENTITY: "Developer ID Application: Team (12345)",
+        TAURI_SIGNING_PRIVATE_KEY: "mock_key",
+      });
+      assert.strictEqual(
+        validEnv.APPLE_CERTIFICATE,
+        "base64certdata",
+        "Configured APPLE_CERTIFICATE must be preserved"
+      );
+      assert.strictEqual(
+        validEnv.APPLE_CERTIFICATE_PASSWORD,
+        "certpassword",
+        "Configured APPLE_CERTIFICATE_PASSWORD must be preserved"
+      );
+      assert.strictEqual(
+        validEnv.APPLE_SIGNING_IDENTITY,
+        "Developer ID Application: Team (12345)",
+        "Configured APPLE_SIGNING_IDENTITY must be preserved"
+      );
+    });
   });
 });

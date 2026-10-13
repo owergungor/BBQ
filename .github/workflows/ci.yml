@@ -127,6 +127,18 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
+          # Clean up empty or whitespace-only Apple signing credentials from the environment
+          # so Tauri CLI does not attempt SecKeychainItemImport on an empty certificate.
+          if [ -z "$(echo "${APPLE_CERTIFICATE:-}" | tr -d '[:space:]')" ]; then
+            unset APPLE_CERTIFICATE
+          fi
+          if [ -z "$(echo "${APPLE_CERTIFICATE_PASSWORD:-}" | tr -d '[:space:]')" ]; then
+            unset APPLE_CERTIFICATE_PASSWORD
+          fi
+          if [ -z "$(echo "${APPLE_SIGNING_IDENTITY:-}" | tr -d '[:space:]')" ]; then
+            unset APPLE_SIGNING_IDENTITY
+          fi
+
           if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
             pnpm --filter @bbq/desktop tauri build --bundles app --ci
           elif [ "$BBQ_RELEASE_BUILD" = "true" ]; then
