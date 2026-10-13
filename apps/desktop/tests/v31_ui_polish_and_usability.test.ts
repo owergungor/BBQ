@@ -226,7 +226,7 @@ describe("BBQ v3.1 — UI Polish & Usability Release Verification", () => {
       );
     });
 
-    it("suppresses ugly native browser spin buttons in CSS while styling theme-aware steppers", () => {
+    it("suppresses ugly native browser spin buttons in CSS while styling theme-aware steppers with focus indicators", () => {
       assert.ok(
         cssSource.includes('input[type="number"]::-webkit-inner-spin-button') &&
           cssSource.includes("-webkit-appearance: none;"),
@@ -239,6 +239,29 @@ describe("BBQ v3.1 — UI Polish & Usability Release Verification", () => {
       assert.ok(
         cssSource.includes(".bbq-number-stepper-btn:hover:not(:disabled)"),
         "Must declare hover styles for stepper buttons"
+      );
+      assert.ok(
+        cssSource.includes(".bbq-number-stepper-btn:focus-visible"),
+        "Must declare focus-visible styles for keyboard accessibility"
+      );
+    });
+
+    it("verifies accessible names and boundary clamping on stepper buttons", () => {
+      assert.ok(
+        controlsSource.includes("aria-label={`Increase ${label}`}"),
+        "Up stepper button must declare accessible name"
+      );
+      assert.ok(
+        controlsSource.includes("aria-label={`Decrease ${label}`}"),
+        "Down stepper button must declare accessible name"
+      );
+      assert.ok(
+        controlsSource.includes("disabled={disabled || Number(textValue) >= max}"),
+        "Up stepper must be disabled when at max boundary"
+      );
+      assert.ok(
+        controlsSource.includes("disabled={disabled || Number(textValue) <= min}"),
+        "Down stepper must be disabled when at min boundary"
       );
     });
 

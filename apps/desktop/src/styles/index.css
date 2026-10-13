@@ -4220,6 +4220,11 @@ input[type="number"] {
   background: var(--bbq-surface-card);
 }
 
+.bbq-number-stepper-btn:focus-visible {
+  outline: 1px solid var(--bbq-accent);
+  outline-offset: 1px;
+}
+
 .bbq-number-stepper-btn:active:not(:disabled) {
   color: var(--bbq-accent);
 }

@@ -488,7 +488,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
               {unit}
             </span>
           )}
-          <div className="bbq-number-input-stepper" aria-hidden="true">
+          <div className="bbq-number-input-stepper">
             <button
               type="button"
               tabIndex={-1}
