@@ -1150,7 +1150,8 @@ mod tests {
         let root_cargo =
             std::fs::read_to_string(root.join("Cargo.toml")).expect("Should read root Cargo.toml");
         assert!(
-            root_cargo.contains("version = \"2.0.0\"") || root_cargo.contains("version = \"2.7\""),
+            root_cargo.contains("version = \"2.0.0\"")
+                || root_cargo.contains("version = \"3.0.0\""),
             "Root Cargo.toml must declare a valid workspace version"
         );
 
@@ -1158,7 +1159,8 @@ mod tests {
         let root_pkg = std::fs::read_to_string(root.join("package.json"))
             .expect("Should read root package.json");
         assert!(
-            root_pkg.contains("\"version\": \"2.7\"")
+            root_pkg.contains("\"version\": \"3.0.0\"")
+                || root_pkg.contains("\"version\": \"2.7\"")
                 || root_pkg.contains("\"version\": \"2.0.0\""),
             "Root package.json must declare valid version"
         );
@@ -1167,7 +1169,8 @@ mod tests {
         let desktop_pkg = std::fs::read_to_string(root.join("apps/desktop/package.json"))
             .expect("Should read apps/desktop/package.json");
         assert!(
-            desktop_pkg.contains("\"version\": \"2.7\"")
+            desktop_pkg.contains("\"version\": \"3.0.0\"")
+                || desktop_pkg.contains("\"version\": \"2.7\"")
                 || desktop_pkg.contains("\"version\": \"2.0.0\""),
             "apps/desktop/package.json must declare valid version"
         );
@@ -1176,7 +1179,8 @@ mod tests {
         let types_pkg = std::fs::read_to_string(root.join("packages/types/package.json"))
             .expect("Should read packages/types/package.json");
         assert!(
-            types_pkg.contains("\"version\": \"2.7.0\"")
+            types_pkg.contains("\"version\": \"3.0.0\"")
+                || types_pkg.contains("\"version\": \"2.7.0\"")
                 || types_pkg.contains("\"version\": \"2.7\"")
                 || types_pkg.contains("\"version\": \"2.0.0\""),
             "packages/types/package.json must declare valid version"
@@ -1187,7 +1191,8 @@ mod tests {
             std::fs::read_to_string(root.join("apps/desktop/src-tauri/tauri.conf.json"))
                 .expect("Should read tauri.conf.json");
         assert!(
-            tauri_conf.contains("\"version\": \"2.7.0\"")
+            tauri_conf.contains("\"version\": \"3.0.0\"")
+                || tauri_conf.contains("\"version\": \"2.7.0\"")
                 || tauri_conf.contains("\"version\": \"2.7\"")
                 || tauri_conf.contains("\"version\": \"2.0.0\""),
             "tauri.conf.json must declare valid semver"
@@ -1199,6 +1204,14 @@ mod tests {
         assert!(
             tauri_conf.contains("\"installMode\": \"currentUser\""),
             "tauri.conf.json must have NSIS installMode currentUser for clean non-admin installs"
+        );
+        assert!(
+            tauri_conf.contains("\"createUpdaterArtifacts\": true"),
+            "tauri.conf.json must have bundle.createUpdaterArtifacts enabled for signed updater packages"
+        );
+        assert!(
+            tauri_conf.contains("\"pubkey\":"),
+            "tauri.conf.json must declare updater public key"
         );
 
         // 6. Test Autostart mock capability

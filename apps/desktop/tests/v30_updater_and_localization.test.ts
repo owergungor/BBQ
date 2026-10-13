@@ -9,11 +9,13 @@ import {
   isUpdateAvailable,
   sanitizeErrorMessage,
   updaterStore,
+  initialUpdaterState,
   checkForUpdates,
   downloadAndInstallUpdate,
   cancelUpdate,
   setSimulatedUpdater,
 } from "../src/state/updaterState.ts";
+import { APP_VERSION, APP_VERSION_LABEL } from "../src/version.ts";
 import {
   t,
   formatLocaleDate,
@@ -822,6 +824,162 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
 
       // Must invoke cryptographic signature verification
       assert.ok(content.includes("verify-minisign-signature.mjs"), "must run verify-minisign-signature.mjs");
+    });
+  });
+
+  // =========================================================================
+  // 8. Release Version Consistency & Release Workflow Integrity
+  // =========================================================================
+  describe("8. Release Version Consistency & Release Workflow Integrity", () => {
+    it("verifies shipped application version is consistently 3.0.0 across all manifests and sources", () => {
+      const rootPkgPath = path.join(ROOT_DIR, "package.json");
+      const desktopPkgPath = path.join(DESKTOP_DIR, "package.json");
+      const tauriConfPath = path.join(DESKTOP_DIR, "src-tauri/tauri.conf.json");
+      const desktopCargoPath = path.join(DESKTOP_DIR, "src-tauri/Cargo.toml");
+      const cargoLockPath = path.join(ROOT_DIR, "Cargo.lock");
+
+      const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, "utf-8"));
+      const desktopPkg = JSON.parse(fs.readFileSync(desktopPkgPath, "utf-8"));
+      const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, "utf-8"));
+      const desktopCargo = fs.readFileSync(desktopCargoPath, "utf-8");
+      const cargoLock = fs.readFileSync(cargoLockPath, "utf-8");
+
+      const EXPECTED_VERSION = "3.0.0";
+
+      // 1. Root and desktop package.json
+      assert.strictEqual(
+        rootPkg.version,
+        EXPECTED_VERSION,
+        `Root package.json version must be ${EXPECTED_VERSION}, got: ${rootPkg.version}`
+      );
+      assert.strictEqual(
+        desktopPkg.version,
+        EXPECTED_VERSION,
+        `apps/desktop/package.json version must be ${EXPECTED_VERSION}, got: ${desktopPkg.version}`
+      );
+
+      // 2. Runtime version imports
+      assert.strictEqual(
+        APP_VERSION,
+        EXPECTED_VERSION,
+        `APP_VERSION exported by version.ts must be ${EXPECTED_VERSION}`
+      );
+      assert.strictEqual(
+        APP_VERSION_LABEL,
+        `v${EXPECTED_VERSION}`,
+        `APP_VERSION_LABEL exported by version.ts must be v${EXPECTED_VERSION}`
+      );
+      assert.strictEqual(
+        initialUpdaterState.currentVersion,
+        EXPECTED_VERSION,
+        `initialUpdaterState.currentVersion must be initialized to ${EXPECTED_VERSION}`
+      );
+
+      // 3. tauri.conf.json
+      assert.strictEqual(
+        tauriConf.version,
+        EXPECTED_VERSION,
+        `tauri.conf.json version must be ${EXPECTED_VERSION}, got: ${tauriConf.version}`
+      );
+
+      // 4. Desktop Cargo.toml & Cargo.lock
+      const desktopCargoMatch = desktopCargo.match(/^version\s*=\s*"([^"]+)"/m);
+      assert.ok(desktopCargoMatch, "apps/desktop/src-tauri/Cargo.toml must declare package version");
+      assert.strictEqual(
+        desktopCargoMatch[1],
+        EXPECTED_VERSION,
+        `apps/desktop/src-tauri/Cargo.toml version must be ${EXPECTED_VERSION}`
+      );
+
+      const lockMatch = cargoLock.match(/name\s*=\s*"bbq-desktop"\s*\r?\nversion\s*=\s*"([^"]+)"/);
+      assert.ok(lockMatch, "Cargo.lock must contain resolved bbq-desktop version");
+      assert.strictEqual(
+        lockMatch[1],
+        EXPECTED_VERSION,
+        `Cargo.lock resolved bbq-desktop version must be ${EXPECTED_VERSION}`
+      );
+    });
+
+    it("fails regression test if any application version source diverges from 3.0.0", () => {
+      const versions = {
+        rootPkg: JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "package.json"), "utf-8")).version,
+        desktopPkg: JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "package.json"), "utf-8")).version,
+        tauriConf: JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/tauri.conf.json"), "utf-8")).version,
+        appVersionTs: APP_VERSION,
+        initialUpdaterState: initialUpdaterState.currentVersion,
+      };
+
+      const uniqueVersions = new Set(Object.values(versions));
+      assert.strictEqual(
+        uniqueVersions.size,
+        1,
+        `All application version sources must match identically, found divergence: ${JSON.stringify(versions)}`
+      );
+      assert.strictEqual(
+        Array.from(uniqueVersions)[0],
+        "3.0.0",
+        `Canonical version must be 3.0.0, found: ${Array.from(uniqueVersions)[0]}`
+      );
+    });
+
+    it("verifies .github/workflows/ci.yml stages macOS updater archive and adheres to two-phase publishing", () => {
+      const ciPath = path.join(ROOT_DIR, ".github/workflows/ci.yml");
+      assert.ok(fs.existsSync(ciPath), "ci.yml must exist");
+      const ci = fs.readFileSync(ciPath, "utf-8");
+
+      // Verify macOS updater archive staging
+      assert.ok(
+        ci.includes("artifacts/mac-arm64/BBQ-mac-arm64.app.tar.gz"),
+        "ci.yml must check for macOS updater archive in artifacts/mac-arm64"
+      );
+      assert.ok(
+        ci.includes("UPLOAD_ASSETS+=(release-assets/BBQ-mac-arm64.app.tar.gz)"),
+        "ci.yml must stage BBQ-mac-arm64.app.tar.gz into UPLOAD_ASSETS"
+      );
+
+      // Verify signature staging
+      assert.ok(
+        ci.includes("for sig in artifacts/*/*.sig"),
+        "ci.yml must iterate and stage all generated .sig files"
+      );
+
+      // Verify strict metadata validation is invoked
+      assert.ok(
+        ci.includes("validate-release-metadata.mjs release-assets/latest.json \\\n            --strict"),
+        "ci.yml must run validate-release-metadata.mjs with --strict"
+      );
+
+      // Verify two-phase publication order:
+      // Phase 5a: upload binaries and signatures first
+      const phase5aIndex = ci.indexOf('gh release upload "$TAG_NAME" "${UPLOAD_ASSETS[@]}" --clobber');
+      assert.ok(phase5aIndex !== -1, "ci.yml must upload binaries and signatures in Phase 5a");
+
+      // Phase 5b: upload latest.json second
+      const phase5bIndex = ci.indexOf('gh release upload "$TAG_NAME" release-assets/latest.json --clobber');
+      assert.ok(phase5bIndex !== -1, "ci.yml must upload latest.json in Phase 5b");
+
+      assert.ok(
+        phase5aIndex < phase5bIndex,
+        "Phase 5a (binaries + signatures upload) must occur BEFORE Phase 5b (latest.json upload)"
+      );
+    });
+
+    it("verifies .github/workflows/ci.yml includes honest v2.8 manual migration notice in generated release notes", () => {
+      const ciPath = path.join(ROOT_DIR, ".github/workflows/ci.yml");
+      const ci = fs.readFileSync(ciPath, "utf-8");
+
+      assert.ok(
+        ci.includes("Notice for v2.8 Users (One-Time Manual Upgrade)"),
+        "ci.yml release notes must contain header for v2.8 users"
+      );
+      assert.ok(
+        ci.includes("BBQ v2.8 does not include the auto-updater plugin"),
+        "ci.yml release notes must explain why v2.8 cannot update in-app"
+      );
+      assert.ok(
+        ci.includes("manually download and install BBQ v3.0 once"),
+        "ci.yml release notes must instruct v2.8 users to perform a one-time manual install"
+      );
     });
   });
 });
