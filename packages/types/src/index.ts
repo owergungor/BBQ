@@ -253,6 +253,8 @@ export type AccentColor =
   | 'custom'
   | (string & {});
 
+export type SupportedLanguage = 'en' | 'es' | 'fr' | 'de' | 'tr';
+
 export interface BbqSettings {
   theme: ThemePreference;
   accent_color?: AccentColor;
@@ -279,6 +281,7 @@ export interface BbqSettings {
   island_transparency?: number;
   always_on_top?: boolean;
   move_hud?: boolean;
+  language?: SupportedLanguage;
   /** @deprecated Obsolete legacy setting retained only for backwards compatibility with older stored configs */
   auto_update_schedule?: AutoUpdateSchedule;
   /** @deprecated Obsolete legacy setting retained only for backwards compatibility with older stored configs */

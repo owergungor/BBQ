@@ -35,11 +35,32 @@ import {
   WidgetsSettingsTab,
   AboutSettingsTab,
 } from "./settings/index.ts";
+import { useTranslation } from "../../i18n/index.ts";
+
+let targetSettingsTab: SettingsTab | null = null;
+const tabListeners = new Set<(tab: SettingsTab) => void>();
+
+export function setTargetSettingsTab(tab: SettingsTab) {
+  targetSettingsTab = tab;
+  for (const listener of tabListeners) {
+    listener(tab);
+  }
+}
 
 export const SettingsWidget: React.FC = () => {
+  const { t } = useTranslation();
   const { settings, isLoading } = useSettingsState();
   const { conflictError } = useHotkeyState();
-  const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => targetSettingsTab || "appearance");
+
+  useEffect(() => {
+    const listener = (tab: SettingsTab) => setActiveTab(tab);
+    tabListeners.add(listener);
+    return () => {
+      tabListeners.delete(listener);
+    };
+  }, []);
+
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [capabilities, setCapabilities] = useState<PlatformCapabilities | null>(null);
 
@@ -150,6 +171,11 @@ export const SettingsWidget: React.FC = () => {
   const handleToggle = async (key: string, value: any) => {
     await updateSettingsBatch({ [key]: value });
     showStatus("Preference updated");
+  };
+
+  const handleLanguageChange = async (lang: string) => {
+    await updateSettingsBatch({ language: lang as any });
+    showStatus(t("common.saved") || "Preference updated");
   };
 
   const commitTransparency = async (val: number) => {
@@ -349,13 +375,13 @@ export const SettingsWidget: React.FC = () => {
   };
 
   const tabs: { id: SettingsTab; label: string }[] = [
-    { id: "appearance", label: "Appearance" },
-    { id: "island", label: "Island" },
-    { id: "hotkey", label: "Hotkey" },
-    { id: "privacy", label: "Privacy" },
-    { id: "notifications", label: "Notifications" },
-    { id: "widgets", label: "Widgets" },
-    { id: "about", label: "About" },
+    { id: "appearance", label: t("settings.tabs.appearance") },
+    { id: "island", label: t("settings.tabs.island") },
+    { id: "hotkey", label: t("settings.tabs.hotkey") },
+    { id: "privacy", label: t("settings.tabs.privacy") },
+    { id: "notifications", label: t("settings.tabs.notifications") },
+    { id: "widgets", label: t("settings.tabs.widgets") },
+    { id: "about", label: t("settings.tabs.about") || "About" }, // { id: "about", label: "About" }
   ];
 
   const handleTabKeyDown = (e: React.KeyboardEvent, index: number) => {
@@ -484,10 +510,12 @@ export const SettingsWidget: React.FC = () => {
             customAccentColor={settings.custom_accent_color || null}
             reducedMotion={settings.reduced_motion}
             startAtLogin={settings.start_at_login}
+            language={settings.language}
             onThemeChange={handleThemeChange}
             onAccentColorChange={handleAccentColorChange}
             onCustomAccentChange={handleCustomAccentChange}
             onToggle={handleToggle}
+            onLanguageChange={handleLanguageChange}
           />
         )}
 

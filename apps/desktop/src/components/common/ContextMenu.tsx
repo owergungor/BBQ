@@ -4,7 +4,7 @@ import { Icon } from "./Icon.tsx";
 import { widgetRegistry } from "../../island/widgetRegistry.ts";
 import { setActiveWidget, useIslandState, islandStore } from "../../island/islandState.ts";
 import { islandRuntime } from "../../island/IslandRuntime.ts";
-import { useSettingsState, updateSetting, openAllowlistedReleaseUrl } from "../../state/settingsState.ts";
+import { useSettingsState, updateSetting } from "../../state/settingsState.ts";
 import { refreshSystemState } from "../../state/systemState.ts";
 import { useMediaState } from "../../state/mediaState.ts";
 import { useTimerState } from "../../state/timerState.ts";
@@ -12,7 +12,10 @@ import { useDropState, clearDrop } from "../../state/dropState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import { escapeManager, EscapePriority } from "../../island/escapeManager.ts";
 import { reportAppError } from "../../state/errorState.ts";
+import { useTranslation } from "../../i18n/index.ts";
+import { useUpdaterState, checkForUpdates } from "../../state/updaterState.ts";
 import { APP_VERSION_LABEL } from "../../version.ts";
+import { setTargetSettingsTab } from "../widgets/SettingsWidget.tsx";
 import type { IconName } from "./Icon.tsx";
 
 export interface ContextMenuProps {
@@ -22,6 +25,8 @@ export interface ContextMenuProps {
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
+  const { t } = useTranslation();
+  const updaterState = useUpdaterState();
   const { state: islandLayoutState, activeWidgetId } = useIslandState();
   const { settings } = useSettingsState();
   const { currentSession } = useMediaState();
@@ -172,7 +177,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       ? [
           {
             id: "media_toggle",
-            label: currentSession?.state === "playing" ? "Pause Track" : "Play Track",
+            label: currentSession?.state === "playing"
+              ? (t("contextMenu.pauseTrack") || "Pause Track")
+              : (t("contextMenu.playTrack") || "Play Track"),
             icon: (currentSession?.state === "playing" ? "pause" : "play") as IconName,
             action: async () => {
               await bbqCommands.mediaTogglePlayPause();
@@ -181,7 +188,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
           },
           {
             id: "media_next",
-            label: "Next Track",
+            label: t("contextMenu.nextTrack") || "Next Track",
             icon: "skip-next" as IconName,
             action: async () => {
               await bbqCommands.mediaNext();
@@ -194,7 +201,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       ? [
           {
             id: "timer_toggle",
-            label: timerSession?.state === "Running" ? "Pause Timer" : "Resume Timer",
+            label: timerSession?.state === "Running"
+              ? (t("contextMenu.pauseTimer") || "Pause Timer")
+              : (t("contextMenu.resumeTimer") || "Resume Timer"),
             icon: "timer" as IconName,
             action: async () => {
               if (timerSession?.state === "Running") {
@@ -211,7 +220,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       ? [
           {
             id: "drop_clear",
-            label: "Clear Drop Shelf",
+            label: t("contextMenu.clearDropShelf") || "Clear Drop Shelf",
             icon: "drop" as IconName,
             action: () => {
               clearDrop();
@@ -222,14 +231,16 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       : []),
     {
       id: "switch",
-      label: "Switch Widget",
+      label: t("contextMenu.switchWidget") || "Switch Widget",
       icon: "launcher" as const,
       hasSubmenu: true,
       action: () => setShowSwitchSubmenu((prev) => !prev),
     },
     {
       id: "pin",
-      label: alwaysOnTop ? "Always on Top ✓" : "Always on Top",
+      label: t("contextMenu.alwaysOnTop")
+        ? (alwaysOnTop ? `${t("contextMenu.alwaysOnTop")} \u2713` : t("contextMenu.alwaysOnTop"))
+        : (alwaysOnTop ? "Always on Top ✓" : "Always on Top"),
       icon: "pin" as const,
       role: "menuitemcheckbox" as const,
       checked: alwaysOnTop,
@@ -237,7 +248,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
     },
     {
       id: "move_hud",
-      label: moveHud ? "Move HUD ✓" : "Move HUD",
+      label: t("contextMenu.moveHud")
+        ? (moveHud ? `${t("contextMenu.moveHud")} \u2713` : t("contextMenu.moveHud"))
+        : (moveHud ? "Move HUD ✓" : "Move HUD"),
       icon: "move" as const,
       role: "menuitemcheckbox" as const,
       checked: moveHud,
@@ -245,37 +258,41 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
     },
     {
       id: "expand",
-      label: isExpanded ? "Collapse HUD" : "Expand HUD",
+      label: isExpanded
+        ? (t("contextMenu.collapseHud") || "Collapse HUD")
+        : (t("contextMenu.expandHud") || "Expand HUD"),
       icon: isExpanded ? ("chevron-up" as const) : ("chevron-down" as const),
       action: handleToggleExpand,
     },
     {
       id: "reload",
-      label: "Reload Active Widget",
+      label: t("contextMenu.reloadWidget") || "Reload Active Widget",
       icon: "refresh" as const,
       action: handleReloadWidget,
     },
     {
       id: "settings",
-      label: "Settings",
+      label: t("contextMenu.settings") || "Settings",
       icon: "settings" as const,
       action: handleOpenSettings,
     },
     {
       id: "autostart",
-      label: startAtLogin ? "Launch at Login ✓" : "Launch at Login",
+      label: t("contextMenu.launchAtLogin")
+        ? (startAtLogin ? `${t("contextMenu.launchAtLogin")} \u2713` : t("contextMenu.launchAtLogin"))
+        : (startAtLogin ? "Launch at Login ✓" : "Launch at Login"),
       icon: "power" as const,
       action: handleToggleLogin,
     },
     {
       id: "about",
-      label: "About BBQ",
+      label: t("contextMenu.about") || "About BBQ",
       icon: "sparkles" as const,
       action: () => setShowAboutModal(true),
     },
     {
       id: "quit",
-      label: "Quit BBQ",
+      label: t("contextMenu.quit") || "Quit BBQ",
       icon: "close" as const,
       danger: true,
       action: handleQuit,
@@ -334,7 +351,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="bbq-context-menu-header">
-          <span className="bbq-context-menu-title">BBQ Island</span>
+          <span className="bbq-context-menu-title">{t("contextMenu.title")}</span>
           <span className="bbq-context-menu-badge">{APP_VERSION_LABEL}</span>
         </div>
 
@@ -380,7 +397,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
             id="bbq-context-submenu"
             className="bbq-context-submenu"
             role="menu"
-            aria-label="Switch Widget Submenu"
+            aria-label={t("contextMenu.switchWidget")}
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -423,29 +440,49 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
           }}
           role="dialog"
           aria-modal="true"
-          aria-label="About BBQ"
+          aria-label={t("contextMenu.about")}
         >
           <div
             className="bbq-about-card"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="bbq-about-header">
-              <span className="bbq-about-brand">BBQ Desktop Island</span>
+              <span className="bbq-about-brand">{t("settings.about.productName")}</span>
               <span className="bbq-about-version">{APP_VERSION_LABEL}</span>
             </div>
             <p className="bbq-about-desc">
-              Lightweight, responsive cross-platform productivity island. Zero-polling native telemetry, media controller, and productivity shelf.
+              {t("settings.about.tagline")}
             </p>
+            {updaterState.status !== "idle" && (
+              <div className="bbq-about-updater-status" style={{ fontSize: "11px", marginBottom: "8px", opacity: 0.85 }}>
+                {updaterState.status === "checking" && t("updater.checking")}
+                {updaterState.status === "up_to_date" && t("updater.upToDate", { version: APP_VERSION_LABEL })}
+                {updaterState.status === "update_available" && t("updater.updateAvailable", { version: updaterState.availableVersion || "" })}
+                {updaterState.status === "downloading" && t("updater.downloading")}
+                {updaterState.status === "installing" && t("updater.installing")}
+                {updaterState.status === "success" && t("updater.restartToApply")}
+                {updaterState.status === "error" && `${t("common.error")}: ${updaterState.error}`}
+              </div>
+            )}
             <div className="bbq-about-footer" style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button
                 type="button"
                 id="about-check-updates-btn"
                 className="bbq-btn bbq-btn-secondary"
-                onClick={() => {
-                  openAllowlistedReleaseUrl();
+                disabled={updaterState.status === "checking" || updaterState.status === "downloading" || updaterState.status === "installing"}
+                onClick={async () => {
+                  if (updaterState.status === "update_available" || updaterState.status === "success") {
+                    setShowAboutModal(false);
+                    onClose();
+                    setTargetSettingsTab("about");
+                    setActiveWidget("settings");
+                    await islandRuntime.transitionTo("Expanded", "mouse");
+                  } else {
+                    void checkForUpdates();
+                  }
                 }}
               >
-                Check for Updates
+                {updaterState.status === "checking" ? t("updater.checking") : t("updater.checkForUpdates")}
               </button>
               <button
                 type="button"
@@ -456,7 +493,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
                   onClose();
                 }}
               >
-                Close
+                {t("common.close")}
               </button>
             </div>
           </div>

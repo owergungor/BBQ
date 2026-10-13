@@ -25,10 +25,12 @@ export interface AppearanceSettingsTabProps {
   customAccentColor: string | null;
   reducedMotion: boolean;
   startAtLogin: boolean;
+  language?: string;
   onThemeChange: (theme: ThemePreference) => Promise<void>;
   onAccentColorChange: (accentColor: AccentColor) => Promise<void>;
   onCustomAccentChange: (hex: string) => Promise<void>;
   onToggle: (key: string, value: any) => Promise<void>;
+  onLanguageChange?: (lang: string) => Promise<void>;
 }
 
 export interface IslandSettingsTabProps {

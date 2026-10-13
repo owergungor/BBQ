@@ -1,15 +1,17 @@
 import React from "react";
-import type { AccentColor } from "@bbq/types";
+import type { AccentColor, SupportedLanguage } from "@bbq/types";
 import {
   ThemeSwitcher,
   Switch,
   AccentColorPicker,
 } from "../../common/SettingsControls.tsx";
+import { ThemeSelect } from "../../common/ThemeSelect.tsx";
 import {
   SYSTEM_ACCENT_COLORS,
   type AccentPreset,
 } from "../../../state/settingsState.ts";
 import { computeWcagContrast } from "../settingsModel.ts";
+import { useTranslation, LANGUAGE_OPTIONS } from "../../../i18n/index.ts";
 import type { AppearanceSettingsTabProps } from "./settingsTypes.ts";
 
 export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
@@ -18,11 +20,14 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   customAccentColor,
   reducedMotion,
   startAtLogin,
+  language,
   onThemeChange,
   onAccentColorChange,
   onCustomAccentChange,
   onToggle,
+  onLanguageChange,
 }) => {
+  const { t } = useTranslation();
   const activeColorHex =
     accentColor === "custom" || (accentColor && accentColor.startsWith("#"))
       ? customAccentColor || "#007aff"
@@ -32,13 +37,36 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+      {/* Language Selector */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <label
+            htmlFor="settings-language-select"
+            style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}
+          >
+            {t("common.language")}
+          </label>
+          <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
+            {t("common.selectLanguage")}
+          </span>
+        </div>
+        <ThemeSelect
+          id="settings-language-select"
+          value={language || "en"}
+          options={LANGUAGE_OPTIONS}
+          onChange={(newLang) => onLanguageChange?.(newLang as SupportedLanguage)}
+          ariaLabel={t("common.selectLanguage")}
+          style={{ width: "160px" }}
+        />
+      </div>
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <label style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}>
-            Theme Mode
+            {t("settings.appearance.themeMode")}
           </label>
           <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
-            Select interface color scheme or match operating system.
+            {t("settings.appearance.themeDescription")}
           </span>
         </div>
         <ThemeSwitcher theme={theme} onChange={onThemeChange} />
@@ -66,7 +94,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
         }}
       >
         <span style={{ color: "var(--bbq-text-muted)" }}>
-          Accessibility Contrast: <strong style={{ color: "var(--bbq-text)" }}>{contrast.ratio}:1</strong>
+          {t("settings.appearance.accessibilityContrast")}: <strong style={{ color: "var(--bbq-text)" }}>{contrast.ratio}:1</strong>
         </span>
         <span
           style={{
@@ -75,12 +103,12 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
           }}
         >
           {contrast.normalTextAaa
-            ? "AAA Compliant"
+            ? t("settings.appearance.aaaCompliant")
             : contrast.normalTextAa
-            ? "AA Compliant"
+            ? t("settings.appearance.aaCompliant")
             : contrast.largeTextAa
-            ? "AA Large Only"
-            : "Fails WCAG AA"}
+            ? t("settings.appearance.aaLargeOnly")
+            : t("settings.appearance.failsWcag")}
         </span>
       </div>
 
@@ -88,16 +116,16 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
         id="reduced-motion-toggle"
         checked={reducedMotion}
         onChange={(checked) => onToggle("reduced_motion", checked)}
-        label="Reduced Motion"
-        description="Disables non-essential scale transitions and floating animations for accessibility."
+        label={t("settings.appearance.reducedMotion")}
+        description={t("settings.appearance.reducedMotionDesc")}
       />
 
       <Switch
         id="start-at-login-toggle"
         checked={startAtLogin}
         onChange={(checked) => onToggle("start_at_login", checked)}
-        label="Launch at Login"
-        description="Start BBQ automatically on system startup."
+        label={t("settings.appearance.startAtLogin")}
+        description={t("settings.appearance.startAtLoginDesc")}
       />
     </div>
   );

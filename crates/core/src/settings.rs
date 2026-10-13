@@ -70,6 +70,10 @@ fn default_move_hud() -> bool {
     false
 }
 
+fn default_language() -> String {
+    "en".to_string()
+}
+
 /// Strongly typed, persistent user preferences for BBQ
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BbqSettings {
@@ -104,6 +108,8 @@ pub struct BbqSettings {
     pub always_on_top: bool,
     #[serde(default = "default_move_hud")]
     pub move_hud: bool,
+    #[serde(default = "default_language")]
+    pub language: String,
 }
 
 pub fn is_valid_hex_color(s: &str) -> bool {
@@ -148,6 +154,7 @@ impl Default for BbqSettings {
             island_transparency: 0,
             always_on_top: true,
             move_hud: false,
+            language: "en".to_string(),
         }
     }
 }
@@ -254,6 +261,17 @@ impl BbqSettings {
                 "island_transparency {} out of bounds [0, 100]",
                 self.island_transparency
             )));
+        }
+
+        let lang_lower = self.language.trim().to_lowercase();
+        match lang_lower.as_str() {
+            "en" | "es" | "fr" | "de" | "tr" => {}
+            _ => {
+                return Err(BbqError::Validation(format!(
+                    "Invalid language '{}'. Must be one of: en, es, fr, de, tr",
+                    self.language
+                )));
+            }
         }
 
         Ok(())
@@ -431,6 +449,18 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
                     "Invalid boolean for move_hud: '{}'",
                     value
                 )));
+            }
+        }
+        "language" => {
+            let lower = value.trim().to_lowercase();
+            match lower.as_str() {
+                "en" | "es" | "fr" | "de" | "tr" => {}
+                _ => {
+                    return Err(BbqError::Validation(format!(
+                        "Invalid language '{}'. Must be one of: en, es, fr, de, tr",
+                        value
+                    )));
+                }
             }
         }
         "auto_update_schedule" | "last_update_check_at" => {

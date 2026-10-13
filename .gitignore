@@ -28,3 +28,8 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Security / Signing keys
+*.key
+*.key.pub
+.tauri/

@@ -752,4 +752,13 @@ export const bbqCommands = {
       return null;
     }
   },
+
+  appRelaunch: async (): Promise<void> => {
+    try {
+      const { emit } = await import("@tauri-apps/api/event");
+      await emit("bbq://app_relaunch");
+    } catch (err) {
+      console.error("Failed to relaunch application:", err);
+    }
+  },
 };

@@ -354,3 +354,27 @@ fn test_accent_persistence_and_custom_hex_retention() {
     assert_eq!(loaded3.custom_accent_color.as_deref(), Some("#00D4FF"));
     assert!(loaded3.onboarding_completed);
 }
+
+#[test]
+fn test_language_persistence_and_validation() {
+    let db = DatabaseManager::open_in_memory().expect("in-memory db");
+    let service = SettingsService::new(db.settings_repository());
+
+    // Default must be English
+    let initial = service.get_settings().expect("get_settings");
+    assert_eq!(initial.language, "en");
+
+    // Valid 5 languages
+    for lang in &["en", "es", "fr", "de", "tr"] {
+        service
+            .update_setting("language", lang)
+            .expect("valid language update");
+        let s = service.get_settings().expect("get_settings");
+        assert_eq!(s.language, *lang);
+    }
+
+    // Invalid languages rejected
+    assert!(service.update_setting("language", "it").is_err());
+    assert!(service.update_setting("language", "invalid").is_err());
+    assert!(service.update_setting("language", "").is_err());
+}

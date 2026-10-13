@@ -116,6 +116,7 @@ export const defaultSettings: BbqSettings = {
   island_transparency: 0,
   always_on_top: true,
   move_hud: false,
+  language: "en",
 };
 
 export function isEffectiveLight(theme: BbqSettings["theme"]): boolean {
@@ -481,6 +482,11 @@ export function coerceSettingValue(key: keyof BbqSettings, value: string): unkno
     case "always_on_top":
     case "move_hud":
       return value === "true";
+
+    case "language":
+      return value === "es" || value === "fr" || value === "de" || value === "tr"
+        ? value
+        : "en";
 
     case "auto_update_schedule":
       return undefined;

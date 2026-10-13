@@ -216,6 +216,15 @@ impl SettingsServiceTrait for SettingsService {
         if let Ok(Some(mh)) = self.repo.get("move_hud") {
             settings.move_hud = mh == "true";
         }
+        if let Ok(Some(lang)) = self.repo.get("language") {
+            let trimmed = lang.trim().to_lowercase();
+            match trimmed.as_str() {
+                "en" | "es" | "fr" | "de" | "tr" => {
+                    settings.language = trimmed;
+                }
+                _ => {}
+            }
+        }
 
         Ok(settings)
     }
@@ -384,6 +393,7 @@ impl SettingsServiceTrait for SettingsService {
         )?;
         self.repo
             .set("move_hud", if settings.move_hud { "true" } else { "false" })?;
+        self.repo.set("language", &settings.language)?;
 
         self.notify_change(settings);
         Ok(())
