@@ -47,9 +47,9 @@ export function validateReleaseMetadata(metadataPath, options = {}) {
   if (!metadata.version || typeof metadata.version !== "string") {
     errors.push("Missing or invalid 'version' field in metadata (must be non-empty string)");
   } else {
-    // Validate SemVer pattern (x.y.z)
+    // Validate SemVer pattern (x.y or x.y.z)
     const cleanVer = metadata.version.startsWith("v") ? metadata.version.slice(1) : metadata.version;
-    const semverRegex = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
+    const semverRegex = /^\d+\.\d+(\.\d+)?(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
     if (!semverRegex.test(cleanVer)) {
       errors.push(`Invalid SemVer format for 'version': "${metadata.version}"`);
     }

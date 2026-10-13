@@ -175,6 +175,21 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       assert.ok(compareSemVer("3.0.0-beta.2", "3.0.0-beta.1") > 0);
       assert.ok(compareSemVer("3.0.0-alpha.1", "3.0.0-beta.1") < 0);
     });
+
+    it("correctly handles two-component version comparisons (2.8, 3.0, 3.1)", () => {
+      assert.ok(compareSemVer("3.0", "2.8") > 0);
+      assert.ok(compareSemVer("3.1", "3.0") > 0);
+      assert.ok(compareSemVer("v3.0", "2.8") > 0);
+      assert.ok(compareSemVer("3.0", "v2.8") > 0);
+      assert.strictEqual(compareSemVer("3.0", "3.0"), 0);
+      assert.strictEqual(compareSemVer("3.0", "3.0.0"), 0);
+      assert.strictEqual(compareSemVer("v3.0", "3.0"), 0);
+      assert.ok(compareSemVer("2.8", "3.0") < 0);
+      assert.ok(isUpdateAvailable("2.8", "3.0"));
+      assert.ok(isUpdateAvailable("3.0", "3.1"));
+      assert.strictEqual(isUpdateAvailable("3.0", "3.0"), false);
+      assert.strictEqual(isUpdateAvailable("3.0", "2.8"), false);
+    });
   });
 
   // =========================================================================
@@ -221,7 +236,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       setSimulatedUpdater(null);
       updaterStore.setState({
         status: "idle",
-        currentVersion: "3.0.0",
+        currentVersion: "3.0",
         availableVersion: null,
         releaseNotes: null,
         releaseDate: null,
@@ -243,7 +258,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
 
     it("transitions idle -> checking -> update_available when new version is available", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.1.0",
+        mockAvailableVersion: "3.1",
         mockReleaseNotes: "New features and bug fixes",
         mockReleaseDate: "2026-10-15T00:00:00Z",
       });
@@ -251,19 +266,19 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       await checkForUpdates();
       const state = updaterStore.getState();
       assert.strictEqual(state.status, "update_available");
-      assert.strictEqual(state.availableVersion, "3.1.0");
+      assert.strictEqual(state.availableVersion, "3.1");
       assert.strictEqual(state.releaseNotes, "New features and bug fixes");
     });
 
     it("supports download, progress reporting, and completion", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.1.0",
+        mockAvailableVersion: "3.1",
         downloadDurationMs: 40,
       });
 
       updaterStore.setState({
         status: "update_available",
-        availableVersion: "3.1.0",
+        availableVersion: "3.1",
       });
 
       await downloadAndInstallUpdate();
@@ -274,7 +289,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
     it("honestly reflects that active downloads cannot be cancelled mid-stream", async () => {
       updaterStore.setState({
         status: "downloading",
-        availableVersion: "3.1.0",
+        availableVersion: "3.1",
       });
 
       const cancelled = cancelUpdate();
@@ -389,8 +404,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
 
       const result = generateUpdateMetadata({
         artifactsDir: mockDir,
-        version: "3.0.0",
-        tag: "v3.0.0",
+        version: "3.0",
+        tag: "v3.0",
         repo: "owergungor/BBQ",
       });
 
@@ -414,8 +429,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
 
       const result = generateUpdateMetadata({
         artifactsDir: mockDir,
-        version: "3.0.0",
-        tag: "v3.0.0",
+        version: "3.0",
+        tag: "v3.0",
         repo: "owergungor/BBQ",
       });
 
@@ -437,13 +452,13 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       fs.writeFileSync(
         tempJson,
         JSON.stringify({
-          version: "3.0.0",
+          version: "3.0",
           notes: "Release notes",
           pub_date: new Date().toISOString(),
           platforms: {
             "windows-x86_64": {
               signature: "sig123",
-              url: "https://github.com/owergungor/BBQ/releases/download/v3.0.0/BBQ-win-x64-setup.exe",
+              url: "https://github.com/owergungor/BBQ/releases/download/v3.0/BBQ-win-x64-setup.exe",
             },
           },
         })
@@ -510,7 +525,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       fs.writeFileSync(path.join(mockDir, "BBQ-mac-arm64.app.tar.gz.sig"), "mac-sig-content");
       const metaWithoutPayload = generateUpdateMetadata({
         artifactsDir: mockDir,
-        version: "3.0.0",
+        version: "3.0",
         repo: "owergungor/BBQ",
       });
       assert.strictEqual(
@@ -524,7 +539,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       fs.writeFileSync(path.join(mockDir, "BBQ-mac-arm64.app.tar.gz"), "mac-payload-content");
       const metaWithoutSig = generateUpdateMetadata({
         artifactsDir: mockDir,
-        version: "3.0.0",
+        version: "3.0",
         repo: "owergungor/BBQ",
       });
       assert.strictEqual(
@@ -538,12 +553,12 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       fs.writeFileSync(
         testJson,
         JSON.stringify({
-          version: "3.0.0",
+          version: "3.0",
           pub_date: new Date().toISOString(),
           platforms: {
             "darwin-aarch64": {
               signature: "test-sig",
-              url: "https://github.com/owergungor/BBQ/releases/download/v3.0.0/BBQ-mac-arm64.app.tar.gz",
+              url: "https://github.com/owergungor/BBQ/releases/download/v3.0/BBQ-mac-arm64.app.tar.gz",
             },
           },
         })
@@ -831,22 +846,25 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
   // 8. Release Version Consistency & Release Workflow Integrity
   // =========================================================================
   describe("8. Release Version Consistency & Release Workflow Integrity", () => {
-    it("verifies shipped application version is consistently 3.0.0 across all manifests and sources", () => {
+    it("verifies shipped application version is consistently 3.0 across all manifests and sources", () => {
       const rootPkgPath = path.join(ROOT_DIR, "package.json");
       const desktopPkgPath = path.join(DESKTOP_DIR, "package.json");
+      const typesPkgPath = path.join(ROOT_DIR, "packages/types/package.json");
       const tauriConfPath = path.join(DESKTOP_DIR, "src-tauri/tauri.conf.json");
       const desktopCargoPath = path.join(DESKTOP_DIR, "src-tauri/Cargo.toml");
       const cargoLockPath = path.join(ROOT_DIR, "Cargo.lock");
 
       const rootPkg = JSON.parse(fs.readFileSync(rootPkgPath, "utf-8"));
       const desktopPkg = JSON.parse(fs.readFileSync(desktopPkgPath, "utf-8"));
+      const typesPkg = JSON.parse(fs.readFileSync(typesPkgPath, "utf-8"));
       const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, "utf-8"));
       const desktopCargo = fs.readFileSync(desktopCargoPath, "utf-8");
       const cargoLock = fs.readFileSync(cargoLockPath, "utf-8");
 
-      const EXPECTED_VERSION = "3.0.0";
+      const EXPECTED_VERSION = "3.0";
+      const CARGO_INTERNAL_VERSION = "3.0.0";
 
-      // 1. Root and desktop package.json
+      // 1. Root, desktop, and types package.json
       assert.strictEqual(
         rootPkg.version,
         EXPECTED_VERSION,
@@ -856,6 +874,11 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
         desktopPkg.version,
         EXPECTED_VERSION,
         `apps/desktop/package.json version must be ${EXPECTED_VERSION}, got: ${desktopPkg.version}`
+      );
+      assert.strictEqual(
+        typesPkg.version,
+        EXPECTED_VERSION,
+        `packages/types/package.json version must be ${EXPECTED_VERSION}, got: ${typesPkg.version}`
       );
 
       // 2. Runtime version imports
@@ -875,50 +898,58 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
         `initialUpdaterState.currentVersion must be initialized to ${EXPECTED_VERSION}`
       );
 
-      // 3. tauri.conf.json
+      // 3. tauri.conf.json (documented internal 3-component normalization required by tauri-build/semver)
       assert.strictEqual(
         tauriConf.version,
-        EXPECTED_VERSION,
-        `tauri.conf.json version must be ${EXPECTED_VERSION}, got: ${tauriConf.version}`
+        CARGO_INTERNAL_VERSION,
+        `tauri.conf.json internal version must be ${CARGO_INTERNAL_VERSION}, got: ${tauriConf.version}`
       );
 
-      // 4. Desktop Cargo.toml & Cargo.lock
+      // 4. Desktop Cargo.toml & Cargo.lock (documented internal 3-component normalization required by Cargo)
       const desktopCargoMatch = desktopCargo.match(/^version\s*=\s*"([^"]+)"/m);
       assert.ok(desktopCargoMatch, "apps/desktop/src-tauri/Cargo.toml must declare package version");
       assert.strictEqual(
         desktopCargoMatch[1],
-        EXPECTED_VERSION,
-        `apps/desktop/src-tauri/Cargo.toml version must be ${EXPECTED_VERSION}`
+        CARGO_INTERNAL_VERSION,
+        `apps/desktop/src-tauri/Cargo.toml internal version must be ${CARGO_INTERNAL_VERSION}`
       );
 
       const lockMatch = cargoLock.match(/name\s*=\s*"bbq-desktop"\s*\r?\nversion\s*=\s*"([^"]+)"/);
       assert.ok(lockMatch, "Cargo.lock must contain resolved bbq-desktop version");
       assert.strictEqual(
         lockMatch[1],
-        EXPECTED_VERSION,
-        `Cargo.lock resolved bbq-desktop version must be ${EXPECTED_VERSION}`
+        CARGO_INTERNAL_VERSION,
+        `Cargo.lock resolved bbq-desktop version must be ${CARGO_INTERNAL_VERSION}`
       );
     });
 
-    it("fails regression test if any application version source diverges from 3.0.0", () => {
-      const versions = {
+    it("fails regression test if any application version source diverges from two-component 3.0 format", () => {
+      const publicVersions = {
         rootPkg: JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "package.json"), "utf-8")).version,
         desktopPkg: JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "package.json"), "utf-8")).version,
-        tauriConf: JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/tauri.conf.json"), "utf-8")).version,
+        typesPkg: JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "packages/types/package.json"), "utf-8")).version,
         appVersionTs: APP_VERSION,
         initialUpdaterState: initialUpdaterState.currentVersion,
       };
 
-      const uniqueVersions = new Set(Object.values(versions));
+      const twoComponentRegex = /^\d+\.\d+$/;
+      for (const [source, ver] of Object.entries(publicVersions)) {
+        assert.ok(
+          twoComponentRegex.test(ver),
+          `Public version source ${source} ("${ver}") must adhere to two-component convention format (e.g. 3.0)`
+        );
+      }
+
+      const uniqueVersions = new Set(Object.values(publicVersions));
       assert.strictEqual(
         uniqueVersions.size,
         1,
-        `All application version sources must match identically, found divergence: ${JSON.stringify(versions)}`
+        `All public application version sources must match identically, found divergence: ${JSON.stringify(publicVersions)}`
       );
       assert.strictEqual(
         Array.from(uniqueVersions)[0],
-        "3.0.0",
-        `Canonical version must be 3.0.0, found: ${Array.from(uniqueVersions)[0]}`
+        "3.0",
+        `Canonical public version must be two-component 3.0, found: ${Array.from(uniqueVersions)[0]}`
       );
     });
 
