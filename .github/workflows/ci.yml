@@ -124,8 +124,18 @@ jobs:
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           BBQ_RELEASE_BUILD: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '') }}
           BBQ_ALLOW_UNSIGNED_MACOS: ${{ inputs.allow_unsigned_macos || vars.BBQ_ALLOW_UNSIGNED_MACOS || 'true' }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          pnpm --filter @bbq/desktop tauri build --bundles app --ci --no-sign
+          if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            pnpm --filter @bbq/desktop tauri build --bundles app --ci
+          elif [ "$BBQ_RELEASE_BUILD" = "true" ]; then
+            echo "ERROR: TAURI_SIGNING_PRIVATE_KEY is required for release builds to support in-app updates! Failing closed." >&2
+            exit 1
+          else
+            echo "[Notice] TAURI_SIGNING_PRIVATE_KEY not set in non-release workflow. Building with --no-sign."
+            pnpm --filter @bbq/desktop tauri build --bundles app --ci --no-sign
+          fi
           bash scripts/package-macos.sh
 
       - name: Upload macOS Release Artifacts
@@ -137,12 +147,25 @@ jobs:
             target/release/release-artifacts/BBQ-mac-arm64.app.zip
             target/release/release-artifacts/BBQ-mac-arm64.dmg
             target/release/release-artifacts/checksums.txt
+            target/release/release-artifacts/*
           if-no-files-found: error
 
       - name: Package & Standardize Artifacts (Windows x64)
         if: runner.os == 'Windows'
+        env:
+          BBQ_RELEASE_BUILD: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '') }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          pnpm --filter @bbq/desktop tauri build --bundles nsis --ci --no-sign
+          if ($env:TAURI_SIGNING_PRIVATE_KEY) {
+            pnpm --filter @bbq/desktop tauri build --bundles nsis --ci
+          } elseif ($env:BBQ_RELEASE_BUILD -eq "true") {
+            Write-Error "ERROR: TAURI_SIGNING_PRIVATE_KEY is required for release builds to support in-app updates! Failing closed."
+            exit 1
+          } else {
+            Write-Host "[Notice] TAURI_SIGNING_PRIVATE_KEY not set in non-release workflow. Building with --no-sign."
+            pnpm --filter @bbq/desktop tauri build --bundles nsis --ci --no-sign
+          }
           powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1
 
       - name: Upload Windows Release Artifacts
@@ -154,6 +177,7 @@ jobs:
             target/release/release-artifacts/BBQ-win-x64-setup.exe
             target/release/release-artifacts/BBQ-win-x64.zip
             target/release/release-artifacts/checksums.txt
+            target/release/release-artifacts/*
           if-no-files-found: error
 
   publish-release:
@@ -203,23 +227,27 @@ jobs:
             cp artifacts/mac-arm64/BBQ-mac-arm64.dmg release-assets/
             UPLOAD_ASSETS+=(release-assets/BBQ-mac-arm64.app.zip release-assets/BBQ-mac-arm64.dmg)
             HAS_MAC=true
+
+            # Stage macOS updater archive if present (generated during signed builds)
+            if [ -f artifacts/mac-arm64/BBQ-mac-arm64.app.tar.gz ]; then
+              echo "Staging verified macOS ARM64 updater archive (BBQ-mac-arm64.app.tar.gz)..."
+              cp artifacts/mac-arm64/BBQ-mac-arm64.app.tar.gz release-assets/
+              UPLOAD_ASSETS+=(release-assets/BBQ-mac-arm64.app.tar.gz)
+            fi
           else
             echo "[Notice] macOS ARM64 release artifacts not found or incomplete."
           fi
 
-          # 3. Guard against accidental empty/zero artifact release publication
-          if [ ${#UPLOAD_ASSETS[@]} -eq 0 ]; then
-            echo "ERROR: No verified release artifacts found to publish! Both Windows and macOS staging failed." >&2
-            exit 1
-          fi
+          # 2.5 Stage any signature files
+          for sig in artifacts/*/*.sig; do
+            if [ -f "$sig" ]; then
+              echo "Staging signature file: $sig"
+              cp "$sig" release-assets/
+              UPLOAD_ASSETS+=("release-assets/$(basename "$sig")")
+            fi
+          done
 
-          echo "=== Standardized Release Assets to Upload ==="
-          ls -lh release-assets/
-
-          echo "=== SHA256 Checksums ==="
-          sha256sum "${UPLOAD_ASSETS[@]}"
-
-          # 4. Generate structured release notes with explicit platform disclosures
+          # 2.6 Generate structured release notes with explicit platform disclosures
           NOTES_FILE=$(mktemp)
           cat << 'EOF' > "$NOTES_FILE"
           ## BBQ Release Assets
@@ -251,7 +279,42 @@ jobs:
           EOF
           fi
 
-          # 5. Ensure release exists and publish assets
+          cat << 'EOF' >> "$NOTES_FILE"
+
+          > [!IMPORTANT]
+          > **Notice for v2.8 Users (One-Time Manual Upgrade)**
+          > BBQ v2.8 does not include the auto-updater plugin or Minisign public key and cannot update to v3.0 in-app.
+          > Users running v2.8 must manually download and install BBQ v3.0 once from the assets above. Future updates starting from v3.0 will update seamlessly in-app.
+          EOF
+
+          # 2.7 Generate updater metadata (latest.json)
+          echo "Generating updater metadata..."
+          node scripts/generate-update-metadata.mjs \
+            --artifacts-dir release-assets \
+            --version "$TAG_NAME" \
+            --repo "$GH_REPO" \
+            --notes-file "$NOTES_FILE" \
+            --output release-assets/latest.json
+
+          # 2.8 Validate updater metadata (fail closed in strict mode)
+          echo "Validating updater metadata (strict mode)..."
+          node scripts/validate-release-metadata.mjs release-assets/latest.json \
+            --strict \
+            --artifacts-dir release-assets
+
+          # 3. Guard against accidental empty/zero artifact release publication
+          if [ ${#UPLOAD_ASSETS[@]} -eq 0 ]; then
+            echo "ERROR: No verified release artifacts found to publish! Both Windows and macOS staging failed." >&2
+            exit 1
+          fi
+
+          echo "=== Standardized Release Assets to Upload ==="
+          ls -lh release-assets/
+
+          echo "=== SHA256 Checksums ==="
+          sha256sum "${UPLOAD_ASSETS[@]}"
+
+          # 4. Ensure release exists on GitHub
           echo "Ensuring release $TAG_NAME exists..."
           if ! gh release view "$TAG_NAME" >/dev/null 2>&1; then
             gh release create "$TAG_NAME" --title "BBQ $TAG_NAME" --notes-file "$NOTES_FILE"
@@ -259,5 +322,13 @@ jobs:
             gh release edit "$TAG_NAME" --notes-file "$NOTES_FILE" 2>/dev/null || true
           fi
 
-          echo "Uploading standardized assets to release $TAG_NAME..."
+          # 5. Strict publication ordering:
+          # Phase 5a: Upload all binaries, installers, and detached .sig files first
+          echo "Uploading standardized binary packages and detached signatures to release $TAG_NAME..."
           gh release upload "$TAG_NAME" "${UPLOAD_ASSETS[@]}" --clobber
+
+          # Phase 5b: Upload latest.json ONLY after all referenced assets are confirmed on GitHub Releases
+          if [ -f release-assets/latest.json ]; then
+            echo "Uploading updater metadata manifest (latest.json)..."
+            gh release upload "$TAG_NAME" release-assets/latest.json --clobber
+          fi
