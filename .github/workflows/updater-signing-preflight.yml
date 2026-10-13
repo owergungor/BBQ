@@ -1,0 +1,323 @@
+name: BBQ Updater Signing Preflight (Safe & Isolated)
+
+# This workflow performs a safe, dry-run preflight verification of the BBQ v3.0 updater signing pipeline.
+#
+# SECURITY & ISOLATION GUARANTEES:
+# 1. Triggered ONLY via manual workflow_dispatch.
+# 2. Minimal read-only permissions (contents: read). It CANNOT create or mutate GitHub Releases, tags, or assets.
+# 3. Validates the existence and decryptability of repository secrets:
+#    - TAURI_SIGNING_PRIVATE_KEY
+#    - TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+# 4. Builds updater artifacts on Windows x64 and macOS ARM64 runners using Tauri CLI.
+# 5. Cryptographically verifies generated .sig files against the configured Minisign public key.
+# 6. Runs updater metadata generation (latest.json) and strict validation locally in a temporary directory.
+# 7. Uploads ONLY non-sensitive diagnostic summaries as workflow artifacts (zero secrets or private keys).
+# 8. NEVER modifies or publishes any GitHub Release or release assets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_version:
+        description: 'Dry-run SemVer version to validate (e.g. 3.0.0)'
+        required: false
+        default: '3.0.0'
+
+permissions:
+  contents: read
+
+jobs:
+  preflight-windows:
+    name: Preflight Windows x64 Signing
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Secret Presence (Fail Closed)
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            Write-Error "CRITICAL: TAURI_SIGNING_PRIVATE_KEY secret is missing or empty in repository secrets!"
+            exit 1
+          }
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) {
+            Write-Error "CRITICAL: TAURI_SIGNING_PRIVATE_KEY_PASSWORD secret is missing or empty in repository secrets!"
+            exit 1
+          }
+          Write-Host "[OK] Signing secrets are present in execution environment."
+
+      - name: Build Frontend
+        run: pnpm build
+
+      - name: Build Signed Windows NSIS Package
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          Write-Host "Building signed Windows NSIS updater package with Tauri CLI..."
+          pnpm --filter @bbq/desktop tauri build --bundles nsis --ci
+
+      - name: Package & Standardize Windows Artifacts
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File scripts/package-windows.ps1
+
+      - name: Assert Artifact & Signature Integrity
+        shell: pwsh
+        run: |
+          $artifactsDir = "target/release/release-artifacts"
+          if (-not (Test-Path $artifactsDir)) {
+            Write-Error "Target release artifacts directory '$artifactsDir' does not exist!"
+            exit 1
+          }
+
+          $sigFiles = Get-ChildItem -Path $artifactsDir -Filter "*.sig"
+          if ($sigFiles.Count -eq 0) {
+            Write-Error "CRITICAL: No updater signature (.sig) files were generated in '$artifactsDir'!"
+            exit 1
+          }
+
+          Write-Host "Found $($sigFiles.Count) signature file(s):"
+          foreach ($sig in $sigFiles) {
+            Write-Host "  Signature: $($sig.Name) ($($sig.Length) bytes)"
+          }
+
+      - name: Cryptographically Verify Minisign Signatures
+        shell: pwsh
+        run: |
+          $artifactsDir = "target/release/release-artifacts"
+          $sigFiles = Get-ChildItem -Path $artifactsDir -Filter "*.sig"
+          $verifiedCount = 0
+
+          foreach ($sig in $sigFiles) {
+            # Check corresponding target asset
+            $targetAsset = $sig.FullName.Substring(0, $sig.FullName.Length - 4)
+            if (Test-Path $targetAsset) {
+              Write-Host "Verifying signature: $($sig.Name) against $(Split-Path $targetAsset -Leaf)..."
+              node scripts/verify-minisign-signature.mjs --file "$targetAsset" --sig-file "$($sig.FullName)"
+              if ($LASTEXITCODE -ne 0) {
+                Write-Error "Cryptographic signature verification FAILED for $($sig.Name)!"
+                exit 1
+              }
+              $verifiedCount++
+            } else {
+              Write-Host "[Notice] Standalone signature $($sig.Name) preserved without local payload."
+            }
+          }
+
+          if ($verifiedCount -eq 0) {
+            Write-Error "CRITICAL: Could not cryptographically verify any signature against a payload artifact!"
+            exit 1
+          }
+          Write-Host "[OK] All verified signatures matched configured Minisign public key."
+
+      - name: Local Dry-Run Metadata Generation & Validation
+        shell: pwsh
+        run: |
+          $artifactsDir = "target/release/release-artifacts"
+          $tempMetaDir = "target/preflight-staging"
+          New-Item -ItemType Directory -Path $tempMetaDir -Force | Out-Null
+
+          # Copy artifacts to isolated staging directory
+          Copy-Item -Path "$artifactsDir/*" -Destination $tempMetaDir -Recurse -Force
+
+          $testVer = "${{ inputs.test_version || '3.0.0' }}"
+          Write-Host "Generating test latest.json for version $testVer..."
+          node scripts/generate-update-metadata.mjs `
+            --artifacts-dir "$tempMetaDir" `
+            --version "$testVer" `
+            --repo "${{ github.repository }}" `
+            --output "$tempMetaDir/latest.json"
+
+          Write-Host "Validating test latest.json in strict mode..."
+          node scripts/validate-release-metadata.mjs "$tempMetaDir/latest.json" `
+            --strict `
+            --artifacts-dir "$tempMetaDir"
+
+      - name: Generate Diagnostic Summary (Non-sensitive)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path preflight-diagnostics/windows -Force | Out-Null
+          $summaryFile = "preflight-diagnostics/windows/preflight-summary.txt"
+
+          "=== BBQ Windows x64 Updater Signing Preflight Summary ===" | Out-File -FilePath $summaryFile
+          "Timestamp: $(Get-Date -Format 'o')" | Out-File -Append -FilePath $summaryFile
+          "Status: PASSED" | Out-File -Append -FilePath $summaryFile
+          "Public Key Configured: Yes" | Out-File -Append -FilePath $summaryFile
+          "Cryptographic Verification: Valid" | Out-File -Append -FilePath $summaryFile
+          "Metadata Validation: Strict PASS" | Out-File -Append -FilePath $summaryFile
+          "`nGenerated Artifacts:" | Out-File -Append -FilePath $summaryFile
+          Get-ChildItem -Path target/release/release-artifacts | Select-Object Name, Length | Format-Table -AutoSize | Out-String | Out-File -Append -FilePath $summaryFile
+
+          Write-Host (Get-Content -Path $summaryFile -Raw)
+
+      - name: Upload Non-Sensitive Diagnostic Summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: preflight-windows-summary
+          path: preflight-diagnostics/windows/preflight-summary.txt
+          if-no-files-found: error
+
+  preflight-macos:
+    name: Preflight macOS ARM64 Signing
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Secret Presence (Fail Closed)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "::error::CRITICAL: TAURI_SIGNING_PRIVATE_KEY secret is missing or empty in repository secrets!"
+            exit 1
+          fi
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}" ]; then
+            echo "::error::CRITICAL: TAURI_SIGNING_PRIVATE_KEY_PASSWORD secret is missing or empty in repository secrets!"
+            exit 1
+          fi
+          echo "[OK] Signing secrets are present in execution environment."
+
+      - name: Build Frontend
+        run: pnpm build
+
+      - name: Build Signed macOS App Bundle
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          echo "Building signed macOS app bundle with Tauri CLI..."
+          pnpm --filter @bbq/desktop tauri build --bundles app --ci
+
+      - name: Package & Standardize macOS Artifacts
+        env:
+          BBQ_ALLOW_UNSIGNED_MACOS: "true"
+        run: |
+          bash scripts/package-macos.sh
+
+      - name: Assert Artifact & Signature Integrity
+        run: |
+          ARTIFACTS_DIR="target/release/release-artifacts"
+          if [ ! -d "$ARTIFACTS_DIR" ]; then
+            echo "::error::Target release artifacts directory '$ARTIFACTS_DIR' does not exist!"
+            exit 1
+          fi
+
+          SIG_FILES=( "$ARTIFACTS_DIR"/*.sig )
+          if [ ! -e "${SIG_FILES[0]}" ]; then
+            echo "::error::CRITICAL: No updater signature (.sig) files were generated in '$ARTIFACTS_DIR'!"
+            exit 1
+          fi
+
+          echo "Found signature files in $ARTIFACTS_DIR:"
+          ls -lh "$ARTIFACTS_DIR"/*.sig
+
+      - name: Cryptographically Verify Minisign Signatures
+        run: |
+          ARTIFACTS_DIR="target/release/release-artifacts"
+          VERIFIED_COUNT=0
+
+          for sig in "$ARTIFACTS_DIR"/*.sig; do
+            if [ -f "$sig" ]; then
+              TARGET_ASSET="${sig%.sig}"
+              if [ -f "$TARGET_ASSET" ]; then
+                echo "Verifying signature: $(basename "$sig") against $(basename "$TARGET_ASSET")..."
+                node scripts/verify-minisign-signature.mjs --file "$TARGET_ASSET" --sig-file "$sig"
+                VERIFIED_COUNT=$((VERIFIED_COUNT + 1))
+              fi
+            fi
+          done
+
+          if [ "$VERIFIED_COUNT" -eq 0 ]; then
+            echo "::error::CRITICAL: Could not cryptographically verify any signature against a payload artifact!"
+            exit 1
+          fi
+          echo "[OK] All verified signatures matched configured Minisign public key."
+
+      - name: Local Dry-Run Metadata Generation & Validation
+        run: |
+          ARTIFACTS_DIR="target/release/release-artifacts"
+          TEMP_META_DIR="target/preflight-staging"
+          mkdir -p "$TEMP_META_DIR"
+          cp "$ARTIFACTS_DIR"/* "$TEMP_META_DIR/" 2>/dev/null || true
+
+          TEST_VER="${{ inputs.test_version || '3.0.0' }}"
+          echo "Generating test latest.json for version $TEST_VER..."
+          node scripts/generate-update-metadata.mjs \
+            --artifacts-dir "$TEMP_META_DIR" \
+            --version "$TEST_VER" \
+            --repo "${{ github.repository }}" \
+            --output "$TEMP_META_DIR/latest.json"
+
+          echo "Validating test latest.json in strict mode..."
+          node scripts/validate-release-metadata.mjs "$TEMP_META_DIR/latest.json" \
+            --strict \
+            --artifacts-dir "$TEMP_META_DIR"
+
+      - name: Generate Diagnostic Summary (Non-sensitive)
+        run: |
+          mkdir -p preflight-diagnostics/macos
+          SUMMARY_FILE="preflight-diagnostics/macos/preflight-summary.txt"
+
+          cat << EOF > "$SUMMARY_FILE"
+          === BBQ macOS ARM64 Updater Signing Preflight Summary ===
+          Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          Status: PASSED
+          Public Key Configured: Yes
+          Cryptographic Verification: Valid
+          Metadata Validation: Strict PASS
+
+          Generated Artifacts:
+          EOF
+          ls -lh target/release/release-artifacts >> "$SUMMARY_FILE"
+
+          cat "$SUMMARY_FILE"
+
+      - name: Upload Non-Sensitive Diagnostic Summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: preflight-macos-summary
+          path: preflight-diagnostics/macos/preflight-summary.txt
+          if-no-files-found: error

@@ -142,6 +142,7 @@ pub fn run() {
     services.register(hotkey_service.clone());
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             tracing::info!("Single-instance check triggered: focusing existing BBQ instance");
             if let Some(window) = app.get_webview_window("main") {
@@ -264,6 +265,14 @@ pub fn run() {
         .setup(move |app| {
             let handle = app.handle();
             let state = handle.state::<AppState>();
+
+            // Listen for native app relaunch requests
+            let relaunch_handle = handle.clone();
+            use tauri::Listener;
+            handle.listen("bbq://app_relaunch", move |_| {
+                tracing::info!("Received bbq://app_relaunch event, restarting application");
+                relaunch_handle.restart();
+            });
 
             // Asynchronously initialize all registered services
             let services_clone = state.services.get_statuses();

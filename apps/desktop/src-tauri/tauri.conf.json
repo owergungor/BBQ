@@ -33,6 +33,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -62,6 +63,14 @@
     "macOS": {
       "minimumSystemVersion": "10.15",
       "frameworks": []
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY1NTBFN0QyQ0Q2MTgzOApSV1E0R05Zc2ZRNVZCa1R4WDVMSGFOckQ5ZDZQTkcxSlRsRWhTc2NKdmtXdkJHZnF0d0pKR0F3Mwo=",
+      "endpoints": [
+        "https://github.com/owergungor/BBQ/releases/latest/download/latest.json"
+      ]
     }
   }
 }
