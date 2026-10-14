@@ -83,6 +83,8 @@ pub struct BbqSettings {
     #[serde(default)]
     pub custom_accent_color: Option<String>,
     pub reduced_motion: bool,
+    #[serde(default)]
+    pub reduced_transparency: bool,
     pub island_width: u32,
     pub island_height: u32,
     pub target_display_id: Option<String>,
@@ -133,6 +135,7 @@ impl Default for BbqSettings {
             accent_color: "blue".to_string(),
             custom_accent_color: None,
             reduced_motion: false,
+            reduced_transparency: false,
             island_width: 240,
             island_height: 38,
             target_display_id: None,
@@ -309,6 +312,7 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
             }
         }
         "reduced_motion"
+        | "reduced_transparency"
         | "auto_expand_on_event"
         | "start_at_login"
         | "hotkey_enabled"

@@ -81,9 +81,11 @@ export const IslandShell: React.FC<IslandShellProps> = ({
     };
   } else if (state === "Expanded") {
     const expHeight = sizing ? `${sizing.expanded.preferredHeight}px` : "var(--bbq-expanded-height, 360px)";
+    const expWidth = sizing ? `${sizing.expanded.preferredWidth}px` : "var(--bbq-expanded-width, 520px)";
     dynamicStyle = {
       ...dynamicStyle,
-      maxWidth: sizing ? `${sizing.expanded.preferredWidth}px` : "var(--bbq-expanded-width, 520px)",
+      width: expWidth,
+      maxWidth: expWidth,
       height: expHeight,
       maxHeight: expHeight,
     };

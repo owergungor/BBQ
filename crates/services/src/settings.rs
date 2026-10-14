@@ -115,6 +115,9 @@ impl SettingsServiceTrait for SettingsService {
         if let Ok(Some(rm)) = self.repo.get("reduced_motion") {
             settings.reduced_motion = rm == "true";
         }
+        if let Ok(Some(rt)) = self.repo.get("reduced_transparency") {
+            settings.reduced_transparency = rt == "true";
+        }
         if let Ok(Some(w)) = self.repo.get("island_width") {
             if let Ok(num) = w.parse::<u32>() {
                 settings.island_width =
@@ -274,6 +277,14 @@ impl SettingsServiceTrait for SettingsService {
         self.repo.set(
             "reduced_motion",
             if settings.reduced_motion {
+                "true"
+            } else {
+                "false"
+            },
+        )?;
+        self.repo.set(
+            "reduced_transparency",
+            if settings.reduced_transparency {
                 "true"
             } else {
                 "false"

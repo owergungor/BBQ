@@ -65,6 +65,7 @@
       "privacy": "Privacy",
       "notifications": "Notifications",
       "widgets": "Widgets",
+      "update": "Update",
       "about": "About"
     },
     "appearance": {
@@ -84,6 +85,8 @@
       "failsWcag": "Fails WCAG AA",
       "reducedMotion": "Reduced Motion",
       "reducedMotionDesc": "Disables non-essential scale transitions and floating animations for accessibility.",
+      "reducedTransparency": "Reduced Transparency",
+      "reducedTransparencyDesc": "Increases background opacity and contrast for improved readability.",
       "startAtLogin": "Launch at Login",
       "startAtLoginDesc": "Start BBQ automatically on system startup."
     },

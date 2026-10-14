@@ -11,6 +11,7 @@ import { useSettingsState } from "../../state/settingsState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon } from "../common/Icon.tsx";
 import { formatTimeDisplay, formatStopwatchDisplay } from "../widgets/TimerWidget.tsx";
+import { resolveArtworkUrl } from "../widgets/mediaModel.ts";
 
 export function useBatteryDisplay(): string {
   return useSystemState((s) => {
@@ -82,10 +83,11 @@ export const CompactClipboardIndicator: React.FC = () => {
 export const CompactMediaIndicator: React.FC = () => {
   const currentSession = useMediaState((s) => s.currentSession);
   const [artFailed, setArtFailed] = React.useState(false);
+  const resolvedArt = resolveArtworkUrl(currentSession?.albumArt);
 
   React.useEffect(() => {
     setArtFailed(false);
-  }, [currentSession?.albumArt]);
+  }, [resolvedArt]);
 
   if (!currentSession || currentSession.state === "stopped") return null;
 
@@ -110,9 +112,9 @@ export const CompactMediaIndicator: React.FC = () => {
   return (
     <div className="bbq-island-media-pill">
       <div className="bbq-media-art">
-        {currentSession.albumArt && !artFailed ? (
+        {resolvedArt && !artFailed ? (
           <img
-            src={currentSession.albumArt}
+            src={resolvedArt}
             alt=""
             aria-hidden="true"
             className="bbq-media-art-img"

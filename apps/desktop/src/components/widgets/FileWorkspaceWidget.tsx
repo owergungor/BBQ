@@ -147,6 +147,7 @@ export const FileWorkspaceWidget: React.FC = () => {
         display: "flex",
         flexDirection: "column",
         height: "100%",
+        minHeight: 0,
         gap: "8px",
         overflow: "hidden",
       }}
@@ -436,6 +437,7 @@ export const FileWorkspaceWidget: React.FC = () => {
           aria-label="Staged workspace files"
           style={{
             flex: 1,
+            minHeight: 0,
             overflowY: "auto",
             display: "flex",
             flexDirection: "column",

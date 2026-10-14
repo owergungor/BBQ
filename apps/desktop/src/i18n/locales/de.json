@@ -65,6 +65,7 @@
       "privacy": "Datenschutz",
       "notifications": "Benachrichtigungen",
       "widgets": "Widgets",
+      "update": "Aktualisierung",
       "about": "Über"
     },
     "appearance": {
@@ -84,6 +85,8 @@
       "failsWcag": "Verfehlt WCAG AA",
       "reducedMotion": "Reduzierte Bewegung",
       "reducedMotionDesc": "Deaktiviert Animationen und Skalierungsübergänge für bessere Barrierefreiheit.",
+      "reducedTransparency": "Reduzierte Transparenz",
+      "reducedTransparencyDesc": "Erhöht die Hintergrunddeckkraft und den Kontrast für bessere Lesbarkeit.",
       "startAtLogin": "Beim Anmelden starten",
       "startAtLoginDesc": "BBQ automatisch beim Hochfahren des Systems starten."
     },

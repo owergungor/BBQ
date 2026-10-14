@@ -19,6 +19,7 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
   accentColor,
   customAccentColor,
   reducedMotion,
+  reducedTransparency,
   startAtLogin,
   language,
   onThemeChange,
@@ -118,6 +119,14 @@ export const AppearanceSettingsTab: React.FC<AppearanceSettingsTabProps> = ({
         onChange={(checked) => onToggle("reduced_motion", checked)}
         label={t("settings.appearance.reducedMotion")}
         description={t("settings.appearance.reducedMotionDesc")}
+      />
+
+      <Switch
+        id="reduced-transparency-toggle"
+        checked={reducedTransparency}
+        onChange={(checked) => onToggle("reduced_transparency", checked)}
+        label={t("settings.appearance.reducedTransparency") || "Reduced Transparency"}
+        description={t("settings.appearance.reducedTransparencyDesc") || "Increases background opacity and contrast for improved readability."}
       />
 
       <Switch

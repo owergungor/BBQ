@@ -1111,6 +1111,29 @@ html, body {
   line-height: 1;
 }
 
+.bbq-segmented-tab-text {
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  transition: max-width 200ms ease, opacity 180ms ease, margin-left 180ms ease;
+  vertical-align: middle;
+}
+
+.bbq-segmented-tab.active .bbq-segmented-tab-text {
+  max-width: 80px;
+  opacity: 1;
+  margin-left: 4px;
+}
+
+[data-reduced-motion="true"] .bbq-segmented-tab-text {
+  transition: none !important;
+}
+
 .bbq-segmented-tab-badge {
   font-size: 10px;
   font-weight: 600;
@@ -1357,6 +1380,10 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 95px;
+}
+
+.bbq-island-media-pill .bbq-media-title {
+  font-weight: 400;
 }
 
 .bbq-media-controls {

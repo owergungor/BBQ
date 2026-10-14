@@ -33,6 +33,7 @@ import {
   PrivacySettingsTab,
   NotificationsSettingsTab,
   WidgetsSettingsTab,
+  UpdateSettingsTab,
   AboutSettingsTab,
 } from "./settings/index.ts";
 import { useTranslation } from "../../i18n/index.ts";
@@ -371,6 +372,7 @@ export const SettingsWidget: React.FC = () => {
     privacy: "lock",
     notifications: "bell",
     widgets: "layout",
+    update: "refresh",
     about: "info",
   };
 
@@ -381,6 +383,7 @@ export const SettingsWidget: React.FC = () => {
     { id: "privacy", label: t("settings.tabs.privacy") },
     { id: "notifications", label: t("settings.tabs.notifications") },
     { id: "widgets", label: t("settings.tabs.widgets") },
+    { id: "update", label: t("settings.tabs.update") || "Update" },
     { id: "about", label: t("settings.tabs.about") || "About" }, // { id: "about", label: "About" }
   ];
 
@@ -511,6 +514,7 @@ export const SettingsWidget: React.FC = () => {
             accentColor={settings.accent_color || "blue"}
             customAccentColor={settings.custom_accent_color || null}
             reducedMotion={settings.reduced_motion}
+            reducedTransparency={settings.reduced_transparency ?? false}
             startAtLogin={settings.start_at_login}
             language={settings.language}
             onThemeChange={handleThemeChange}
@@ -607,6 +611,8 @@ export const SettingsWidget: React.FC = () => {
             onResetIndicatorOrder={resetIndicatorOrder}
           />
         )}
+
+        {activeTab === "update" && <UpdateSettingsTab />}
 
         {activeTab === "about" && (
           <AboutSettingsTab

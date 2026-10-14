@@ -65,6 +65,7 @@
       "privacy": "Gizlilik",
       "notifications": "Bildirimler",
       "widgets": "Araçlar",
+      "update": "Güncelleme",
       "about": "Hakkında"
     },
     "appearance": {
@@ -84,6 +85,8 @@
       "failsWcag": "WCAG AA Uyumsuz",
       "reducedMotion": "Azaltılmış Hareket",
       "reducedMotionDesc": "Erişilebilirlik için gereksiz ölçekleme ve kayma animasyonlarını kapatır.",
+      "reducedTransparency": "Azaltılmış Saydamlık",
+      "reducedTransparencyDesc": "Daha iyi okunabilirlik için arka plan opaklığını ve kontrastını artırır.",
       "startAtLogin": "Başlangıçta Çalıştır",
       "startAtLoginDesc": "Sistem açıldığında BBQ'yu otomatik olarak başlatır."
     },

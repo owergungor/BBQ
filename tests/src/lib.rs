@@ -1159,26 +1159,30 @@ mod tests {
         let root_pkg = std::fs::read_to_string(root.join("package.json"))
             .expect("Should read root package.json");
         assert!(
-            root_pkg.contains("\"version\": \"3.1\"") || root_pkg.contains("\"version\": \"3.0\""),
-            "Root package.json must declare two-component version 3.1"
+            root_pkg.contains("\"version\": \"3.2\"")
+                || root_pkg.contains("\"version\": \"3.1\"")
+                || root_pkg.contains("\"version\": \"3.0\""),
+            "Root package.json must declare two-component version 3.2"
         );
 
         // 3. Desktop package.json
         let desktop_pkg = std::fs::read_to_string(root.join("apps/desktop/package.json"))
             .expect("Should read apps/desktop/package.json");
         assert!(
-            desktop_pkg.contains("\"version\": \"3.1\"")
+            desktop_pkg.contains("\"version\": \"3.2\"")
+                || desktop_pkg.contains("\"version\": \"3.1\"")
                 || desktop_pkg.contains("\"version\": \"3.0\""),
-            "apps/desktop/package.json must declare two-component version 3.1"
+            "apps/desktop/package.json must declare two-component version 3.2"
         );
 
         // 4. Types package.json
         let types_pkg = std::fs::read_to_string(root.join("packages/types/package.json"))
             .expect("Should read packages/types/package.json");
         assert!(
-            types_pkg.contains("\"version\": \"3.1\"")
+            types_pkg.contains("\"version\": \"3.2\"")
+                || types_pkg.contains("\"version\": \"3.1\"")
                 || types_pkg.contains("\"version\": \"3.0\""),
-            "packages/types/package.json must declare two-component version 3.1"
+            "packages/types/package.json must declare two-component version 3.2"
         );
 
         // 5. tauri.conf.json (internal 3-component normalization required by tauri-build/semver)
@@ -1186,10 +1190,11 @@ mod tests {
             std::fs::read_to_string(root.join("apps/desktop/src-tauri/tauri.conf.json"))
                 .expect("Should read tauri.conf.json");
         assert!(
-            tauri_conf.contains("\"version\": \"3.1.0\"")
+            tauri_conf.contains("\"version\": \"3.2.0\"")
+                || tauri_conf.contains("\"version\": \"3.1.0\"")
                 || tauri_conf.contains("\"version\": \"3.0.0\"")
-                || tauri_conf.contains("\"version\": \"3.1\""),
-            "tauri.conf.json must declare valid version (internal 3.1.0 for tauri-build semver requirement)"
+                || tauri_conf.contains("\"version\": \"3.2\""),
+            "tauri.conf.json must declare valid version (internal 3.2.0 for tauri-build semver requirement)"
         );
         assert!(
             tauri_conf.contains("\"active\": true"),

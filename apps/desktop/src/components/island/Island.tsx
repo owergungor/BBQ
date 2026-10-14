@@ -162,6 +162,14 @@ export const Island: React.FC = () => {
     const handleDocumentClick = (e: MouseEvent) => {
       const shell = document.getElementById("bbq-island-shell");
       if (!shell) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest?.(
+          ".bbq-dropdown-menu, .bbq-context-menu, [role='listbox'], #bbq-context-menu"
+        )
+      ) {
+        return;
+      }
       const path = e.composedPath ? e.composedPath() : [];
       const isInside = shell.contains(e.target as Node) || path.includes(shell);
       if (!isInside) {
@@ -173,11 +181,36 @@ export const Island: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleDocumentClick);
   }, [state]);
 
+  const isPlacementDraggingRef = useRef(false);
+  const justDisarmedMoveHudRef = useRef(false);
+
+  // One-shot Move HUD pointerup listener to finish placement and disarm
+  useEffect(() => {
+    if (!moveHud) return;
+    const handlePointerUp = () => {
+      if (isPlacementDraggingRef.current) {
+        isPlacementDraggingRef.current = false;
+        justDisarmedMoveHudRef.current = true;
+        updateSetting("move_hud", "false");
+        setTimeout(() => {
+          justDisarmedMoveHudRef.current = false;
+        }, 250);
+      }
+    };
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => window.removeEventListener("pointerup", handlePointerUp);
+  }, [moveHud]);
+
   // One-shot Move HUD escape coordinator
   useEffect(() => {
     if (!moveHud) return;
     const unregister = escapeManager.register(() => {
+      isPlacementDraggingRef.current = false;
+      justDisarmedMoveHudRef.current = true;
       updateSetting("move_hud", "false");
+      setTimeout(() => {
+        justDisarmedMoveHudRef.current = false;
+      }, 250);
       return true;
     }, EscapePriority.CHILD_INTERACTION);
     return unregister;
@@ -187,9 +220,11 @@ export const Island: React.FC = () => {
     if (e) {
       e.stopPropagation();
     }
-    if (moveHud) {
-      // One-shot positioning: clicking finishes positioning mode and disarms moveHud
-      await updateSetting("move_hud", "false");
+    if (moveHud || justDisarmedMoveHudRef.current) {
+      // One-shot positioning: clicking finishes positioning mode and disarms moveHud without expanding immediately
+      if (moveHud) {
+        await updateSetting("move_hud", "false");
+      }
       return;
     }
     if (state !== "Expanded") {
@@ -199,9 +234,11 @@ export const Island: React.FC = () => {
 
   const handleShellKeyDown = useCallback(async (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
-      if (moveHud) {
+      if (moveHud || justDisarmedMoveHudRef.current) {
         e.preventDefault();
-        await updateSetting("move_hud", "false");
+        if (moveHud) {
+          await updateSetting("move_hud", "false");
+        }
         return;
       }
       if (state !== "Expanded") {
@@ -227,6 +264,8 @@ export const Island: React.FC = () => {
     ) {
       return;
     }
+
+    isPlacementDraggingRef.current = true;
 
     try {
       getCurrentWindow().startDragging();

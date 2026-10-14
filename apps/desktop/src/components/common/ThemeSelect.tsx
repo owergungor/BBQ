@@ -221,6 +221,9 @@ export function ThemeSelect<T extends string = string>({
       aria-label={ariaLabel || selectedOption?.label}
       className={`bbq-dropdown-menu ${openUpward ? "flip-up" : "open-down"}`}
       style={canUsePortal ? menuStyle : undefined}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
     >
       {options.map((opt, idx) => {
         const isSelected = opt.value === value;

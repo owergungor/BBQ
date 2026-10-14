@@ -42,9 +42,18 @@ pub async fn set_island_mode(
     {
         // For compact envelope (Idle or Hovering), calculate Hovering geometry (280x44)
         // so the OS window maintains a stable envelope and does not oscillate or re-position during hover.
-        // For Expanded, calculate 520x360 expanded geometry with dims = None (not idle settings).
+        // For Expanded, calculate 560x420 expanded geometry to envelope all widgets without bottom clipping.
         let (calc_state, dims) = match layout_state {
-            bbq_core::IslandLayoutState::Expanded => (bbq_core::IslandLayoutState::Expanded, None),
+            bbq_core::IslandLayoutState::Expanded => (
+                bbq_core::IslandLayoutState::Expanded,
+                Some(bbq_core::WidgetDimensions {
+                    preferred_width: Some(560),
+                    preferred_height: Some(420),
+                    expanded_width: Some(560),
+                    expanded_height: Some(420),
+                    ..Default::default()
+                }),
+            ),
             _ => (
                 bbq_core::IslandLayoutState::Hovering,
                 Some(bbq_core::WidgetDimensions {

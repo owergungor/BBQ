@@ -52,7 +52,10 @@ export function generateUpdateMetadata(options) {
   }
 
   const effectiveTag = tag || (version.startsWith("v") ? version : `v${version}`);
-  const semverVersion = version.startsWith("v") ? version.slice(1) : version;
+  const rawVersion = version.startsWith("v") ? version.slice(1) : version;
+  // Normalize two-component version (e.g. "3.2") to SemVer compliant 3-component ("3.2.0") for Tauri updater's Rust parser
+  const versionParts = rawVersion.split(".");
+  const semverVersion = versionParts.length === 2 ? `${rawVersion}.0` : rawVersion;
 
   const platforms = {};
 

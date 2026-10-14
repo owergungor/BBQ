@@ -8,6 +8,7 @@ export type SettingsTab =
   | "privacy"
   | "notifications"
   | "widgets"
+  | "update"
   | "about";
 
 export const POSITION_OPTIONS: { value: string; label: string }[] = [
@@ -24,6 +25,7 @@ export interface AppearanceSettingsTabProps {
   accentColor: string;
   customAccentColor: string | null;
   reducedMotion: boolean;
+  reducedTransparency: boolean;
   startAtLogin: boolean;
   language?: string;
   onThemeChange: (theme: ThemePreference) => Promise<void>;

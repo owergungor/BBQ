@@ -95,6 +95,7 @@ export const defaultSettings: BbqSettings = {
   accent_color: "blue",
   custom_accent_color: null,
   reduced_motion: false,
+  reduced_transparency: false,
   island_width: 240,
   island_height: 38,
   target_display_id: null,
@@ -213,6 +214,10 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
     document.documentElement.setAttribute(
       "data-reduced-motion",
       settings.reduced_motion ? "true" : "false"
+    );
+    document.documentElement.setAttribute(
+      "data-reduced-transparency",
+      settings.reduced_transparency ? "true" : "false"
     );
 
     const accentVal = (settings.accent_color || "blue").trim();
@@ -445,6 +450,7 @@ if (typeof window !== "undefined") {
 export function coerceSettingValue(key: keyof BbqSettings, value: string): unknown {
   switch (key) {
     case "reduced_motion":
+    case "reduced_transparency":
     case "auto_expand_on_event":
     case "start_at_login":
     case "hotkey_enabled":

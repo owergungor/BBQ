@@ -5,4 +5,5 @@ export * from "./HotkeySettingsTab.tsx";
 export * from "./PrivacySettingsTab.tsx";
 export * from "./NotificationsSettingsTab.tsx";
 export * from "./WidgetsSettingsTab.tsx";
+export * from "./UpdateSettingsTab.tsx";
 export * from "./AboutSettingsTab.tsx";

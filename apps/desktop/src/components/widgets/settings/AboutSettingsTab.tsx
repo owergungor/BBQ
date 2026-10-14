@@ -1,14 +1,9 @@
 import React from "react";
 import { Icon } from "../../common/Icon.tsx";
 import { APP_VERSION } from "../../../version.ts";
-import { openAllowlistedReleaseUrl } from "../../../state/settingsState.ts";
-import {
-  useUpdaterState,
-  checkForUpdates,
-  downloadAndInstallUpdate,
-  restartApp,
-} from "../../../state/updaterState.ts";
-import { useTranslation, formatLocaleDate, formatBytes } from "../../../i18n/index.ts";
+import { setTargetSettingsTab } from "../SettingsWidget.tsx";
+import { useUpdaterState } from "../../../state/updaterState.ts";
+import { useTranslation } from "../../../i18n/index.ts";
 import { formatCapabilityStatus } from "../settingsModel.ts";
 import type { AboutSettingsTabProps } from "./settingsTypes.ts";
 
@@ -17,20 +12,8 @@ export const AboutSettingsTab: React.FC<AboutSettingsTabProps> = ({
   onCopyDiagnostics,
   onReplayTour,
 }) => {
-  const { t, currentLanguage } = useTranslation();
+  const { t } = useTranslation();
   const updater = useUpdaterState();
-
-  const handleCheck = () => {
-    checkForUpdates();
-  };
-
-  const handleInstall = () => {
-    downloadAndInstallUpdate();
-  };
-
-  const handleRestart = () => {
-    restartApp();
-  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -61,260 +44,41 @@ export const AboutSettingsTab: React.FC<AboutSettingsTabProps> = ({
         </div>
       </div>
 
-      {/* Auto-Updater Section */}
+      {/* Updater Shortcut */}
       <div
         id="settings-updater-section"
         style={{
-          paddingTop: "8px",
-          borderTop: "1px solid var(--bbq-border)",
+          padding: "10px 12px",
+          background: "var(--bbq-surface-elevated)",
+          borderRadius: "8px",
+          border: "1px solid var(--bbq-border)",
           display: "flex",
-          flexDirection: "column",
+          justifyContent: "space-between",
+          alignItems: "center",
           gap: "10px",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-          <div>
-            <span style={{ fontWeight: 600, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}>
-              {t("updater.title")}
-            </span>
-            <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
-              {updater.status === "up_to_date"
-                ? t("updater.upToDate", { version: APP_VERSION })
-                : updater.status === "checking"
-                ? t("updater.checking")
-                : updater.status === "update_available" && updater.availableVersion
-                ? t("updater.updateAvailable", { version: updater.availableVersion })
-                : t("updater.description")}
-            </span>
-          </div>
-
-          <div style={{ display: "flex", gap: "6px" }}>
-            <button
-              type="button"
-              id="settings-check-updates-btn"
-              className="bbq-btn-secondary"
-              style={{
-                fontSize: "11px",
-                padding: "4px 10px",
-                cursor: updater.status === "checking" || updater.status === "downloading" ? "not-allowed" : "pointer",
-                opacity: updater.status === "checking" || updater.status === "downloading" ? 0.7 : 1,
-              }}
-              disabled={updater.status === "checking" || updater.status === "downloading" || updater.status === "installing"}
-              onClick={handleCheck}
-            >
-              {updater.status === "checking" ? t("updater.checking") : t("updater.checkForUpdates")}
-            </button>
-            <button
-              type="button"
-              id="settings-view-releases-btn"
-              className="bbq-btn-secondary"
-              style={{ fontSize: "11px", padding: "4px 10px", cursor: "pointer" }}
-              onClick={() => openAllowlistedReleaseUrl()}
-            >
-              {t("updater.viewReleases")}
-            </button>
-          </div>
+        <div>
+          <span style={{ fontWeight: 600, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}>
+            {t("updater.title")}
+          </span>
+          <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
+            {updater.status === "up_to_date"
+              ? t("updater.upToDate", { version: APP_VERSION })
+              : updater.status === "update_available" && updater.availableVersion
+              ? t("updater.updateAvailable", { version: updater.availableVersion })
+              : t("updater.description")}
+          </span>
         </div>
-
-        {/* Update Available Card */}
-        {updater.status === "update_available" && updater.availableVersion && (
-          <div
-            id="updater-available-card"
-            style={{
-              padding: "10px 12px",
-              borderRadius: "6px",
-              background: "rgba(59, 130, 246, 0.08)",
-              border: "1px solid var(--bbq-accent)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 600, fontSize: "12px", color: "var(--bbq-accent)" }}>
-                {t("updater.updateAvailable", { version: updater.availableVersion })}
-              </span>
-              {updater.releaseDate && (
-                <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-                  {formatLocaleDate(updater.releaseDate, currentLanguage)}
-                </span>
-              )}
-            </div>
-
-            {updater.releaseNotes && (
-              <div
-                style={{
-                  fontSize: "11px",
-                  color: "var(--bbq-text)",
-                  maxHeight: "80px",
-                  overflowY: "auto",
-                  padding: "6px",
-                  background: "var(--bbq-surface)",
-                  borderRadius: "4px",
-                  border: "1px solid var(--bbq-border)",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {updater.releaseNotes}
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                id="updater-install-btn"
-                className="bbq-btn-primary"
-                style={{
-                  fontSize: "11px",
-                  padding: "6px 12px",
-                  background: "var(--bbq-accent)",
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-                onClick={handleInstall}
-              >
-                {t("updater.downloadAndInstall")}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Downloading State with Progress Bar */}
-        {updater.status === "downloading" && updater.progress && (
-          <div
-            id="updater-downloading-card"
-            style={{
-              padding: "10px 12px",
-              borderRadius: "6px",
-              background: "var(--bbq-surface-elevated)",
-              border: "1px solid var(--bbq-border)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "6px",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px" }}>
-              <span style={{ fontWeight: 600, color: "var(--bbq-text)" }}>
-                {t("updater.downloading", { percentage: updater.progress.percentage })}
-              </span>
-              <span style={{ color: "var(--bbq-text-muted)" }}>
-                {formatBytes(updater.progress.downloadedBytes, currentLanguage)} / {formatBytes(updater.progress.totalBytes, currentLanguage)}
-              </span>
-            </div>
-
-            <div
-              style={{
-                width: "100%",
-                height: "6px",
-                background: "var(--bbq-border)",
-                borderRadius: "3px",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${updater.progress.percentage}%`,
-                  height: "100%",
-                  background: "var(--bbq-accent)",
-                  transition: "width 0.2s ease",
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Installing State */}
-        {updater.status === "installing" && (
-          <div
-            id="updater-installing-card"
-            style={{
-              padding: "10px 12px",
-              borderRadius: "6px",
-              background: "var(--bbq-surface-elevated)",
-              border: "1px solid var(--bbq-border)",
-              fontSize: "12px",
-              color: "var(--bbq-text)",
-              fontWeight: 500,
-            }}
-          >
-            {t("updater.installing")}
-          </div>
-        )}
-
-        {/* Success State - Restart Required */}
-        {updater.status === "success" && (
-          <div
-            id="updater-success-card"
-            style={{
-              padding: "10px 12px",
-              borderRadius: "6px",
-              background: "rgba(52, 199, 89, 0.1)",
-              border: "1px solid var(--bbq-success, #34c759)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-            }}
-          >
-            <span style={{ fontWeight: 600, fontSize: "12px", color: "var(--bbq-success, #34c759)" }}>
-              {t("updater.installedSuccess")}
-            </span>
-            <p style={{ margin: 0, fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-              {t("updater.restartExplanation", { version: updater.availableVersion || "" })}
-            </p>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                id="updater-restart-btn"
-                className="bbq-btn-primary"
-                style={{
-                  fontSize: "11px",
-                  padding: "6px 12px",
-                  background: "var(--bbq-success, #34c759)",
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: "4px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-                onClick={handleRestart}
-              >
-                {t("updater.restartNow")}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Error State */}
-        {updater.status === "error" && updater.error && (
-          <div
-            id="updater-error-card"
-            style={{
-              padding: "8px 10px",
-              borderRadius: "6px",
-              background: "rgba(255, 59, 48, 0.08)",
-              border: "1px solid var(--bbq-danger, #ff3b30)",
-              fontSize: "11px",
-              color: "var(--bbq-danger, #ff3b30)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <span>{t("updater.errorChecking", { error: updater.error })}</span>
-            <button
-              type="button"
-              className="bbq-btn-secondary"
-              style={{ fontSize: "10px", padding: "2px 6px", cursor: "pointer", flexShrink: 0 }}
-              onClick={handleCheck}
-            >
-              {t("common.retry")}
-            </button>
-          </div>
-        )}
+        <button
+          type="button"
+          id="settings-check-updates-btn"
+          className="bbq-btn-secondary"
+          style={{ fontSize: "11px", padding: "4px 10px", cursor: "pointer" }}
+          onClick={() => setTargetSettingsTab("update")}
+        >
+          {t("settings.tabs.update") || "Update"}
+        </button>
       </div>
 
       {/* Technical Specifications */}

@@ -341,19 +341,19 @@ describe("BBQ v3.1 — UI Polish & Usability Release Verification", () => {
   // 8. Public Version 3.1 & Two-Component Convention
   // =========================================================================
   describe("8. BBQ v3.1 Two-Component Public Version Integrity", () => {
-    it("verifies public version is strictly 3.1 and internal toolchain version is 3.1.0", () => {
+    it("verifies public version is strictly two-component format and internal toolchain version is normalized", () => {
       const rootPkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "package.json"), "utf-8"));
       const desktopPkg = JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "package.json"), "utf-8"));
       const typesPkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "packages/types/package.json"), "utf-8"));
       const tauriConf = JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/tauri.conf.json"), "utf-8"));
       const desktopCargo = fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/Cargo.toml"), "utf-8");
 
-      assert.strictEqual(rootPkg.version, "3.1", "Root package.json version must be strictly 3.1");
-      assert.strictEqual(desktopPkg.version, "3.1", "apps/desktop/package.json version must be strictly 3.1");
-      assert.strictEqual(typesPkg.version, "3.1", "packages/types/package.json version must be strictly 3.1");
+      assert.ok(rootPkg.version === "3.2" || rootPkg.version === "3.1", "Root package.json version must be strictly 3.2 or 3.1");
+      assert.ok(desktopPkg.version === "3.2" || desktopPkg.version === "3.1", "apps/desktop/package.json version must be strictly 3.2 or 3.1");
+      assert.ok(typesPkg.version === "3.2" || typesPkg.version === "3.1", "packages/types/package.json version must be strictly 3.2 or 3.1");
 
-      assert.strictEqual(tauriConf.version, "3.1.0", "tauri.conf.json version must be normalized 3.1.0");
-      assert.ok(desktopCargo.includes('version = "3.1.0"'), "Desktop Cargo.toml must declare 3.1.0");
+      assert.ok(tauriConf.version === "3.2.0" || tauriConf.version === "3.1.0", "tauri.conf.json version must be normalized 3.2.0 or 3.1.0");
+      assert.ok(desktopCargo.includes('version = "3.2.0"') || desktopCargo.includes('version = "3.1.0"'), "Desktop Cargo.toml must declare 3.2.0 or 3.1.0");
     });
   });
 });

@@ -258,7 +258,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
 
     it("transitions idle -> checking -> update_available when new version is available", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.2",
+        mockAvailableVersion: "3.3",
         mockReleaseNotes: "New features and bug fixes",
         mockReleaseDate: "2026-10-15T00:00:00Z",
       });
@@ -266,19 +266,19 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       await checkForUpdates();
       const state = updaterStore.getState();
       assert.strictEqual(state.status, "update_available");
-      assert.strictEqual(state.availableVersion, "3.2");
+      assert.strictEqual(state.availableVersion, "3.3");
       assert.strictEqual(state.releaseNotes, "New features and bug fixes");
     });
 
     it("supports download, progress reporting, and completion", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.2",
+        mockAvailableVersion: "3.3",
         downloadDurationMs: 40,
       });
 
       updaterStore.setState({
         status: "update_available",
-        availableVersion: "3.2",
+        availableVersion: "3.3",
       });
 
       await downloadAndInstallUpdate();
@@ -289,7 +289,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
     it("honestly reflects that active downloads cannot be cancelled mid-stream", async () => {
       updaterStore.setState({
         status: "downloading",
-        availableVersion: "3.2",
+        availableVersion: "3.3",
       });
 
       const cancelled = cancelUpdate();
@@ -861,8 +861,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       const desktopCargo = fs.readFileSync(desktopCargoPath, "utf-8");
       const cargoLock = fs.readFileSync(cargoLockPath, "utf-8");
 
-      const EXPECTED_VERSION = "3.1";
-      const CARGO_INTERNAL_VERSION = "3.1.0";
+      const EXPECTED_VERSION = "3.2";
+      const CARGO_INTERNAL_VERSION = "3.2.0";
 
       // 1. Root, desktop, and types package.json
       assert.strictEqual(
@@ -948,8 +948,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       );
       assert.strictEqual(
         Array.from(uniqueVersions)[0],
-        "3.1",
-        `Canonical public version must be two-component 3.1, found: ${Array.from(uniqueVersions)[0]}`
+        "3.2",
+        `Canonical public version must be two-component 3.2, found: ${Array.from(uniqueVersions)[0]}`
       );
     });
 

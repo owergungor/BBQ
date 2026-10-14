@@ -319,3 +319,42 @@ export async function extractAmbientColor(
     }
   });
 }
+
+/**
+ * Resolves raw media session artwork metadata into a safe, valid image source string.
+ * Supports:
+ * - base64 data URIs (e.g. Windows SMTC thumbnail byte streams: data:image/png;base64,...)
+ * - secure HTTPS remote URLs (e.g. Spotify, web streaming artwork: https://...)
+ * - local file URLs and absolute paths (e.g. Linux MPRIS file:///...)
+ * Rejects invalid protocols, dangerous schemes (javascript:, vbscript:, data:text/html), or empty strings.
+ */
+export function resolveArtworkUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  // Base64 data URIs (PNG, JPEG, WEBP)
+  if (/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Remote HTTPS URLs
+  if (trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  // Local file URLs or paths (convert to asset URI or preserved valid path)
+  if (trimmed.startsWith("file://") || trimmed.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(trimmed)) {
+    try {
+      if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+        const cleanPath = trimmed.startsWith("file://") ? trimmed.replace(/^file:\/\//, "") : trimmed;
+        return `asset://localhost/${encodeURIComponent(cleanPath)}`;
+      }
+    } catch {
+      // Fallback
+    }
+    return trimmed;
+  }
+
+  return null;
+}

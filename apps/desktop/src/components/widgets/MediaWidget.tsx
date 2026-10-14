@@ -8,6 +8,7 @@ import {
   formatTime,
   calculateInterpolatedPosition,
   extractAmbientColor,
+  resolveArtworkUrl,
   DEFAULT_AMBIENT_PALETTE,
   type AmbientPalette,
 } from "./mediaModel.ts";
@@ -56,10 +57,12 @@ export const MediaWidget: React.FC = () => {
     refreshMediaSession();
   }, []);
 
+  const resolvedArt = resolveArtworkUrl(meta?.albumArt);
+
   // Reset art error when artwork URL changes
   useEffect(() => {
     setArtError(false);
-  }, [meta?.albumArt]);
+  }, [resolvedArt]);
 
   // Synchronize interpolated position when meta changes (rebased on timeline event, pause, resume, track change)
   useEffect(() => {
@@ -98,13 +101,13 @@ export const MediaWidget: React.FC = () => {
 
   // Ambient color extraction: single-shot per artwork URL change
   useEffect(() => {
-    if (!meta?.albumArt || artError) {
+    if (!resolvedArt || artError) {
       setAmbientPalette(DEFAULT_AMBIENT_PALETTE);
       return;
     }
 
     let isSubscribed = true;
-    extractAmbientColor(meta.albumArt).then((palette) => {
+    extractAmbientColor(resolvedArt).then((palette) => {
       if (isSubscribed) {
         setAmbientPalette(palette);
       }
@@ -113,7 +116,7 @@ export const MediaWidget: React.FC = () => {
     return () => {
       isSubscribed = false;
     };
-  }, [meta?.albumArt, artError]);
+  }, [resolvedArt, artError]);
 
   // Clear seek settling if backend event position catches up to within 1500ms of target
   useEffect(() => {
@@ -318,9 +321,9 @@ export const MediaWidget: React.FC = () => {
         {/* Center: Hero Artwork + Track Information */}
         <div className="bbq-media-hero-section">
           <div className="bbq-media-art-hero">
-            {meta.albumArt && !artError ? (
+            {resolvedArt && !artError ? (
               <img
-                src={meta.albumArt}
+                src={resolvedArt}
                 alt=""
                 aria-hidden="true"
                 className="bbq-media-art-hero-img"
