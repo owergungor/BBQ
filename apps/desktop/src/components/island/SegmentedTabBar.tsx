@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useLayoutEffect } from "react";
 import type { WidgetDefinition } from "../../island/widgetRegistry.ts";
 import { Icon } from "../common/Icon.tsx";
+import { useTranslation } from "../../i18n/index.ts";
 import {
   getWidgetIconName,
   isTabSelectable,
@@ -42,6 +43,7 @@ export const SegmentedTabBar: React.FC<SegmentedTabBarProps> = ({
   dropCount = 0,
   onSelectWidget,
 }) => {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<Map<string, HTMLButtonElement>>(new Map());
   const lastWheelTimeRef = useRef<number>(0);
@@ -50,6 +52,14 @@ export const SegmentedTabBar: React.FC<SegmentedTabBarProps> = ({
     width: 0,
     visible: false,
   });
+
+  const getLocalizedTitle = (id: string, fallback: string) => {
+    if (id === "settings") {
+      return t("settings.title") || fallback;
+    }
+    const translated = t(`widgets.${id}.name`);
+    return translated && translated !== `widgets.${id}.name` ? translated : fallback;
+  };
 
   // Calculate sliding indicator coordinates based on active tab's offset relative to container
   const updateIndicator = () => {
@@ -80,20 +90,47 @@ export const SegmentedTabBar: React.FC<SegmentedTabBarProps> = ({
     updateIndicator();
   }, [activeWidgetId, widgets]);
 
-  // Keep indicator aligned on window resize or font load
+  // Keep indicator aligned on window resize, tab content resize, or CSS transition completion
   useEffect(() => {
     const handleResize = () => updateIndicator();
     window.addEventListener("resize", handleResize);
 
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
-      observer = new ResizeObserver(() => updateIndicator());
-      observer.observe(containerRef.current);
+    let containerObserver: ResizeObserver | null = null;
+    let activeTabObserver: ResizeObserver | null = null;
+
+    if (typeof ResizeObserver !== "undefined") {
+      if (containerRef.current) {
+        containerObserver = new ResizeObserver(() => updateIndicator());
+        containerObserver.observe(containerRef.current);
+      }
+      const activeEl = activeWidgetId ? tabsRef.current.get(activeWidgetId) : null;
+      if (activeEl) {
+        activeTabObserver = new ResizeObserver(() => updateIndicator());
+        activeTabObserver.observe(activeEl);
+      }
     }
+
+    const activeEl = activeWidgetId ? tabsRef.current.get(activeWidgetId) : null;
+    const handleTransitionEnd = (e: TransitionEvent) => {
+      if (e.propertyName === "max-width" || e.propertyName === "width") {
+        updateIndicator();
+      }
+    };
+    if (activeEl) {
+      activeEl.addEventListener("transitionend", handleTransitionEnd);
+    }
+
+    // Safety timer for when CSS transition finishes (200ms transition)
+    const timer = setTimeout(updateIndicator, 220);
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      observer?.disconnect();
+      containerObserver?.disconnect();
+      activeTabObserver?.disconnect();
+      if (activeEl) {
+        activeEl.removeEventListener("transitionend", handleTransitionEnd);
+      }
+      clearTimeout(timer);
     };
   }, [activeWidgetId]);
 
@@ -169,6 +206,7 @@ export const SegmentedTabBar: React.FC<SegmentedTabBarProps> = ({
           badge = `(${dropCount})`;
         }
 
+        const localizedTitle = getLocalizedTitle(widget.id, widget.title);
         const iconName = getWidgetIconName(widget.id);
 
         const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -235,8 +273,8 @@ export const SegmentedTabBar: React.FC<SegmentedTabBarProps> = ({
               }
             }}
             onKeyDown={handleKeyDown}
-            title={`${widget.title} Widget`}
-            aria-label={`${widget.title} tab${badge ? ` with ${badge}` : ""}`}
+            title={`${localizedTitle} Widget`}
+            aria-label={`${localizedTitle} tab${badge ? ` with ${badge}` : ""}`}
           >
             <span className="bbq-segmented-tab-icon" aria-hidden="true">
               <Icon name={iconName} size={15} strokeWidth={1.75} />
@@ -245,9 +283,9 @@ export const SegmentedTabBar: React.FC<SegmentedTabBarProps> = ({
               className={`bbq-segmented-tab-text ${isActive ? "active" : ""}`}
               aria-hidden="true"
             >
-              {widget.title}
+              {localizedTitle}
             </span>
-            <span className="bbq-segmented-tab-label bbq-sr-only">{widget.title}</span>
+            <span className="bbq-segmented-tab-label bbq-sr-only">{localizedTitle}</span>
             {badge && <span className="bbq-segmented-tab-badge">{badge}</span>}
           </button>
         );

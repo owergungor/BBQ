@@ -115,6 +115,7 @@ export const defaultSettings: BbqSettings = {
   onboarding_completed: false,
   island_position: "top-center",
   island_transparency: 0,
+  island_blur: 20,
   always_on_top: true,
   move_hud: false,
   language: "en",
@@ -284,6 +285,25 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
         } else {
           document.documentElement.removeAttribute?.("data-opaque");
         }
+      }
+      if (typeof settings.island_blur === "number") {
+        const blur = Math.min(50, Math.max(0, settings.island_blur));
+        document.documentElement.style.setProperty(
+          "--bbq-island-blur",
+          `${blur}px`
+        );
+        document.documentElement.style.setProperty(
+          "--bbq-glass-blur-idle",
+          `${blur}px`
+        );
+        document.documentElement.style.setProperty(
+          "--bbq-glass-blur-expanded",
+          `${Math.round(blur * 1.33)}px`
+        );
+        document.documentElement.style.setProperty(
+          "--bbq-glass-blur",
+          `${blur}px`
+        );
       }
     }
   }
@@ -510,6 +530,11 @@ export function coerceSettingValue(key: keyof BbqSettings, value: string): unkno
     case "island_transparency": {
       const parsed = Number(value);
       return Number.isFinite(parsed) ? Math.min(80, Math.max(0, Math.round(parsed))) : 0;
+    }
+
+    case "island_blur": {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? Math.min(50, Math.max(0, Math.round(parsed))) : 20;
     }
 
     default:

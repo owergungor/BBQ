@@ -183,18 +183,30 @@ export const Island: React.FC = () => {
 
   const isPlacementDraggingRef = useRef(false);
   const justDisarmedMoveHudRef = useRef(false);
+  const disarmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // One-shot Move HUD pointerup listener to finish placement and disarm
+  // Clean up any pending disarm timer on unmount
+  useEffect(() => {
+    return () => {
+      if (disarmTimerRef.current) {
+        clearTimeout(disarmTimerRef.current);
+      }
+    };
+  }, []);
+
+  // One-shot Move HUD pointerup listener to finish placement drag
   useEffect(() => {
     if (!moveHud) return;
     const handlePointerUp = () => {
       if (isPlacementDraggingRef.current) {
         isPlacementDraggingRef.current = false;
         justDisarmedMoveHudRef.current = true;
-        updateSetting("move_hud", "false");
-        setTimeout(() => {
+        void updateSetting("move_hud", "false");
+        if (disarmTimerRef.current) clearTimeout(disarmTimerRef.current);
+        disarmTimerRef.current = setTimeout(() => {
           justDisarmedMoveHudRef.current = false;
-        }, 250);
+          disarmTimerRef.current = null;
+        }, 300);
       }
     };
     window.addEventListener("pointerup", handlePointerUp);
@@ -207,9 +219,11 @@ export const Island: React.FC = () => {
     const unregister = escapeManager.register(() => {
       isPlacementDraggingRef.current = false;
       justDisarmedMoveHudRef.current = true;
-      updateSetting("move_hud", "false");
-      setTimeout(() => {
+      void updateSetting("move_hud", "false");
+      if (disarmTimerRef.current) clearTimeout(disarmTimerRef.current);
+      disarmTimerRef.current = setTimeout(() => {
         justDisarmedMoveHudRef.current = false;
+        disarmTimerRef.current = null;
       }, 250);
       return true;
     }, EscapePriority.CHILD_INTERACTION);
@@ -220,11 +234,12 @@ export const Island: React.FC = () => {
     if (e) {
       e.stopPropagation();
     }
-    if (moveHud || justDisarmedMoveHudRef.current) {
-      // One-shot positioning: clicking finishes positioning mode and disarms moveHud without expanding immediately
-      if (moveHud) {
-        await updateSetting("move_hud", "false");
-      }
+    // Suppress immediate click resulting from drag release
+    if (justDisarmedMoveHudRef.current) {
+      return;
+    }
+    if (moveHud) {
+      await updateSetting("move_hud", "false");
       return;
     }
     if (state !== "Expanded") {
@@ -234,11 +249,13 @@ export const Island: React.FC = () => {
 
   const handleShellKeyDown = useCallback(async (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
-      if (moveHud || justDisarmedMoveHudRef.current) {
+      if (justDisarmedMoveHudRef.current) {
         e.preventDefault();
-        if (moveHud) {
-          await updateSetting("move_hud", "false");
-        }
+        return;
+      }
+      if (moveHud) {
+        e.preventDefault();
+        await updateSetting("move_hud", "false");
         return;
       }
       if (state !== "Expanded") {
@@ -248,7 +265,16 @@ export const Island: React.FC = () => {
     }
   }, [state, moveHud]);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+  const handlePointerDown = useCallback(async (e: React.PointerEvent) => {
+    // If Move HUD is active and user right-clicks: return island to original position
+    if (moveHud && e.button === 2) {
+      e.preventDefault();
+      e.stopPropagation();
+      await bbqCommands.resetIslandPosition();
+      await updateSetting("move_hud", "false");
+      return;
+    }
+
     // Only primary mouse button (left click)
     if (e.button !== 0) return;
     // Only if Move HUD is enabled
@@ -268,6 +294,7 @@ export const Island: React.FC = () => {
     isPlacementDraggingRef.current = true;
 
     try {
+      await bbqCommands.setCustomDragPosition(true);
       getCurrentWindow().startDragging();
     } catch {
       // Non-Tauri fallback
@@ -337,6 +364,15 @@ export const Island: React.FC = () => {
   const handleContextMenu = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (moveHud || justDisarmedMoveHudRef.current) {
+      await bbqCommands.resetIslandPosition();
+      if (moveHud) {
+        await updateSetting("move_hud", "false");
+      }
+      return;
+    }
+
     setContextMenuPos({ x: e.clientX, y: e.clientY });
 
     const liveState = islandStore.getState().state;

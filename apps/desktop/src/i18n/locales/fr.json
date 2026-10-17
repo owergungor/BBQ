@@ -25,7 +25,8 @@
     "version": "Version",
     "none": "Aucun",
     "success": "Succès",
-    "error": "Erreur"
+    "error": "Erreur",
+    "current": "Actuel :"
   },
   "languages": {
     "en": "🇬🇧 English",
@@ -42,6 +43,7 @@
     "checking": "Vérification des mises à jour...",
     "upToDate": "BBQ est à jour ({{version}})",
     "updateAvailable": "Mise à jour disponible : {{version}}",
+    "confirmDownload": "Prêt à télécharger et installer {{version}} ?",
     "downloadAndInstall": "Télécharger et installer",
     "downloading": "Téléchargement de la mise à jour ({{percentage}}%)...",
     "downloadingDetails": "{{downloaded}} / {{total}}",
@@ -103,6 +105,8 @@
       "compactHeight": "Hauteur au repos",
       "transparency": "Transparence de la fenêtre",
       "transparencyDesc": "Ajuste l'opacité de l'effet verre translucide (0% est opaque).",
+      "blur": "Flou de l'îlot",
+      "blurDesc": "Ajuste l'intensité du flou d'arrière-plan (par défaut : 20px).",
       "alwaysOnTop": "Toujours au premier plan",
       "alwaysOnTopDesc": "Conserver l'îlot visible au-dessus des autres fenêtres.",
       "autoExpand": "Déploiement automatique",
@@ -129,11 +133,14 @@
       "maskSensitiveDesc": "Masquer par défaut les mots de passe et jetons d'accès API.",
       "retention": "Rétention de l'historique",
       "retentionDays": "{{days}} jours",
+      "retentionDesc": "Nombre de jours de conservation de l'historique du presse-papiers avant purge automatique.",
       "maxEntries": "Limite de capacité",
       "maxEntriesCount": "{{count}} éléments",
+      "maxEntriesDesc": "Nombre maximal d'éléments d'historique du presse-papiers stockés dans SQLite local.",
       "clearHistory": "Vider l'historique",
       "clearHistoryConfirm": "Tous les éléments copiés seront définitivement supprimés.",
-      "clearedSuccess": "Historique du presse-papiers effacé"
+      "clearedSuccess": "Historique du presse-papiers effacé",
+      "resetDesc": "Rétablit les limites de rétention du presse-papiers et les préférences de l'application aux valeurs par défaut. L'historique stocké dans SQLite est conservé."
     },
     "notifications": {
       "appNotifications": "Notifications du bureau",
@@ -203,6 +210,9 @@
       "resume": "Reprendre",
       "reset": "Réinitialiser",
       "cancel": "Annuler",
+      "set": "Régler",
+      "work": "Travail",
+      "break": "Pause",
       "workPhase": "Session de concentration",
       "breakPhase": "Courte pause",
       "longBreakPhase": "Longue pause",

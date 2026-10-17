@@ -127,6 +127,22 @@ export const bbqCommands = {
     }
   },
 
+  setCustomDragPosition: async (isCustom: boolean): Promise<void> => {
+    try {
+      await invoke("set_custom_drag_position", { isCustom });
+    } catch {
+      // Mock / fallback
+    }
+  },
+
+  resetIslandPosition: async (): Promise<void> => {
+    try {
+      await invoke("reset_island_position");
+    } catch (err) {
+      console.error("Failed to reset island position:", err);
+    }
+  },
+
   getSettings: async (): Promise<BbqSettings | null> => {
     try {
       return await invoke<BbqSettings>("get_settings");

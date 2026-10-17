@@ -715,7 +715,7 @@ use windows::Media::Control::{
     GlobalSystemMediaTransportControlsSessionManager,
     GlobalSystemMediaTransportControlsSessionMediaProperties,
     GlobalSystemMediaTransportControlsSessionPlaybackStatus, MediaPropertiesChangedEventArgs,
-    PlaybackInfoChangedEventArgs, TimelinePropertiesChangedEventArgs,
+    PlaybackInfoChangedEventArgs, SessionsChangedEventArgs, TimelinePropertiesChangedEventArgs,
 };
 
 #[cfg(windows)]
@@ -737,11 +737,28 @@ impl Drop for ActiveSessionGuard {
     }
 }
 
+#[cfg(windows)]
+struct ManagerGuard {
+    manager: GlobalSystemMediaTransportControlsSessionManager,
+    current_token: i64,
+    sessions_token: i64,
+}
+
+#[cfg(windows)]
+impl Drop for ManagerGuard {
+    fn drop(&mut self) {
+        let _ = self.manager.RemoveCurrentSessionChanged(self.current_token);
+        let _ = self.manager.RemoveSessionsChanged(self.sessions_token);
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct WindowsMedia {
     pub subscribers: Arc<Mutex<Vec<MediaEventSink>>>,
     #[cfg(windows)]
     active_guard: Arc<Mutex<Option<ActiveSessionGuard>>>,
+    #[cfg(windows)]
+    active_manager: Arc<Mutex<Option<ManagerGuard>>>,
 }
 
 impl std::fmt::Debug for WindowsMedia {
@@ -997,66 +1014,111 @@ fn attach_session_listeners(
     }
 }
 
+#[cfg(windows)]
+fn sync_manager_session(
+    manager: &GlobalSystemMediaTransportControlsSessionManager,
+    subs: &Arc<Mutex<Vec<MediaEventSink>>>,
+    guard: &Arc<Mutex<Option<ActiveSessionGuard>>>,
+) {
+    if let Ok(session) = manager.GetCurrentSession() {
+        attach_session_listeners(&session, subs.clone(), guard.clone());
+        if let Some(media_session) = extract_session_from_smtc(&session) {
+            if let Ok(listeners) = subs.lock() {
+                for l in listeners.iter() {
+                    l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                }
+            }
+            return;
+        }
+    }
+
+    if let Ok(sessions) = manager.GetSessions() {
+        if let Ok(count) = sessions.Size() {
+            for i in 0..count {
+                if let Ok(session) = sessions.GetAt(i) {
+                    if let Some(media_session) = extract_session_from_smtc(&session) {
+                        attach_session_listeners(&session, subs.clone(), guard.clone());
+                        if let Ok(listeners) = subs.lock() {
+                            for l in listeners.iter() {
+                                l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                            }
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    if let Ok(mut g) = guard.lock() {
+        *g = None;
+    }
+    if let Ok(listeners) = subs.lock() {
+        for l in listeners.iter() {
+            l(MediaEvent::SessionChanged(None));
+        }
+    }
+}
+
 #[async_trait]
 impl PlatformMedia for WindowsMedia {
     async fn initialize(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
+            if let Ok(mg) = self.active_manager.lock() {
+                if mg.is_some() {
+                    return Ok(());
+                }
+            }
             let subs = self.subscribers.clone();
             let guard = self.active_guard.clone();
+            let manager_guard_slot = self.active_manager.clone();
             std::thread::spawn(move || {
                 if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
                     if let Ok(manager) = op.get() {
-                        if let Ok(session) = manager.GetCurrentSession() {
-                            attach_session_listeners(&session, subs.clone(), guard.clone());
-                            if let Some(media_session) = extract_session_from_smtc(&session) {
-                                if let Ok(listeners) = subs.lock() {
-                                    for l in listeners.iter() {
-                                        l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                        sync_manager_session(&manager, &subs, &guard);
+
+                        let subs_curr = subs.clone();
+                        let guard_curr = guard.clone();
+                        let current_token = manager
+                            .CurrentSessionChanged(&TypedEventHandler::<
+                                GlobalSystemMediaTransportControlsSessionManager,
+                                CurrentSessionChangedEventArgs,
+                            >::new(
+                                move |sender, _args| {
+                                    if let Ok(mgr) = sender.ok() {
+                                        sync_manager_session(mgr, &subs_curr, &guard_curr);
                                     }
-                                }
+                                    Ok(())
+                                },
+                            ))
+                            .ok();
+
+                        let subs_sess = subs.clone();
+                        let guard_sess = guard.clone();
+                        let sessions_token = manager
+                            .SessionsChanged(&TypedEventHandler::<
+                                GlobalSystemMediaTransportControlsSessionManager,
+                                SessionsChangedEventArgs,
+                            >::new(
+                                move |sender, _args| {
+                                    if let Ok(mgr) = sender.ok() {
+                                        sync_manager_session(mgr, &subs_sess, &guard_sess);
+                                    }
+                                    Ok(())
+                                },
+                            ))
+                            .ok();
+
+                        if let (Some(cur_tok), Some(sess_tok)) = (current_token, sessions_token) {
+                            if let Ok(mut mg) = manager_guard_slot.lock() {
+                                *mg = Some(ManagerGuard {
+                                    manager,
+                                    current_token: cur_tok,
+                                    sessions_token: sess_tok,
+                                });
                             }
                         }
-
-                        let subs_inner = subs;
-                        let guard_inner = guard;
-                        let _ = manager.CurrentSessionChanged(&TypedEventHandler::<
-                            GlobalSystemMediaTransportControlsSessionManager,
-                            CurrentSessionChangedEventArgs,
-                        >::new(
-                            move |sender, _args| {
-                                if let Ok(mgr) = sender.ok() {
-                                    if let Ok(session) = mgr.GetCurrentSession() {
-                                        attach_session_listeners(
-                                            &session,
-                                            subs_inner.clone(),
-                                            guard_inner.clone(),
-                                        );
-                                        if let Some(media_session) =
-                                            extract_session_from_smtc(&session)
-                                        {
-                                            if let Ok(listeners) = subs_inner.lock() {
-                                                for l in listeners.iter() {
-                                                    l(MediaEvent::SessionChanged(Some(
-                                                        media_session.clone(),
-                                                    )));
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        if let Ok(mut g) = guard_inner.lock() {
-                                            *g = None;
-                                        }
-                                        if let Ok(listeners) = subs_inner.lock() {
-                                            for l in listeners.iter() {
-                                                l(MediaEvent::SessionChanged(None));
-                                            }
-                                        }
-                                    }
-                                }
-                                Ok(())
-                            },
-                        ));
                     }
                 }
             });
@@ -1068,13 +1130,26 @@ impl PlatformMedia for WindowsMedia {
         #[cfg(windows)]
         {
             let res = tokio::time::timeout(
-                std::time::Duration::from_millis(250),
+                std::time::Duration::from_millis(350),
                 tokio::task::spawn_blocking(|| {
                     if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
                     {
                         if let Ok(manager) = op.get() {
                             if let Ok(session) = manager.GetCurrentSession() {
-                                return extract_session_from_smtc(&session);
+                                if let Some(ms) = extract_session_from_smtc(&session) {
+                                    return Some(ms);
+                                }
+                            }
+                            if let Ok(sessions) = manager.GetSessions() {
+                                if let Ok(count) = sessions.Size() {
+                                    for i in 0..count {
+                                        if let Ok(session) = sessions.GetAt(i) {
+                                            if let Some(ms) = extract_session_from_smtc(&session) {
+                                                return Some(ms);
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1092,7 +1167,7 @@ impl PlatformMedia for WindowsMedia {
                     );
                 }
                 Err(_) => {
-                    tracing::warn!("SMTC session retrieval timed out after 250ms");
+                    tracing::warn!("SMTC session retrieval timed out after 350ms");
                 }
             }
         }
@@ -2819,5 +2894,39 @@ impl PlatformAutostart for WindowsAutostart {
             }
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_base64_encode() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b"foob"), "Zm9vYg==");
+        assert_eq!(base64_encode(b"fooba"), "Zm9vYmE=");
+        assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
+    }
+
+    #[tokio::test]
+    async fn test_windows_media_initialization_idempotency() {
+        let media = WindowsMedia::default();
+        // Subscribe an event sink
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let events_clone = events.clone();
+        media
+            .subscribe(Arc::new(move |ev| {
+                if let Ok(mut lock) = events_clone.lock() {
+                    lock.push(ev);
+                }
+            }))
+            .await
+            .expect("Subscribe should succeed");
+
+        assert_eq!(media.subscribers.lock().unwrap().len(), 1);
     }
 }

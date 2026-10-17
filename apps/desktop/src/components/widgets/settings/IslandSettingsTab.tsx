@@ -1,27 +1,42 @@
 import React from "react";
 import { Slider, Switch, ThemeSelect } from "../../common/SettingsControls.tsx";
-import { POSITION_OPTIONS, type IslandSettingsTabProps } from "./settingsTypes.ts";
+import { type IslandSettingsTabProps } from "./settingsTypes.ts";
+import { useTranslation } from "../../../i18n/index.ts";
 
 export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
   draftWidth,
   draftHeight,
   draftTransparency,
+  draftBlur = 20,
   islandPosition,
   alwaysOnTop,
   autoExpandOnEvent,
   onDraftWidthChange,
   onDraftHeightChange,
   onDraftTransparencyChange,
+  onDraftBlurChange,
   onCommitWidth,
   onCommitHeight,
   onCommitTransparency,
+  onCommitBlur,
   onToggle,
 }) => {
+  const { t } = useTranslation();
+
+  const positionOptions = [
+    { value: "top-center", label: t("settings.island.posTopCenter") || "Top Center" },
+    { value: "top-left", label: t("settings.island.posTopLeft") || "Top Left" },
+    { value: "top-right", label: t("settings.island.posTopRight") || "Top Right" },
+    { value: "bottom-left", label: t("settings.island.posBottomLeft") || "Bottom Left" },
+    { value: "bottom-center", label: t("settings.island.posBottomCenter") || "Bottom Center" },
+    { value: "bottom-right", label: t("settings.island.posBottomRight") || "Bottom Right" },
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
       <Slider
         id="island-width-slider"
-        label="Compact Width"
+        label={t("settings.island.compactWidth") || "Compact Width"}
         value={draftWidth}
         min={180}
         max={480}
@@ -48,7 +63,7 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
 
       <Slider
         id="island-height-slider"
-        label="Compact Height"
+        label={t("settings.island.compactHeight") || "Compact Height"}
         value={draftHeight}
         min={36}
         max={54}
@@ -72,24 +87,24 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
             htmlFor="island-position-select"
             style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}
           >
-            Island Position
+            {t("settings.island.position") || "Island Position"}
           </label>
           <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
-            Physical screen placement of the island.
+            {t("settings.island.positionDesc") || "Physical screen placement of the island."}
           </span>
         </div>
         <ThemeSelect
           id="island-position-select"
           className="bbq-select"
           value={islandPosition || "top-center"}
-          options={POSITION_OPTIONS}
+          options={positionOptions}
           onChange={(val) => onToggle("island_position", val)}
         />
       </div>
 
       <Slider
         id="island-transparency-slider"
-        label="Island Transparency"
+        label={t("settings.island.transparency") || "Island Transparency"}
         value={draftTransparency}
         min={0}
         max={80}
@@ -116,20 +131,51 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
         }}
       />
 
+      <Slider
+        id="island-blur-slider"
+        label={t("settings.island.blur") || "Island Blur"}
+        value={draftBlur}
+        min={0}
+        max={40}
+        step={2}
+        compact={true}
+        valueDisplay={`${draftBlur}px`}
+        onChange={(val) => {
+          const nextVal = Math.max(0, Math.min(40, Math.round(val)));
+          onDraftBlurChange?.(nextVal);
+          if (typeof document !== "undefined") {
+            document.documentElement.style.setProperty("--bbq-island-blur", `${nextVal}px`);
+            document.documentElement.style.setProperty("--bbq-glass-blur-idle", `${nextVal}px`);
+            document.documentElement.style.setProperty(
+              "--bbq-glass-blur-expanded",
+              `${Math.round(nextVal * 1.33)}px`
+            );
+            document.documentElement.style.setProperty("--bbq-glass-blur", `${nextVal}px`);
+          }
+        }}
+        onCommit={(val) => {
+          const clamped = Math.max(0, Math.min(40, Math.round(val)));
+          onCommitBlur?.(clamped);
+        }}
+      />
+
       <Switch
         id="always-on-top-toggle"
         checked={alwaysOnTop}
         onChange={(checked) => onToggle("always_on_top", checked)}
-        label="Always on Top"
-        description="Keep BBQ above other windows on the screen."
+        label={t("settings.island.alwaysOnTop") || "Always on Top"}
+        description={t("settings.island.alwaysOnTopDesc") || "Keep BBQ above other windows on the screen."}
       />
 
       <Switch
         id="auto-expand-toggle"
         checked={autoExpandOnEvent}
         onChange={(checked) => onToggle("auto_expand_on_event", checked)}
-        label="Auto-Expand on Incoming Event"
-        description="Expand the island when timers fire, media changes, or drop events occur."
+        label={t("settings.island.autoExpand") || "Auto-Expand on Incoming Event"}
+        description={
+          t("settings.island.autoExpandDesc") ||
+          "Expand the island when timers fire, media changes, or drop events occur."
+        }
       />
     </div>
   );

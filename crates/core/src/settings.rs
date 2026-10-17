@@ -62,6 +62,10 @@ fn default_island_transparency() -> u32 {
     0
 }
 
+fn default_island_blur() -> u32 {
+    20
+}
+
 fn default_always_on_top() -> bool {
     true
 }
@@ -106,6 +110,8 @@ pub struct BbqSettings {
     pub island_position: String,
     #[serde(default = "default_island_transparency")]
     pub island_transparency: u32,
+    #[serde(default = "default_island_blur")]
+    pub island_blur: u32,
     #[serde(default = "default_always_on_top")]
     pub always_on_top: bool,
     #[serde(default = "default_move_hud")]
@@ -155,6 +161,7 @@ impl Default for BbqSettings {
             onboarding_completed: false,
             island_position: "top-center".to_string(),
             island_transparency: 0,
+            island_blur: 20,
             always_on_top: true,
             move_hud: false,
             language: "en".to_string(),
@@ -263,6 +270,13 @@ impl BbqSettings {
             return Err(BbqError::Validation(format!(
                 "island_transparency {} out of bounds [0, 100]",
                 self.island_transparency
+            )));
+        }
+
+        if self.island_blur > 50 {
+            return Err(BbqError::Validation(format!(
+                "island_blur {} out of bounds [0, 50]",
+                self.island_blur
             )));
         }
 
@@ -437,6 +451,17 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
                 )));
             }
         }
+        "island_blur" => {
+            let blur: u32 = value.parse().map_err(|_| {
+                BbqError::Validation(format!("Invalid integer for island_blur: '{}'", value))
+            })?;
+            if blur > 50 {
+                return Err(BbqError::Validation(format!(
+                    "island_blur {} out of bounds [0, 50]",
+                    blur
+                )));
+            }
+        }
         "always_on_top" => {
             let lower = value.trim().to_lowercase();
             if lower != "true" && lower != "false" {
@@ -585,6 +610,14 @@ mod tests {
         assert!(validate_setting_entry("island_transparency", "100").is_ok());
         assert!(validate_setting_entry("island_transparency", "101").is_err());
         assert!(validate_setting_entry("island_transparency", "-1").is_err());
+
+        // Blur validation (0..=50)
+        assert_eq!(settings.island_blur, 20);
+        assert!(validate_setting_entry("island_blur", "0").is_ok());
+        assert!(validate_setting_entry("island_blur", "20").is_ok());
+        assert!(validate_setting_entry("island_blur", "50").is_ok());
+        assert!(validate_setting_entry("island_blur", "51").is_err());
+        assert!(validate_setting_entry("island_blur", "-1").is_err());
 
         // Always on top validation
         assert!(validate_setting_entry("always_on_top", "true").is_ok());

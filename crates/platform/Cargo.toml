@@ -17,6 +17,7 @@ tokio = { workspace = true }
 windows = { version = "0.61", features = [
     "Media_Control",
     "Foundation",
+    "Foundation_Collections",
     "System_Power",
     "Networking_Connectivity",
     "Win32_Foundation",

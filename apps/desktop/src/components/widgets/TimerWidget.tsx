@@ -19,6 +19,7 @@ import {
 } from "./productivityModel.ts";
 
 import { timerNotificationCoordinator } from "../../state/timerNotification.ts";
+import { useTranslation } from "../../i18n/index.ts";
 
 export { formatTimeDisplay, formatStopwatchDisplay };
 
@@ -100,6 +101,7 @@ export const StopwatchReadout: React.FC<{ session: TimerSession }> = React.memo(
 });
 
 export const TimerWidget: React.FC = () => {
+  const { t } = useTranslation();
   const { session, isLoading } = useTimerState();
   const [selectedDurationMs, setSelectedDurationMs] = useState<number>(5 * 60 * 1000);
   const [countdownMinutes, setCountdownMinutes] = useState<string>("5");
@@ -327,7 +329,7 @@ export const TimerWidget: React.FC = () => {
           onClick={(e) => handleSelectMode("Countdown", e)}
         >
           <Icon name="timer" size={13} aria-hidden="true" />
-          <span>Countdown</span>
+          <span>{t("widgets.timer.countdown") || "Countdown"}</span>
         </button>
         <button
           id="timer-mode-stopwatch"
@@ -338,7 +340,7 @@ export const TimerWidget: React.FC = () => {
           onClick={(e) => handleSelectMode("Stopwatch", e)}
         >
           <Icon name="stopwatch" size={13} aria-hidden="true" />
-          <span>Stopwatch</span>
+          <span>{t("widgets.timer.stopwatch") || "Stopwatch"}</span>
         </button>
         <button
           id="timer-mode-pomodoro"
@@ -349,7 +351,7 @@ export const TimerWidget: React.FC = () => {
           onClick={(e) => handleSelectMode("Pomodoro", e)}
         >
           <Icon name="sparkles" size={13} aria-hidden="true" />
-          <span>Pomodoro</span>
+          <span>{t("widgets.timer.pomodoro") || "Pomodoro"}</span>
         </button>
       </div>
 
@@ -365,8 +367,8 @@ export const TimerWidget: React.FC = () => {
               <Icon name={pomodoroInfo.iconName} size={12} aria-hidden="true" />
               <span>{pomodoroInfo.label}</span>
             </span>
-            <div className="bbq-pomodoro-cycles" title={"Completed cycles: " + session.completed_cycles}>
-              <span className="bbq-cycles-label">Cycles: {session.completed_cycles}</span>
+            <div className="bbq-pomodoro-cycles" title={t("widgets.timer.pomodoroCycles", { count: session.completed_cycles })}>
+              <span className="bbq-cycles-label">{t("widgets.timer.pomodoroCycles", { count: session.completed_cycles })}</span>
             </div>
           </div>
         )}
@@ -376,11 +378,11 @@ export const TimerWidget: React.FC = () => {
           <StopwatchReadout session={session} />
         ) : (
           <div className="bbq-timer-centerpiece" aria-live="polite" aria-atomic="true">
-            <div className="bbq-timer-ring-container">
+            <div className={"bbq-timer-ring-container" + (session.mode === "Pomodoro" ? " compact" : "")}>
               <svg
                 className="bbq-timer-ring-svg"
-                width="128"
-                height="128"
+                width={session.mode === "Pomodoro" ? "106" : "128"}
+                height={session.mode === "Pomodoro" ? "106" : "128"}
                 viewBox="0 0 128 128"
                 aria-hidden="true"
               >
@@ -494,7 +496,7 @@ export const TimerWidget: React.FC = () => {
                   disabled={!countdownValidation.valid || session.state === "Running"}
                   onClick={(e) => handleCountdownSet(e)}
                 >
-                  Set
+                  {t("widgets.timer.set") || "Set"}
                 </button>
               </div>
             </form>
@@ -510,7 +512,7 @@ export const TimerWidget: React.FC = () => {
         {session.mode === "Pomodoro" && (
           <div className="bbq-pomodoro-settings-section">
             <div className="bbq-pomodoro-inputs-group">
-              <span className="bbq-pomodoro-input-label">Work</span>
+              <span className="bbq-pomodoro-input-label">{t("widgets.timer.work") || "Work"}</span>
               <input
                 id="pomodoro-work-minutes"
                 type="number"
@@ -537,7 +539,7 @@ export const TimerWidget: React.FC = () => {
               <span className="bbq-timer-input-unit">s</span>
             </div>
             <div className="bbq-pomodoro-inputs-group">
-              <span className="bbq-pomodoro-input-label">Break</span>
+              <span className="bbq-pomodoro-input-label">{t("widgets.timer.break") || "Break"}</span>
               <input
                 id="pomodoro-break-minutes"
                 type="number"
@@ -583,7 +585,7 @@ export const TimerWidget: React.FC = () => {
               aria-label="Start timer"
             >
               <Icon name="play" size={13} aria-hidden="true" />
-              <span>Start</span>
+              <span>{t("widgets.timer.start") || "Start"}</span>
             </button>
           )}
 
@@ -598,7 +600,7 @@ export const TimerWidget: React.FC = () => {
                 aria-label="Pause timer"
               >
                 <Icon name="pause" size={13} aria-hidden="true" />
-                <span>Pause</span>
+                <span>{t("widgets.timer.pause") || "Pause"}</span>
               </button>
               <button
                 id="timer-btn-reset"
@@ -609,7 +611,7 @@ export const TimerWidget: React.FC = () => {
                 aria-label="Reset timer"
               >
                 <Icon name="refresh" size={13} aria-hidden="true" />
-                <span>Reset</span>
+                <span>{t("widgets.timer.reset") || "Reset"}</span>
               </button>
               {session.mode === "Countdown" && (
                 <button
@@ -621,7 +623,7 @@ export const TimerWidget: React.FC = () => {
                   aria-label="Cancel timer"
                 >
                   <Icon name="close" size={13} aria-hidden="true" />
-                  <span>Cancel</span>
+                  <span>{t("widgets.timer.cancel") || "Cancel"}</span>
                 </button>
               )}
             </>
@@ -638,7 +640,7 @@ export const TimerWidget: React.FC = () => {
                 aria-label="Resume timer"
               >
                 <Icon name="play" size={13} aria-hidden="true" />
-                <span>Resume</span>
+                <span>{t("widgets.timer.resume") || "Resume"}</span>
               </button>
               <button
                 id="timer-btn-reset"
@@ -649,7 +651,7 @@ export const TimerWidget: React.FC = () => {
                 aria-label="Reset timer"
               >
                 <Icon name="refresh" size={13} aria-hidden="true" />
-                <span>Reset</span>
+                <span>{t("widgets.timer.reset") || "Reset"}</span>
               </button>
               {session.mode === "Countdown" && (
                 <button
@@ -661,7 +663,7 @@ export const TimerWidget: React.FC = () => {
                   aria-label="Cancel timer"
                 >
                   <Icon name="close" size={13} aria-hidden="true" />
-                  <span>Cancel</span>
+                  <span>{t("widgets.timer.cancel") || "Cancel"}</span>
                 </button>
               )}
             </>
@@ -678,7 +680,7 @@ export const TimerWidget: React.FC = () => {
                 aria-label="Start new timer"
               >
                 <Icon name="play" size={13} aria-hidden="true" />
-                <span>Start New</span>
+                <span>{t("widgets.timer.start") || "Start New"}</span>
               </button>
               <button
                 id="timer-btn-reset"
@@ -689,7 +691,7 @@ export const TimerWidget: React.FC = () => {
                 aria-label="Reset timer"
               >
                 <Icon name="refresh" size={13} aria-hidden="true" />
-                <span>Reset</span>
+                <span>{t("widgets.timer.reset") || "Reset"}</span>
               </button>
             </>
           )}

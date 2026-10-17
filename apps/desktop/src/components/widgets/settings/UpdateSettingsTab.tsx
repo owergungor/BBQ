@@ -40,12 +40,12 @@ export const UpdateSettingsTab: React.FC = () => {
   return (
     <div
       id="settings-update-tab-panel"
-      style={{ display: "flex", flexDirection: "column", gap: "14px" }}
+      style={{ display: "flex", flexDirection: "column", gap: "8px" }}
     >
       {/* Current Version & Status Card */}
       <div
         style={{
-          padding: "12px 14px",
+          padding: "8px 12px",
           background: "var(--bbq-surface-elevated)",
           borderRadius: "8px",
           border: "1px solid var(--bbq-border)",
@@ -53,35 +53,35 @@ export const UpdateSettingsTab: React.FC = () => {
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: "10px",
+          gap: "8px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: "32px",
-              height: "32px",
+              width: "28px",
+              height: "28px",
               borderRadius: "6px",
               background: "var(--bbq-surface)",
               color: "var(--bbq-accent)",
             }}
             aria-hidden="true"
           >
-            <Icon name="refresh" size={18} />
+            <Icon name="refresh" size={16} />
           </span>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontWeight: 600, fontSize: "13px", color: "var(--bbq-text)" }}>
+              <span style={{ fontWeight: 600, fontSize: "12px", color: "var(--bbq-text)" }}>
                 {t("updater.title")}
               </span>
               <span
                 style={{
                   fontSize: "11px",
                   padding: "1px 6px",
-                  borderRadius: "4px",
+                  borderRadius: "9999px",
                   background: "var(--bbq-surface)",
                   color: "var(--bbq-accent)",
                   fontWeight: 600,
@@ -95,7 +95,7 @@ export const UpdateSettingsTab: React.FC = () => {
                 fontSize: "11px",
                 color: "var(--bbq-text-muted)",
                 display: "block",
-                marginTop: "2px",
+                marginTop: "1px",
               }}
             >
               {updater.status === "up_to_date"
@@ -122,7 +122,8 @@ export const UpdateSettingsTab: React.FC = () => {
             className="bbq-btn-secondary"
             style={{
               fontSize: "11px",
-              padding: "5px 12px",
+              padding: "4px 12px",
+              borderRadius: "9999px",
               cursor:
                 updater.status === "checking" ||
                 updater.status === "downloading" ||
@@ -149,7 +150,12 @@ export const UpdateSettingsTab: React.FC = () => {
             type="button"
             id="settings-view-releases-btn"
             className="bbq-btn-secondary"
-            style={{ fontSize: "11px", padding: "5px 12px", cursor: "pointer" }}
+            style={{
+              fontSize: "11px",
+              padding: "4px 12px",
+              borderRadius: "9999px",
+              cursor: "pointer",
+            }}
             onClick={() => openAllowlistedReleaseUrl()}
           >
             {t("updater.viewReleases")}
@@ -162,13 +168,13 @@ export const UpdateSettingsTab: React.FC = () => {
         <div
           id="updater-available-card"
           style={{
-            padding: "12px 14px",
+            padding: "8px 12px",
             borderRadius: "8px",
             background: "rgba(59, 130, 246, 0.08)",
             border: "1px solid var(--bbq-accent)",
             display: "flex",
             flexDirection: "column",
-            gap: "10px",
+            gap: "8px",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -187,17 +193,17 @@ export const UpdateSettingsTab: React.FC = () => {
               style={{
                 fontSize: "11px",
                 color: "var(--bbq-text)",
-                maxHeight: "120px",
+                maxHeight: "80px",
                 overflowY: "auto",
-                padding: "8px",
+                padding: "6px 8px",
                 background: "var(--bbq-surface)",
                 borderRadius: "6px",
                 border: "1px solid var(--bbq-border)",
                 whiteSpace: "pre-wrap",
-                lineHeight: "1.4",
+                lineHeight: "1.35",
               }}
             >
-              <strong style={{ display: "block", marginBottom: "4px" }}>
+              <strong style={{ display: "block", marginBottom: "3px" }}>
                 {t("updater.releaseNotes")}:
               </strong>
               {updater.releaseNotes}
@@ -208,7 +214,7 @@ export const UpdateSettingsTab: React.FC = () => {
             <div
               id="updater-confirm-prompt"
               style={{
-                padding: "8px 10px",
+                padding: "6px 10px",
                 background: "var(--bbq-surface)",
                 borderRadius: "6px",
                 border: "1px solid var(--bbq-accent)",
@@ -219,14 +225,20 @@ export const UpdateSettingsTab: React.FC = () => {
               }}
             >
               <span style={{ fontSize: "11px", color: "var(--bbq-text)" }}>
-                Ready to download and install v{updater.availableVersion}?
+                {t("updater.confirmDownload", { version: `v${updater.availableVersion}` }) ||
+                  `Ready to download and install v${updater.availableVersion}?`}
               </span>
               <div style={{ display: "flex", gap: "6px" }}>
                 <button
                   type="button"
                   id="updater-confirm-cancel-btn"
                   className="bbq-btn-secondary"
-                  style={{ fontSize: "11px", padding: "4px 8px", cursor: "pointer" }}
+                  style={{
+                    fontSize: "11px",
+                    padding: "3px 10px",
+                    borderRadius: "9999px",
+                    cursor: "pointer",
+                  }}
                   onClick={handleCancelConfirm}
                 >
                   {t("common.cancel")}
@@ -237,11 +249,11 @@ export const UpdateSettingsTab: React.FC = () => {
                   className="bbq-btn-primary"
                   style={{
                     fontSize: "11px",
-                    padding: "4px 10px",
+                    padding: "3px 12px",
                     background: "var(--bbq-accent)",
                     color: "#ffffff",
                     border: "none",
-                    borderRadius: "4px",
+                    borderRadius: "9999px",
                     fontWeight: 600,
                     cursor: "pointer",
                   }}
@@ -259,11 +271,11 @@ export const UpdateSettingsTab: React.FC = () => {
                 className="bbq-btn-primary"
                 style={{
                   fontSize: "11px",
-                  padding: "6px 14px",
+                  padding: "4px 14px",
                   background: "var(--bbq-accent)",
                   color: "#ffffff",
                   border: "none",
-                  borderRadius: "4px",
+                  borderRadius: "9999px",
                   fontWeight: 600,
                   cursor: "pointer",
                 }}
@@ -281,13 +293,13 @@ export const UpdateSettingsTab: React.FC = () => {
         <div
           id="updater-downloading-card"
           style={{
-            padding: "12px 14px",
+            padding: "8px 12px",
             borderRadius: "8px",
             background: "var(--bbq-surface-elevated)",
             border: "1px solid var(--bbq-border)",
             display: "flex",
             flexDirection: "column",
-            gap: "8px",
+            gap: "6px",
           }}
         >
           <div
@@ -333,7 +345,7 @@ export const UpdateSettingsTab: React.FC = () => {
         <div
           id="updater-installing-card"
           style={{
-            padding: "12px 14px",
+            padding: "8px 12px",
             borderRadius: "8px",
             background: "var(--bbq-surface-elevated)",
             border: "1px solid var(--bbq-border)",
@@ -357,13 +369,13 @@ export const UpdateSettingsTab: React.FC = () => {
         <div
           id="updater-success-card"
           style={{
-            padding: "12px 14px",
+            padding: "8px 12px",
             borderRadius: "8px",
             background: "rgba(52, 199, 89, 0.1)",
             border: "1px solid var(--bbq-success, #34c759)",
             display: "flex",
             flexDirection: "column",
-            gap: "10px",
+            gap: "8px",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -384,11 +396,11 @@ export const UpdateSettingsTab: React.FC = () => {
               className="bbq-btn-primary"
               style={{
                 fontSize: "11px",
-                padding: "6px 14px",
+                padding: "4px 14px",
                 background: "var(--bbq-success, #34c759)",
                 color: "#ffffff",
                 border: "none",
-                borderRadius: "4px",
+                borderRadius: "9999px",
                 fontWeight: 600,
                 cursor: "pointer",
               }}
@@ -405,7 +417,7 @@ export const UpdateSettingsTab: React.FC = () => {
         <div
           id="updater-error-card"
           style={{
-            padding: "10px 12px",
+            padding: "8px 10px",
             borderRadius: "8px",
             background: "rgba(255, 59, 48, 0.08)",
             border: "1px solid var(--bbq-danger, #ff3b30)",
@@ -422,7 +434,13 @@ export const UpdateSettingsTab: React.FC = () => {
             type="button"
             id="updater-error-retry-btn"
             className="bbq-btn-secondary"
-            style={{ fontSize: "10px", padding: "3px 8px", cursor: "pointer", flexShrink: 0 }}
+            style={{
+              fontSize: "10px",
+              padding: "2px 8px",
+              borderRadius: "9999px",
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
             onClick={handleCheck}
           >
             {t("common.retry")}

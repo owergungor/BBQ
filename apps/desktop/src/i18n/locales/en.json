@@ -25,7 +25,8 @@
     "version": "Version",
     "none": "None",
     "success": "Success",
-    "error": "Error"
+    "error": "Error",
+    "current": "Current:"
   },
   "languages": {
     "en": "🇬🇧 English",
@@ -42,6 +43,7 @@
     "checking": "Checking for updates...",
     "upToDate": "BBQ is up to date ({{version}})",
     "updateAvailable": "Update available: {{version}}",
+    "confirmDownload": "Ready to download and install {{version}}?",
     "downloadAndInstall": "Download & Install",
     "downloading": "Downloading update ({{percentage}}%)...",
     "downloadingDetails": "{{downloaded}} / {{total}}",
@@ -103,6 +105,8 @@
       "compactHeight": "Compact Idle Height",
       "transparency": "Window Transparency",
       "transparencyDesc": "Adjust translucent glass opacity (0% is solid opaque).",
+      "blur": "Island Blur",
+      "blurDesc": "Adjust translucent glass blur intensity (default: 20px).",
       "alwaysOnTop": "Always on Top",
       "alwaysOnTopDesc": "Keep island visible above other active application windows.",
       "autoExpand": "Auto-Expand on Events",
@@ -129,11 +133,14 @@
       "maskSensitiveDesc": "Hide passwords, API tokens, and credentials by default.",
       "retention": "History Retention",
       "retentionDays": "{{days}} days",
+      "retentionDesc": "Days to retain clipboard history before automatic purge.",
       "maxEntries": "Capacity Limit",
       "maxEntriesCount": "{{count}} entries",
+      "maxEntriesDesc": "Maximum clipboard history items stored in local SQLite.",
       "clearHistory": "Clear Clipboard History",
       "clearHistoryConfirm": "All stored clipboard items will be permanently removed.",
-      "clearedSuccess": "Clipboard history cleared"
+      "clearedSuccess": "Clipboard history cleared",
+      "resetDesc": "Restores clipboard retention limits and application preferences to default values. Stored SQLite data history is preserved."
     },
     "notifications": {
       "appNotifications": "Desktop Notifications",
@@ -203,6 +210,9 @@
       "resume": "Resume",
       "reset": "Reset",
       "cancel": "Cancel",
+      "set": "Set",
+      "work": "Work",
+      "break": "Break",
       "workPhase": "Focus Session",
       "breakPhase": "Short Break",
       "longBreakPhase": "Long Break",

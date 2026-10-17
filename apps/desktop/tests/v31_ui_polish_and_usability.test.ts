@@ -348,12 +348,12 @@ describe("BBQ v3.1 — UI Polish & Usability Release Verification", () => {
       const tauriConf = JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/tauri.conf.json"), "utf-8"));
       const desktopCargo = fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/Cargo.toml"), "utf-8");
 
-      assert.ok(rootPkg.version === "3.2" || rootPkg.version === "3.1", "Root package.json version must be strictly 3.2 or 3.1");
-      assert.ok(desktopPkg.version === "3.2" || desktopPkg.version === "3.1", "apps/desktop/package.json version must be strictly 3.2 or 3.1");
-      assert.ok(typesPkg.version === "3.2" || typesPkg.version === "3.1", "packages/types/package.json version must be strictly 3.2 or 3.1");
+      assert.ok(rootPkg.version === "3.3" || rootPkg.version === "3.2" || rootPkg.version === "3.1", "Root package.json version must be strictly 3.3, 3.2 or 3.1");
+      assert.ok(desktopPkg.version === "3.3" || desktopPkg.version === "3.2" || desktopPkg.version === "3.1", "apps/desktop/package.json version must be strictly 3.3, 3.2 or 3.1");
+      assert.ok(typesPkg.version === "3.3" || typesPkg.version === "3.2" || typesPkg.version === "3.1", "packages/types/package.json version must be strictly 3.3, 3.2 or 3.1");
 
-      assert.ok(tauriConf.version === "3.2.0" || tauriConf.version === "3.1.0", "tauri.conf.json version must be normalized 3.2.0 or 3.1.0");
-      assert.ok(desktopCargo.includes('version = "3.2.0"') || desktopCargo.includes('version = "3.1.0"'), "Desktop Cargo.toml must declare 3.2.0 or 3.1.0");
+      assert.ok(tauriConf.version === "3.3.0" || tauriConf.version === "3.2.0" || tauriConf.version === "3.1.0", "tauri.conf.json version must be normalized 3.3.0, 3.2.0 or 3.1.0");
+      assert.ok(desktopCargo.includes('version = "3.3.0"') || desktopCargo.includes('version = "3.2.0"') || desktopCargo.includes('version = "3.1.0"'), "Desktop Cargo.toml must declare 3.3.0, 3.2.0 or 3.1.0");
     });
   });
 });

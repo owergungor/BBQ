@@ -2245,7 +2245,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 6px 0;
+  padding: 2px 0;
   flex-shrink: 0;
 }
 
@@ -2256,6 +2256,15 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.bbq-timer-ring-container.compact {
+  width: 106px;
+  height: 106px;
+}
+
+.bbq-timer-ring-container.compact .bbq-timer-digits {
+  font-size: 24px;
 }
 
 .bbq-timer-ring-svg {
@@ -2437,27 +2446,30 @@ html, body {
 
 .bbq-pomodoro-settings-section {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
-  margin-top: 4px;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 2px;
+  flex-wrap: wrap;
 }
 
 .bbq-pomodoro-inputs-group {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   font-size: 10px;
   color: var(--bbq-text-secondary);
 }
 
 .bbq-pomodoro-input-label {
   font-weight: 500;
-  min-width: 48px;
+  min-width: auto;
+  margin-right: 2px;
 }
 
 .bbq-pomodoro-mini-input {
-  width: 44px;
+  width: 42px;
 }
 
 .bbq-timer-input-error {

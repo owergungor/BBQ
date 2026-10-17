@@ -1,6 +1,7 @@
 import React from "react";
 import { Icon, type IconName } from "../../common/Icon.tsx";
 import type { WidgetsSettingsTabProps } from "./settingsTypes.ts";
+import { useTranslation } from "../../../i18n/index.ts";
 
 export const WidgetsSettingsTab: React.FC<WidgetsSettingsTabProps> = ({
   allRegisteredWidgets,
@@ -10,8 +11,15 @@ export const WidgetsSettingsTab: React.FC<WidgetsSettingsTabProps> = ({
   onMoveIndicator,
   onResetIndicatorOrder,
 }) => {
+  const { t } = useTranslation();
   const disabledSet = new Set(disabledWidgets);
   const moveIndicator = onMoveIndicator;
+
+  const getLocalizedWidgetTitle = (id: string, fallback: string) => {
+    if (id === "settings") return t("settings.title") || fallback;
+    const translated = t(`widgets.${id}.name`);
+    return translated && translated !== `widgets.${id}.name` ? translated : fallback;
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -19,7 +27,7 @@ export const WidgetsSettingsTab: React.FC<WidgetsSettingsTabProps> = ({
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
           <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)" }}>
-            Active Island Widgets (Order):
+            {t("settings.widgets.title") || "Active Island Widgets (Order):"}
           </span>
           <button
             id="reset-widgets-order-btn"
@@ -36,14 +44,14 @@ export const WidgetsSettingsTab: React.FC<WidgetsSettingsTabProps> = ({
             }}
             aria-label="Reset widget order to defaults"
           >
-            Reset Order
+            {t("settings.widgets.resetOrder") || "Reset Order"}
           </button>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           {currentIndicatorOrder.map((widgetId, idx) => {
             const w = allRegisteredWidgets.find((item) => item.id === widgetId);
-            const title = w?.title ?? widgetId;
+            const title = getLocalizedWidgetTitle(widgetId, w?.title ?? widgetId);
             const iconName = (w?.icon as IconName) || "settings";
 
             return (
@@ -89,7 +97,7 @@ export const WidgetsSettingsTab: React.FC<WidgetsSettingsTabProps> = ({
                         display: "flex",
                         alignItems: "center",
                       }}
-                      aria-label={`Move ${title} up`}
+                      aria-label={`${t("settings.widgets.moveUp") || "Move up"} ${title}`}
                     >
                       <Icon name="chevron-up" size={10} />
                     </button>
@@ -110,7 +118,7 @@ export const WidgetsSettingsTab: React.FC<WidgetsSettingsTabProps> = ({
                         display: "flex",
                         alignItems: "center",
                       }}
-                      aria-label={`Move ${title} down`}
+                      aria-label={`${t("settings.widgets.moveDown") || "Move down"} ${title}`}
                     >
                       <Icon name="chevron-down" size={10} />
                     </button>
@@ -135,42 +143,45 @@ export const WidgetsSettingsTab: React.FC<WidgetsSettingsTabProps> = ({
       {disabledWidgets.length > 0 && (
         <div>
           <span style={{ fontSize: "12px", color: "var(--bbq-text-muted)", display: "block", marginBottom: "6px" }}>
-            Disabled Widgets:
+            {(t("common.disabled") || "Disabled") + " " + (t("settings.tabs.widgets") || "Widgets")}:
           </span>
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {allRegisteredWidgets
               .filter((w) => disabledSet.has(w.id))
-              .map((w) => (
-                <div
-                  key={w.id}
-                  id={`disabled-widget-item-${w.id}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "6px 8px",
-                    borderRadius: "6px",
-                    background: "rgba(255, 255, 255, 0.02)",
-                    border: "1px dashed var(--bbq-border)",
-                    opacity: 0.7,
-                  }}
-                >
-                  <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
-                    <span aria-hidden="true" style={{ display: "flex", alignItems: "center" }}>
-                      <Icon name={(w?.icon as IconName) || "settings"} size={13} />
+              .map((w) => {
+                const localizedWTitle = getLocalizedWidgetTitle(w.id, w.title);
+                return (
+                  <div
+                    key={w.id}
+                    id={`disabled-widget-item-${w.id}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "6px 8px",
+                      borderRadius: "6px",
+                      background: "rgba(255, 255, 255, 0.02)",
+                      border: "1px dashed var(--bbq-border)",
+                      opacity: 0.7,
+                    }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px" }}>
+                      <span aria-hidden="true" style={{ display: "flex", alignItems: "center" }}>
+                        <Icon name={(w?.icon as IconName) || "settings"} size={13} />
+                      </span>
+                      <span>{localizedWTitle}</span>
                     </span>
-                    <span>{w.title}</span>
-                  </span>
-                  <input
-                    id={`widget-enable-toggle-${w.id}`}
-                    type="checkbox"
-                    checked={false}
-                    onChange={() => onToggleWidget(w.id)}
-                    style={{ cursor: "pointer", width: "16px", height: "16px" }}
-                    aria-label={`Enable ${w.title} widget`}
-                  />
-                </div>
-              ))}
+                    <input
+                      id={`widget-enable-toggle-${w.id}`}
+                      type="checkbox"
+                      checked={false}
+                      onChange={() => onToggleWidget(w.id)}
+                      style={{ cursor: "pointer", width: "16px", height: "16px" }}
+                      aria-label={`Enable ${localizedWTitle} widget`}
+                    />
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}

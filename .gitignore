@@ -33,3 +33,12 @@ Thumbs.db
 *.key
 *.key.pub
 .tauri/
+
+# Recordings and Media Assets
+*.mp4
+*.webp
+*.gif
+*.webm
+artifacts/
+recordings/
+*.recording

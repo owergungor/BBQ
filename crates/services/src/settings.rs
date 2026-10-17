@@ -213,6 +213,11 @@ impl SettingsServiceTrait for SettingsService {
                 settings.island_transparency = num.min(100);
             }
         }
+        if let Ok(Some(bl)) = self.repo.get("island_blur") {
+            if let Ok(num) = bl.parse::<u32>() {
+                settings.island_blur = num.min(50);
+            }
+        }
         if let Ok(Some(aot)) = self.repo.get("always_on_top") {
             settings.always_on_top = aot == "true";
         }
@@ -394,6 +399,8 @@ impl SettingsServiceTrait for SettingsService {
             "island_transparency",
             &settings.island_transparency.to_string(),
         )?;
+        self.repo
+            .set("island_blur", &settings.island_blur.to_string())?;
         self.repo.set(
             "always_on_top",
             if settings.always_on_top {

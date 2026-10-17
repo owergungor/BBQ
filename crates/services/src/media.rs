@@ -284,8 +284,11 @@ impl Service for MediaService {
     }
 
     async fn start(&self) -> BbqResult<()> {
-        let mut st = self.service_state.lock().unwrap_or_else(|e| e.into_inner());
-        *st = ServiceState::Active;
+        {
+            let mut st = self.service_state.lock().unwrap_or_else(|e| e.into_inner());
+            *st = ServiceState::Active;
+        }
+        let _ = self.ensure_platform_initialized().await;
         Ok(())
     }
 

@@ -39,15 +39,18 @@ export interface IslandSettingsTabProps {
   draftWidth: number;
   draftHeight: number;
   draftTransparency: number;
+  draftBlur?: number;
   islandPosition: string;
   alwaysOnTop: boolean;
   autoExpandOnEvent: boolean;
   onDraftWidthChange: (val: number) => void;
   onDraftHeightChange: (val: number) => void;
   onDraftTransparencyChange: (val: number) => void;
+  onDraftBlurChange?: (val: number) => void;
   onCommitWidth: () => Promise<void>;
   onCommitHeight: () => Promise<void>;
   onCommitTransparency: (val: number) => Promise<void>;
+  onCommitBlur?: (val: number) => Promise<void>;
   onToggle: (key: string, value: any) => Promise<void>;
 }
 

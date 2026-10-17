@@ -25,7 +25,8 @@
     "version": "Sürüm",
     "none": "Yok",
     "success": "Başarılı",
-    "error": "Hata"
+    "error": "Hata",
+    "current": "Mevcut:"
   },
   "languages": {
     "en": "🇬🇧 English",
@@ -42,6 +43,7 @@
     "checking": "Güncellemeler denetleniyor...",
     "upToDate": "BBQ güncel durumda ({{version}})",
     "updateAvailable": "Yeni güncelleme mevcut: {{version}}",
+    "confirmDownload": "{{version}} sürümünü indirip yüklemeye hazır mısınız?",
     "downloadAndInstall": "İndir ve Yükle",
     "downloading": "Güncelleme indiriliyor (%{{percentage}})...",
     "downloadingDetails": "{{downloaded}} / {{total}}",
@@ -103,6 +105,8 @@
       "compactHeight": "Boşta Yükseklik",
       "transparency": "Pencere Saydamlığı",
       "transparencyDesc": "Yarı saydam cam matlığını ayarlayın (%0 tamamen opaktır).",
+      "blur": "Ada Bulanıklığı",
+      "blurDesc": "Yarı saydam cam bulanıklık yoğunluğunu ayarlayın (varsayılan: 20px).",
       "alwaysOnTop": "Her Zaman Üstte",
       "alwaysOnTopDesc": "Adanın diğer uygulama pencerelerinin üzerinde kalmasını sağlar.",
       "autoExpand": "Olaylarda Otomatik Genişlet",
@@ -129,11 +133,14 @@
       "maskSensitiveDesc": "Parolaları, API anahtarlarını ve kimlik bilgilerini varsayılan olarak gizler.",
       "retention": "Geçmiş Saklama Süresi",
       "retentionDays": "{{days}} gün",
+      "retentionDesc": "Otomatik temizlemeden önce pano geçmişinin saklanacağı gün sayısı.",
       "maxEntries": "Kapasite Sınırı",
       "maxEntriesCount": "{{count}} öge",
+      "maxEntriesDesc": "Yerel SQLite'ta saklanan maksimum pano geçmişi öğesi sayısı.",
       "clearHistory": "Pano Geçmişini Temizle",
       "clearHistoryConfirm": "Kayıtlı tüm pano ögeleri kalıcı olarak silinecektir.",
-      "clearedSuccess": "Pano geçmişi temizlendi"
+      "clearedSuccess": "Pano geçmişi temizlendi",
+      "resetDesc": "Pano saklama sınırlarını ve uygulama tercihlerini varsayılan değerlere sıfırlar. Kaydedilmiş SQLite geçmişi korunur."
     },
     "notifications": {
       "appNotifications": "Masaüstü Bildirimleri",
@@ -203,6 +210,9 @@
       "resume": "Devam Et",
       "reset": "Sıfırla",
       "cancel": "İptal",
+      "set": "Ayarla",
+      "work": "Çalışma",
+      "break": "Mola",
       "workPhase": "Odaklanma Seansı",
       "breakPhase": "Kısa Mola",
       "longBreakPhase": "Uzun Mola",

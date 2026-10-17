@@ -2,6 +2,7 @@ import React from "react";
 import { Switch } from "../../common/SettingsControls.tsx";
 import { Icon } from "../../common/Icon.tsx";
 import type { HotkeySettingsTabProps } from "./settingsTypes.ts";
+import { useTranslation } from "../../../i18n/index.ts";
 
 export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
   globalHotkey,
@@ -21,6 +22,7 @@ export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
   onHotkeyKeyDown,
   onToggle,
 }) => {
+  const { t } = useTranslation();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
       {!hotkeySupported && capabilities && (
@@ -50,10 +52,12 @@ export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
           <label htmlFor="global-hotkey-input" style={{ fontWeight: 500, fontSize: "13px" }}>
-            Global Shortcut Combination
+            {t("settings.hotkey.title") || "Global Shortcut Combination"}
           </label>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>Current:</span>
+            <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
+              {t("common.current") || "Current:"}
+            </span>
             <span
               style={{
                 background: "rgba(255, 255, 255, 0.08)",
@@ -69,7 +73,9 @@ export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
               {globalHotkey || "None"}
             </span>
             {!hotkeyEnabled && (
-              <span style={{ fontSize: "10px", color: "#f59e0b" }}>(Disabled)</span>
+              <span style={{ fontSize: "10px", color: "#f59e0b" }}>
+                ({t("common.disabled") || "Disabled"})
+              </span>
             )}
           </div>
         </div>
@@ -84,7 +90,7 @@ export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
               isRecordingHotkey
                 ? draftHotkey
                   ? `${draftHotkey}...`
-                  : "Press key combination..."
+                  : t("settings.hotkey.pressShortcut") || "Press key combination..."
                 : draftHotkey
             }
             onChange={(e) => {
@@ -93,7 +99,11 @@ export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
               }
             }}
             onKeyDown={onHotkeyKeyDown}
-            placeholder={isRecordingHotkey ? "Press key combination..." : "e.g. Ctrl+Shift+B"}
+            placeholder={
+              isRecordingHotkey
+                ? t("settings.hotkey.pressShortcut") || "Press key combination..."
+                : "e.g. Ctrl+Shift+B"
+            }
             disabled={!hotkeySupported}
             style={{
               flex: 1,
@@ -138,7 +148,9 @@ export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
               opacity: !hotkeySupported ? 0.5 : 1,
             }}
           >
-            {isRecordingHotkey ? "Stop Recording" : "Record Keys"}
+            {isRecordingHotkey
+              ? t("settings.hotkey.recording") || "Stop Recording"
+              : t("settings.hotkey.recordShortcut") || "Record Keys"}
           </button>
         </div>
 
@@ -172,7 +184,7 @@ export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
                   : "pointer",
             }}
           >
-            Save Hotkey
+            {t("settings.hotkey.saveShortcut") || "Save Hotkey"}
           </button>
           <button
             type="button"
@@ -196,7 +208,7 @@ export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
                   : 1,
             }}
           >
-            Cancel
+            {t("common.cancel") || "Cancel"}
           </button>
         </div>
 
@@ -231,7 +243,8 @@ export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
             marginTop: "6px",
           }}
         >
-          Pressing this shortcut globally expands BBQ to front and focuses the Launcher search.
+          {t("settings.hotkey.description") ||
+            "Pressing this shortcut globally expands BBQ to front and focuses the Launcher search."}
         </span>
       </div>
 
@@ -241,7 +254,7 @@ export const HotkeySettingsTab: React.FC<HotkeySettingsTabProps> = ({
           checked={hotkeyEnabled}
           disabled={!hotkeySupported}
           onChange={(checked) => onToggle("hotkey_enabled", checked)}
-          label="Hotkey Trigger Enabled"
+          label={t("settings.hotkey.title") || "Hotkey Trigger Enabled"}
           description={
             !hotkeySupported && capabilities
               ? `Global shortcuts are ${capabilities.globalHotkey} on ${capabilities.platform}.`

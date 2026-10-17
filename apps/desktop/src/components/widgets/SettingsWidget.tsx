@@ -43,9 +43,7 @@ const tabListeners = new Set<(tab: SettingsTab) => void>();
 
 export function setTargetSettingsTab(tab: SettingsTab) {
   targetSettingsTab = tab;
-  for (const listener of tabListeners) {
-    listener(tab);
-  }
+  for (const listener of tabListeners) listener(tab);
 }
 
 export const SettingsWidget: React.FC = () => {
@@ -57,9 +55,7 @@ export const SettingsWidget: React.FC = () => {
   useEffect(() => {
     const listener = (tab: SettingsTab) => setActiveTab(tab);
     tabListeners.add(listener);
-    return () => {
-      tabListeners.delete(listener);
-    };
+    return () => { tabListeners.delete(listener); };
   }, []);
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -84,6 +80,7 @@ export const SettingsWidget: React.FC = () => {
   const [draftWidth, setDraftWidth] = useState(settings.island_width);
   const [draftHeight, setDraftHeight] = useState(settings.island_height);
   const [draftTransparency, setDraftTransparency] = useState(settings.island_transparency ?? 0);
+  const [draftBlur, setDraftBlur] = useState(settings.island_blur ?? 20);
   const [draftClipboardMax, setDraftClipboardMax] = useState(settings.clipboard_max_entries);
   const [draftRetention, setDraftRetention] = useState(settings.clipboard_retention_days);
   const [draftHotkey, setDraftHotkey] = useState(settings.global_hotkey);
@@ -92,27 +89,21 @@ export const SettingsWidget: React.FC = () => {
 
   useEffect(() => {
     setDraftWidth(settings.island_width);
-  }, [settings.island_width]);
-
-  useEffect(() => {
     setDraftHeight(settings.island_height);
-  }, [settings.island_height]);
-
-  useEffect(() => {
     setDraftTransparency(settings.island_transparency ?? 0);
-  }, [settings.island_transparency]);
-
-  useEffect(() => {
+    setDraftBlur(settings.island_blur ?? 20);
     setDraftClipboardMax(settings.clipboard_max_entries);
-  }, [settings.clipboard_max_entries]);
-
-  useEffect(() => {
     setDraftRetention(settings.clipboard_retention_days);
-  }, [settings.clipboard_retention_days]);
-
-  useEffect(() => {
     setDraftHotkey(settings.global_hotkey);
-  }, [settings.global_hotkey]);
+  }, [
+    settings.island_width,
+    settings.island_height,
+    settings.island_transparency,
+    settings.island_blur,
+    settings.clipboard_max_entries,
+    settings.clipboard_retention_days,
+    settings.global_hotkey,
+  ]);
 
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -125,9 +116,7 @@ export const SettingsWidget: React.FC = () => {
   }, []);
 
   const showStatus = (msg: string) => {
-    if (statusTimerRef.current) {
-      clearTimeout(statusTimerRef.current);
-    }
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     setStatusMessage(msg);
     statusTimerRef.current = setTimeout(() => {
       setStatusMessage(null);
@@ -184,6 +173,14 @@ export const SettingsWidget: React.FC = () => {
     if (clamped !== settings.island_transparency) {
       await updateSettingsBatch({ island_transparency: clamped });
       showStatus("Island transparency updated");
+    }
+  };
+
+  const commitBlur = async (val: number) => {
+    const clamped = Math.max(0, Math.min(40, Math.round(val)));
+    if (clamped !== settings.island_blur) {
+      await updateSettingsBatch({ island_blur: clamped });
+      showStatus((t("settings.island.blur") || "Island blur") + " " + (t("common.saved") || "updated"));
     }
   };
 
@@ -530,15 +527,18 @@ export const SettingsWidget: React.FC = () => {
             draftWidth={draftWidth}
             draftHeight={draftHeight}
             draftTransparency={draftTransparency}
+            draftBlur={draftBlur}
             islandPosition={settings.island_position || "top-center"}
             alwaysOnTop={settings.always_on_top ?? true}
             autoExpandOnEvent={settings.auto_expand_on_event}
             onDraftWidthChange={setDraftWidth}
             onDraftHeightChange={setDraftHeight}
             onDraftTransparencyChange={setDraftTransparency}
+            onDraftBlurChange={setDraftBlur}
             onCommitWidth={commitWidth}
             onCommitHeight={commitHeight}
             onCommitTransparency={commitTransparency}
+            onCommitBlur={commitBlur}
             onToggle={handleToggle}
           />
         )}

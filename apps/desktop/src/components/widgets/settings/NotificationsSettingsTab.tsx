@@ -1,6 +1,7 @@
 import React from "react";
 import { Switch } from "../../common/SettingsControls.tsx";
 import type { NotificationsSettingsTabProps } from "./settingsTypes.ts";
+import { useTranslation } from "../../../i18n/index.ts";
 
 export const NotificationsSettingsTab: React.FC<NotificationsSettingsTabProps> = ({
   notificationsEnabled,
@@ -8,30 +9,40 @@ export const NotificationsSettingsTab: React.FC<NotificationsSettingsTabProps> =
   reminderSoundEnabled,
   onToggle,
 }) => {
+  const { t } = useTranslation();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
       <Switch
         id="notifications-enable-toggle"
         checked={notificationsEnabled}
         onChange={(checked) => onToggle("notifications_enabled", checked)}
-        label="Desktop Notifications"
-        description="Receive OS desktop banner alerts for timer completions and reminders."
+        label={t("settings.notifications.appNotifications") || "Desktop Notifications"}
+        description={
+          t("settings.notifications.appNotificationsDesc") ||
+          "Receive OS desktop banner alerts for timer completions and reminders."
+        }
       />
 
       <Switch
         id="timer-sound-toggle"
         checked={timerSoundEnabled}
         onChange={(checked) => onToggle("timer_sound_enabled", checked)}
-        label="Timer Sound"
-        description="Play an auditory chime when timers and Pomodoro phases expire."
+        label={t("settings.notifications.timerSound") || "Timer Sound"}
+        description={
+          t("settings.notifications.timerSoundDesc") ||
+          "Play an auditory chime when timers and Pomodoro phases expire."
+        }
       />
 
       <Switch
         id="reminder-sound-toggle"
         checked={reminderSoundEnabled}
         onChange={(checked) => onToggle("reminder_sound_enabled", checked)}
-        label="Reminder Sound"
-        description="Play an auditory notification when a scheduled reminder is due."
+        label={t("settings.notifications.reminderSound") || "Reminder Sound"}
+        description={
+          t("settings.notifications.reminderSoundDesc") ||
+          "Play an auditory notification when a scheduled reminder is due."
+        }
       />
     </div>
   );

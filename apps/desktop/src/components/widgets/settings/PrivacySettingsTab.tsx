@@ -2,6 +2,7 @@ import React from "react";
 import { NumberInput, Switch } from "../../common/SettingsControls.tsx";
 import { Icon } from "../../common/Icon.tsx";
 import type { PrivacySettingsTabProps } from "./settingsTypes.ts";
+import { useTranslation } from "../../../i18n/index.ts";
 
 export const PrivacySettingsTab: React.FC<PrivacySettingsTabProps> = ({
   clipboardHistoryEnabled,
@@ -17,6 +18,7 @@ export const PrivacySettingsTab: React.FC<PrivacySettingsTabProps> = ({
   onToggle,
   onResetDefaults,
 }) => {
+  const { t } = useTranslation();
   return (
     <div
       id="settings-panel-privacy-content"
@@ -49,15 +51,18 @@ export const PrivacySettingsTab: React.FC<PrivacySettingsTabProps> = ({
         id="clipboard-history-toggle"
         checked={clipboardHistoryEnabled}
         onChange={(checked) => onToggle("clipboard_history_enabled", checked)}
-        label="Clipboard History"
-        description="Stores copied text clips in local SQLite. Disabling immediately purges all stored items."
+        label={t("settings.privacy.clipboardHistory") || "Clipboard History"}
+        description={
+          t("settings.privacy.clipboardHistoryDesc") ||
+          "Stores copied text clips in local SQLite. Disabling immediately purges all stored items."
+        }
       />
 
       <div id="clipboard-max-slider" className="bbq-numeric-control-wrapper">
         <NumberInput
           id="clipboard-max-input"
-          label="Max Entries"
-          description="Maximum clipboard history items stored in SQLite (10–100 items)."
+          label={t("settings.privacy.maxEntries") || "Max Entries"}
+          description={t("settings.privacy.maxEntriesDesc") || "Maximum clipboard history items stored in SQLite (10–100 items)."}
           value={draftClipboardMax}
           min={10}
           max={100}
@@ -71,8 +76,8 @@ export const PrivacySettingsTab: React.FC<PrivacySettingsTabProps> = ({
       <div id="clipboard-retention-slider" className="bbq-numeric-control-wrapper">
         <NumberInput
           id="clipboard-retention-input"
-          label="Retention Period"
-          description="Days to retain clipboard history before automatic purge (1–90 days)."
+          label={t("settings.privacy.retention") || "Retention Period"}
+          description={t("settings.privacy.retentionDesc") || "Days to retain clipboard history before automatic purge (1–90 days)."}
           value={draftRetention}
           min={1}
           max={90}
@@ -105,7 +110,7 @@ export const PrivacySettingsTab: React.FC<PrivacySettingsTabProps> = ({
                 color: "var(--bbq-text)",
               }}
             >
-              Reset Preferences
+              {t("common.reset") || "Reset Preferences"}
             </span>
             <span
               style={{
@@ -114,7 +119,8 @@ export const PrivacySettingsTab: React.FC<PrivacySettingsTabProps> = ({
                 lineHeight: 1.4,
               }}
             >
-              Restores clipboard retention limits and application preferences to default values. Stored SQLite data history is preserved.
+              {t("settings.privacy.resetDesc") ||
+                "Restores clipboard retention limits and application preferences to default values. Stored SQLite data history is preserved."}
             </span>
           </div>
           <div>
@@ -141,7 +147,7 @@ export const PrivacySettingsTab: React.FC<PrivacySettingsTabProps> = ({
               aria-label="Reset preferences to defaults"
             >
               <Icon name="refresh" size={13} aria-hidden="true" />
-              <span>Reset to Defaults</span>
+              <span>{t("common.reset") || "Reset to Defaults"}</span>
             </button>
           </div>
         </div>

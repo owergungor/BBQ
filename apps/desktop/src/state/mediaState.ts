@@ -41,6 +41,9 @@ export async function initializeMediaStore(): Promise<() => void> {
     }
   });
 
+  // Eagerly fetch active session on initialization so existing playback is detected
+  void refreshMediaSession();
+
   return () => {
     unlistenChanged();
     unlistenPlayback();

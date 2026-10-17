@@ -20,6 +20,7 @@ use commands::*;
 pub struct AppState {
     pub current_mode: Mutex<IslandMode>,
     pub last_geometry: Mutex<Option<bbq_core::IslandGeometry>>,
+    pub is_custom_positioned: Mutex<bool>,
     pub services: ServiceRegistry,
     pub platform: Arc<dyn PlatformProvider>,
     pub db: Arc<DatabaseManager>,
@@ -174,6 +175,7 @@ pub fn run() {
         .manage(AppState {
             current_mode: Mutex::new(IslandMode::Idle),
             last_geometry: Mutex::new(None),
+            is_custom_positioned: Mutex::new(false),
             services,
             platform,
             db,
@@ -194,6 +196,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_island_state,
             set_island_mode,
+            set_custom_drag_position,
+            reset_island_position,
             get_displays,
             get_primary_display,
             get_active_display,

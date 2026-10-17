@@ -25,7 +25,8 @@
     "version": "Versión",
     "none": "Ninguno",
     "success": "Éxito",
-    "error": "Error"
+    "error": "Error",
+    "current": "Actual:"
   },
   "languages": {
     "en": "🇬🇧 English",
@@ -42,6 +43,7 @@
     "checking": "Buscando actualizaciones...",
     "upToDate": "BBQ está actualizado ({{version}})",
     "updateAvailable": "Actualización disponible: {{version}}",
+    "confirmDownload": "¿Listo para descargar e instalar {{version}}?",
     "downloadAndInstall": "Descargar e instalar",
     "downloading": "Descargando actualización ({{percentage}}%)...",
     "downloadingDetails": "{{downloaded}} / {{total}}",
@@ -103,6 +105,8 @@
       "compactHeight": "Alto en reposo",
       "transparency": "Transparencia de ventana",
       "transparencyDesc": "Ajusta la opacidad del cristal translúcido (0% es opaco).",
+      "blur": "Desenfoque de la isla",
+      "blurDesc": "Ajusta la intensidad del desenfoque del cristal (por defecto: 20px).",
       "alwaysOnTop": "Siempre visible",
       "alwaysOnTopDesc": "Mantener la isla por encima de otras ventanas de aplicaciones.",
       "autoExpand": "Autoexpandir en eventos",
@@ -129,11 +133,14 @@
       "maskSensitiveDesc": "Ocultar contraseñas, tokens de API y credenciales de forma predeterminada.",
       "retention": "Retención del historial",
       "retentionDays": "{{days}} días",
+      "retentionDesc": "Días para conservar el historial del portapapeles antes de la purga automática.",
       "maxEntries": "Límite de capacidad",
       "maxEntriesCount": "{{count}} elementos",
+      "maxEntriesDesc": "Elementos máximos del historial del portapapeles guardados en SQLite local.",
       "clearHistory": "Borrar historial del portapapeles",
       "clearHistoryConfirm": "Todos los elementos guardados se eliminarán de forma permanente.",
-      "clearedSuccess": "Historial del portapapeles borrado"
+      "clearedSuccess": "Historial del portapapeles borrado",
+      "resetDesc": "Restaura los límites de retención del portapapeles y las preferencias de la aplicación a los valores predeterminados. Se conserva el historial de datos de SQLite."
     },
     "notifications": {
       "appNotifications": "Notificaciones del escritorio",
@@ -203,6 +210,9 @@
       "resume": "Reanudar",
       "reset": "Restablecer",
       "cancel": "Cancelar",
+      "set": "Fijar",
+      "work": "Trabajo",
+      "break": "Descanso",
       "workPhase": "Sesión de concentración",
       "breakPhase": "Pausa corta",
       "longBreakPhase": "Pausa larga",

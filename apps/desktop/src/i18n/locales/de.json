@@ -25,7 +25,8 @@
     "version": "Version",
     "none": "Keine",
     "success": "Erfolgreich",
-    "error": "Fehler"
+    "error": "Fehler",
+    "current": "Aktuell:"
   },
   "languages": {
     "en": "🇬🇧 English",
@@ -42,6 +43,7 @@
     "checking": "Suche nach Updates...",
     "upToDate": "BBQ ist auf dem neuesten Stand ({{version}})",
     "updateAvailable": "Update verfügbar: {{version}}",
+    "confirmDownload": "Bereit zum Herunterladen und Installieren von {{version}}?",
     "downloadAndInstall": "Herunterladen & Installieren",
     "downloading": "Update wird heruntergeladen ({{percentage}}%)...",
     "downloadingDetails": "{{downloaded}} / {{total}}",
@@ -103,6 +105,8 @@
       "compactHeight": "Höhe im Ruhezustand",
       "transparency": "Fenstertransparenz",
       "transparencyDesc": "Transparenzstufe der Glasoberfläche anpassen (0% ist undurchsichtig).",
+      "blur": "Insel-Unschärfe",
+      "blurDesc": "Unschärfe-Intensität des Glaseffekts anpassen (Standard: 20px).",
       "alwaysOnTop": "Immer im Vordergrund",
       "alwaysOnTopDesc": "Die Insel über anderen Anwendungsfenstern sichtbar halten.",
       "autoExpand": "Automatisch bei Ereignissen öffnen",
@@ -129,11 +133,14 @@
       "maskSensitiveDesc": "Passwörter, API-Schlüssel und Zugangsdaten standardmäßig verbergen.",
       "retention": "Aufbewahrungsdauer",
       "retentionDays": "{{days}} Tage",
+      "retentionDesc": "Tage bis zur automatischen Löschung des Zwischenablageverlaufs.",
       "maxEntries": "Maximale Einträge",
       "maxEntriesCount": "{{count}} Einträge",
+      "maxEntriesDesc": "Maximale Anzahl der in der lokalen SQLite-Datenbank gespeicherten Zwischenablage-Einträge.",
       "clearHistory": "Zwischenablage leeren",
       "clearHistoryConfirm": "Alle gespeicherten Einträge werden unwiderruflich gelöscht.",
-      "clearedSuccess": "Zwischenablagen-Verlauf gelöscht"
+      "clearedSuccess": "Zwischenablagen-Verlauf gelöscht",
+      "resetDesc": "Setzt die Aufbewahrungsgrenzen der Zwischenablage und die Anwendungseinstellungen auf die Standardwerte zurück. Der gespeicherte SQLite-Verlauf bleibt erhalten."
     },
     "notifications": {
       "appNotifications": "Desktop-Benachrichtigungen",
@@ -203,6 +210,9 @@
       "resume": "Fortsetzen",
       "reset": "Zurücksetzen",
       "cancel": "Abbrechen",
+      "set": "Setzen",
+      "work": "Fokus",
+      "break": "Pause",
       "workPhase": "Fokusphase",
       "breakPhase": "Kurze Pause",
       "longBreakPhase": "Lange Pause",
