@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { IslandRuntime } from "../src/island/IslandRuntime.ts";
@@ -393,6 +393,134 @@ describe("BBQ — Hover Symmetrical Expansion & Hitbox Invariants", () => {
     await new Promise((r) => setTimeout(r, 160));
     assert.equal(islandStore.getState().state, "Idle");
     assert.equal(islandStore.getState().isHovered, false);
+  });
+});
+
+describe("Auto-Collapse Focus Guard & Interactive State Preservation", () => {
+  let runtime: IslandRuntime;
+  const originalDoc = (globalThis as any).document;
+
+  beforeEach(() => {
+    runtime = new IslandRuntime();
+    islandStore.setState(initialIslandState);
+    (globalThis as any).document = undefined;
+  });
+
+  afterEach(() => {
+    runtime.destroy();
+    (globalThis as any).document = originalDoc;
+  });
+
+  it("a) normal auto-collapse still works when expanded and unhovered", async () => {
+    await runtime.transitionTo("Expanded", "mouse");
+    assert.equal(islandStore.getState().state, "Expanded");
+
+    islandStore.setState({ isHovered: false });
+    runtime.scheduleAutoCollapse(20);
+
+    await new Promise((r) => setTimeout(r, 40));
+    assert.equal(islandStore.getState().state, "Idle", "Should transition to Idle after auto-collapse timeout");
+  });
+
+  it("b) focused input prevents destructive auto-collapse", async () => {
+    // Mock an active text input element
+    (globalThis as any).document = {
+      activeElement: {
+        tagName: "INPUT",
+        getAttribute: (attr: string) => (attr === "type" ? "text" : null),
+      },
+      querySelector: () => null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+
+    await runtime.transitionTo("Expanded", "mouse");
+    islandStore.setState({ isHovered: false });
+
+    // Verify isFocusOrOverlayActive recognizes the focused input
+    assert.equal(runtime.isFocusOrOverlayActive(), true);
+
+    runtime.scheduleAutoCollapse(20);
+    await new Promise((r) => setTimeout(r, 40));
+
+    // Must remain Expanded because the active input protected it
+    assert.equal(islandStore.getState().state, "Expanded", "Active text input must guard against auto-collapse");
+  });
+
+  it("c) moving focus away restores normal auto-collapse", async () => {
+    let activeEl: any = {
+      tagName: "TEXTAREA",
+      getAttribute: () => null,
+    };
+
+    (globalThis as any).document = {
+      get activeElement() {
+        return activeEl;
+      },
+      querySelector: () => null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+
+    await runtime.transitionTo("Expanded", "mouse");
+    islandStore.setState({ isHovered: false });
+
+    // Auto-collapse fired while focused -> suppressed
+    runtime.scheduleAutoCollapse(20);
+    await new Promise((r) => setTimeout(r, 35));
+    assert.equal(islandStore.getState().state, "Expanded");
+
+    // Moving focus away (blur to body)
+    activeEl = null;
+    assert.equal(runtime.isFocusOrOverlayActive(), false);
+
+    runtime.handleFocusOut();
+    // Wait for the 50ms focusout debounce + auto-collapse
+    runtime.scheduleAutoCollapse(20);
+    await new Promise((r) => setTimeout(r, 35));
+
+    assert.equal(islandStore.getState().state, "Idle", "Moving focus away must restore auto-collapse");
+  });
+
+  it("d) Escape still collapses even when focus guard is active", async () => {
+    (globalThis as any).document = {
+      activeElement: {
+        tagName: "INPUT",
+        getAttribute: () => null,
+      },
+      querySelector: () => null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+
+    await runtime.transitionTo("Expanded", "keyboard");
+    assert.equal(runtime.isFocusOrOverlayActive(), true);
+
+    // Escape collapses to Hovering immediately
+    await runtime.handleEvent({ type: "USER_ESCAPE" });
+    assert.equal(islandStore.getState().state, "Hovering", "Intentional Escape must collapse despite focused input");
+
+    await runtime.handleEvent({ type: "USER_ESCAPE" });
+    assert.equal(islandStore.getState().state, "Idle");
+  });
+
+  it("e) click-outside still collapses where intended even when focused", async () => {
+    (globalThis as any).document = {
+      activeElement: {
+        tagName: "INPUT",
+        getAttribute: () => null,
+      },
+      querySelector: () => null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+
+    await runtime.transitionTo("Expanded", "mouse");
+    assert.equal(runtime.isFocusOrOverlayActive(), true);
+
+    // Intentional click outside collapses to Idle
+    await runtime.handleEvent({ type: "CLICK_OUTSIDE" });
+    assert.equal(islandStore.getState().state, "Idle", "Click outside must collapse even if an input was focused");
   });
 });
 

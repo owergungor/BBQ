@@ -112,7 +112,11 @@
       "autoExpand": "Automatisch bei Ereignissen öffnen",
       "autoExpandDesc": "Insel automatisch bei Titelwechseln oder Timer-Alarmen ausklappen.",
       "moveHud": "HUD verschieben",
-      "moveHudDesc": "Interaktives Raster zur Neupositionierung des HUDs aktivieren."
+      "moveHudDesc": "Interaktives Raster zur Neupositionierung des HUDs aktivieren.",
+      "moveHudAction": "Insel verschieben (HUD)",
+      "resetPosition": "Auf Bildschirm-Standard zurücksetzen",
+      "resetPositionDesc": "Standardmäßige obere Zentrierung wiederherstellen und benutzerdefinierte Koordinaten löschen.",
+      "positionResetSuccess": "Inselposition auf Standard zurückgesetzt"
     },
     "hotkey": {
       "title": "Globales Tastenkürzel",
@@ -178,7 +182,35 @@
       "copyDiagnostics": "Diagnosedaten kopieren",
       "replayTour": "Willkommenstour wiederholen",
       "diagnosticsCopied": "Bereinigte Diagnosedaten in die Zwischenablage kopiert"
-    }
+    },
+    "status": {
+      "preferenceUpdated": "Einstellung aktualisiert",
+      "customAccentSet": "Benutzerdefinierter Akzent auf {{color}} gesetzt",
+      "islandTransparency": "Insel-Transparenz aktualisiert",
+      "islandBlur": "Insel-Unschärfe aktualisiert",
+      "islandWidth": "Inselbreite aktualisiert",
+      "islandHeight": "Inselhöhe aktualisiert",
+      "clipboardCapacity": "Zwischenablage-Kapazität aktualisiert",
+      "clipboardRetention": "Zwischenablage-Aufbewahrung aktualisiert",
+      "globalHotkey": "Globaler Hotkey aktualisiert",
+      "resetDefaults": "Auf Standardeinstellungen zurückgesetzt",
+      "widgetOrder": "Reihenfolge der kompakten Widgets aktualisiert",
+      "widgetOrderReset": "Widget-Reihenfolge auf Standard zurückgesetzt",
+      "enabledWidget": "{{widget}} aktiviert",
+      "disabledWidget": "{{widget}} deaktiviert",
+      "diagnosticsCopied": "Diagnoseinformationen in Zwischenablage kopiert",
+      "tourActivated": "Willkommenstour aktiviert",
+      "islandPositionReset": "Inselposition auf Standard zurückgesetzt",
+      "moveHudEnabled": "Verschiebe-HUD aktiviert",
+      "moveHudDisabled": "Verschiebe-HUD deaktiviert"
+    },
+    "resetModal": {
+      "title": "Einstellungen zurücksetzen?",
+      "description": "Möchten Sie wirklich alle Einstellungen auf die Standardwerte zurücksetzen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "confirm": "Auf Standardwerte zurücksetzen",
+      "cancel": "Abbrechen"
+    },
+    "savedNotice": "Einstellungen werden automatisch in SQLite gespeichert"
   },
   "widgets": {
     "media": {
@@ -282,7 +314,8 @@
     "settings": "Einstellungen",
     "launchAtLogin": "Beim Login starten",
     "about": "Über BBQ",
-    "quit": "BBQ beenden"
+    "quit": "BBQ beenden",
+    "resetPosition": "Inselposition zurücksetzen"
   },
   "onboarding": {
     "welcomeTitle": "Willkommen bei BBQ",
@@ -297,7 +330,55 @@
     "step4Desc": "Lokaler verschlüsselter Verlauf mit automatischer Maskierung von Passwörtern und Token.",
     "step5Title": "Fokus & Timer",
     "step5Desc": "Bleibe im Arbeitsfluss mit integrierten Countdowns, Stoppuhren und Pomodoro-Zyklen.",
-    "finishBtn": "Loslegen"
+    "finishBtn": "Loslegen",
+    "skipTour": "Tour überspringen (Esc)",
+    "back": "← Zurück",
+    "next": "Weiter →",
+    "getStarted": "Loslegen",
+    "tour": {
+      "step1": {
+        "badge": "Willkommen",
+        "title": "Willkommen bei BBQ",
+        "subtitle": "Ihre Desktop-Produktivitätsinsel",
+        "description": "BBQ verwandelt den oberen Bildschirmrand in eine intelligente, hardwarebeschleunigte Befehlsoberfläche. Es verweilt unaufdringlich als kompakte Pille und entfaltet sich sanft zu Produktivitätswerkzeugen, wann immer Sie sie brauchen.",
+        "tip": "Tipp: Bewegen Sie die Maus über die Insel oben auf Ihrem Monitor oder klicken Sie darauf, um zu beginnen."
+      },
+      "step2": {
+        "badge": "Architektur",
+        "title": "Dynamische Insel-Zustände",
+        "subtitle": "Flüssige, GPU-beschleunigte Interaktion",
+        "description": "Im Ruhemodus zeigt BBQ kompakte Indikatoren für aktive Medien, laufende Timer, die Zwischenablage und den Systemstatus an. Das Ziehen von Dateien über die Insel macht sie sofort zu einer Ablagezone.",
+        "tip": "Alle Animationen sind durch transform und opacity GPU-beschleunigt für ruckelfreies Layout."
+      },
+      "step3": {
+        "badge": "Navigation",
+        "title": "Globaler Hotkey & Starter",
+        "subtitle": "Sofortiger Zugriff von überall",
+        "description": "Drücken Sie global Strg+Leertaste (oder Cmd+Leertaste auf macOS), um BBQ hervorzuholen. Mit dem einheitlichen Starter können Sie Apps und Dateien öffnen oder Systemaktionen mit Tastaturgeschwindigkeit auslösen.",
+        "tip": "Sie können die globale Tastenkombination jederzeit in den Einstellungen anpassen."
+      },
+      "step4": {
+        "badge": "Datenschutz",
+        "title": "100% lokal & Datenschutz an erster Stelle",
+        "subtitle": "Null Telemetrie, kein Tracking",
+        "description": "Ihre Daten verlassen niemals Ihren Computer. Alles wird lokal in einer eingebetteten SQLite-Datenbank gespeichert. Funktionen wie der Zwischenablage-Verlauf sind rein optional und standardmäßig deaktiviert.",
+        "tip": "Das Deaktivieren des Zwischenablage-Verlaufs löscht gespeicherte Einträge sofort aus der Datenbank."
+      },
+      "step5": {
+        "badge": "Anpassung",
+        "title": "Passen Sie Ihr Erlebnis an",
+        "subtitle": "Design, Barrierefreiheit & Indikatoren",
+        "description": "BBQ unterstützt System-, Dunkel- und Hell-Designs sowie einen Modus für reduzierte Bewegung für Barrierefreiheit. Sie können festlegen, welche kompakten Indikatoren zuerst auf Ihrer Pille erscheinen.",
+        "tip": "Nutzen Sie die Design-Schaltflächen unten, um Ihr bevorzugtes Erscheinungsbild festzulegen:"
+      },
+      "step6": {
+        "badge": "Bereit",
+        "title": "Sie sind startklar!",
+        "subtitle": "Willkommen zur BBQ Production Edition",
+        "description": "Ihnen steht nun eine schnelle, diskrete Produktivitätsinsel zur Verfügung. Genießen Sie Ihren optimierten Arbeitsablauf!",
+        "tip": "Sie können diese Willkommenstour jederzeit aus den Einstellungen erneut abspielen."
+      }
+    }
   },
   "errors": {
     "title": "Anwendungshinweis",
@@ -305,5 +386,31 @@
     "recover": "Wiederherstellen",
     "details": "Details",
     "unknown": "Ein unerwarteter Fehler ist aufgetreten."
+  },
+  "compact": {
+    "dropShelf": "Ablagefläche",
+    "releaseToStage": "Loslassen zum Bereitstellen",
+    "staged": "bereitgestellt",
+    "dragFilesHere": "Dateien hierher ziehen",
+    "file": "Datei",
+    "files": "Dateien",
+    "clipboard": "Zwischenablage",
+    "latestItem": "Letztes Element",
+    "unknownArtist": "Unbekannter Künstler",
+    "unknownTrack": "Unbekannter Titel",
+    "previousTrack": "Vorheriger Titel",
+    "play": "Wiedergabe",
+    "pause": "Pause",
+    "nextTrack": "Nächster Titel",
+    "system": "System",
+    "online": "Online",
+    "offline": "Offline",
+    "search": "Suche",
+    "reminder": "Erinnerung",
+    "reminders": "Erinnerungen"
+  },
+  "shell": {
+    "stageFilesDrop": "Dateien auf Ablagefläche bereitstellen",
+    "ariaLabel": "BBQ Produktivitätsinsel"
   }
 }

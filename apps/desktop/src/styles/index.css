@@ -4139,8 +4139,13 @@ html, body {
 }
 
 .bbq-settings-tablist {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  overflow: visible;
+  position: relative;
 }
 
 .bbq-settings-tablist::-webkit-scrollbar {
@@ -4152,7 +4157,9 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
+  flex: 1 1 0;
+  min-width: 28px;
+  max-width: 44px;
   height: 28px;
   padding: 0;
   background: transparent;
@@ -4189,6 +4196,7 @@ html, body {
   font-size: 10px;
   font-weight: 500;
   white-space: nowrap;
+  max-width: 220px;
   color: var(--bbq-text);
   background: var(--bbq-surface-glass-expanded, #18181b);
   border: 1px solid var(--bbq-border);
@@ -4206,6 +4214,40 @@ html, body {
   opacity: 1;
   visibility: visible;
   transform: translateX(-50%) translateY(6px);
+}
+
+/* Tooltip edge clamping for start and end tabs to prevent window overflow */
+.bbq-settings-tab-btn:first-child .bbq-tab-tooltip,
+.bbq-settings-tab-btn:nth-child(2) .bbq-tab-tooltip,
+.bbq-settings-tab-btn.tooltip-start .bbq-tab-tooltip {
+  left: 0;
+  transform: translateY(4px);
+}
+
+.bbq-settings-tab-btn:first-child:hover .bbq-tab-tooltip,
+.bbq-settings-tab-btn:first-child:focus-visible .bbq-tab-tooltip,
+.bbq-settings-tab-btn:nth-child(2):hover .bbq-tab-tooltip,
+.bbq-settings-tab-btn:nth-child(2):focus-visible .bbq-tab-tooltip,
+.bbq-settings-tab-btn.tooltip-start:hover .bbq-tab-tooltip,
+.bbq-settings-tab-btn.tooltip-start:focus-visible .bbq-tab-tooltip {
+  transform: translateY(6px);
+}
+
+.bbq-settings-tab-btn:last-child .bbq-tab-tooltip,
+.bbq-settings-tab-btn:nth-last-child(2) .bbq-tab-tooltip,
+.bbq-settings-tab-btn.tooltip-end .bbq-tab-tooltip {
+  left: auto;
+  right: 0;
+  transform: translateY(4px);
+}
+
+.bbq-settings-tab-btn:last-child:hover .bbq-tab-tooltip,
+.bbq-settings-tab-btn:last-child:focus-visible .bbq-tab-tooltip,
+.bbq-settings-tab-btn:nth-last-child(2):hover .bbq-tab-tooltip,
+.bbq-settings-tab-btn:nth-last-child(2):focus-visible .bbq-tab-tooltip,
+.bbq-settings-tab-btn.tooltip-end:hover .bbq-tab-tooltip,
+.bbq-settings-tab-btn.tooltip-end:focus-visible .bbq-tab-tooltip {
+  transform: translateY(6px);
 }
 
 .bbq-number-input-group {

@@ -87,12 +87,15 @@ impl SettingsServiceTrait for SettingsService {
     fn get_settings(&self) -> BbqResult<BbqSettings> {
         let mut settings = BbqSettings::default();
 
-        if let Ok(Some(t)) = self.repo.get("theme") {
+        let all_settings = self.repo.get_all()?;
+        let get_val = |k: &str| all_settings.get(k).map(|s| s.as_str());
+
+        if let Some(t) = get_val("theme") {
             if let Ok(theme) = t.parse::<ThemePreference>() {
                 settings.theme = theme;
             }
         }
-        if let Ok(Some(ac)) = self.repo.get("accent_color") {
+        if let Some(ac) = get_val("accent_color") {
             let trimmed = ac.trim().to_lowercase();
             match trimmed.as_str() {
                 "blue" | "red" | "green" | "orange" | "yellow" | "pink" | "purple" | "indigo"
@@ -106,56 +109,56 @@ impl SettingsServiceTrait for SettingsService {
                 }
             }
         }
-        if let Ok(Some(cac)) = self.repo.get("custom_accent_color") {
+        if let Some(cac) = get_val("custom_accent_color") {
             let trimmed = cac.trim();
             if !trimmed.is_empty() && trimmed != "null" {
                 settings.custom_accent_color = Some(trimmed.to_string());
             }
         }
-        if let Ok(Some(rm)) = self.repo.get("reduced_motion") {
+        if let Some(rm) = get_val("reduced_motion") {
             settings.reduced_motion = rm == "true";
         }
-        if let Ok(Some(rt)) = self.repo.get("reduced_transparency") {
+        if let Some(rt) = get_val("reduced_transparency") {
             settings.reduced_transparency = rt == "true";
         }
-        if let Ok(Some(w)) = self.repo.get("island_width") {
+        if let Some(w) = get_val("island_width") {
             if let Ok(num) = w.parse::<u32>() {
                 settings.island_width =
                     num.clamp(bbq_core::MIN_ISLAND_WIDTH, bbq_core::MAX_ISLAND_WIDTH);
             }
         }
-        if let Ok(Some(h)) = self.repo.get("island_height") {
+        if let Some(h) = get_val("island_height") {
             if let Ok(num) = h.parse::<u32>() {
                 settings.island_height =
                     num.clamp(bbq_core::MIN_ISLAND_HEIGHT, bbq_core::MAX_ISLAND_HEIGHT);
             }
         }
-        if let Ok(Some(d)) = self.repo.get("target_display_id") {
+        if let Some(d) = get_val("target_display_id") {
             if d.trim().is_empty() || d == "null" {
                 settings.target_display_id = None;
             } else {
-                settings.target_display_id = Some(d);
+                settings.target_display_id = Some(d.to_string());
             }
         }
-        if let Ok(Some(a)) = self.repo.get("auto_expand_on_event") {
+        if let Some(a) = get_val("auto_expand_on_event") {
             settings.auto_expand_on_event = a == "true";
         }
-        if let Ok(Some(s)) = self.repo.get("start_at_login") {
+        if let Some(s) = get_val("start_at_login") {
             settings.start_at_login = s == "true";
         }
-        if let Ok(Some(gh)) = self.repo.get("global_hotkey") {
+        if let Some(gh) = get_val("global_hotkey") {
             let trimmed = gh.trim();
             if !trimmed.is_empty() && trimmed.len() <= bbq_core::MAX_HOTKEY_LEN {
                 settings.global_hotkey = trimmed.to_string();
             }
         }
-        if let Ok(Some(he)) = self.repo.get("hotkey_enabled") {
+        if let Some(he) = get_val("hotkey_enabled") {
             settings.hotkey_enabled = he == "true";
         }
-        if let Ok(Some(ch)) = self.repo.get("clipboard_history_enabled") {
+        if let Some(ch) = get_val("clipboard_history_enabled") {
             settings.clipboard_history_enabled = ch == "true";
         }
-        if let Ok(Some(crd)) = self.repo.get("clipboard_retention_days") {
+        if let Some(crd) = get_val("clipboard_retention_days") {
             if let Ok(num) = crd.parse::<u32>() {
                 settings.clipboard_retention_days = num.clamp(
                     bbq_core::MIN_CLIPBOARD_RETENTION_DAYS,
@@ -163,7 +166,7 @@ impl SettingsServiceTrait for SettingsService {
                 );
             }
         }
-        if let Ok(Some(cme)) = self.repo.get("clipboard_max_entries") {
+        if let Some(cme) = get_val("clipboard_max_entries") {
             if let Ok(num) = cme.parse::<usize>() {
                 settings.clipboard_max_entries = num.clamp(
                     bbq_core::MIN_CLIPBOARD_MAX_ENTRIES,
@@ -171,34 +174,34 @@ impl SettingsServiceTrait for SettingsService {
                 );
             }
         }
-        if let Ok(Some(ne)) = self.repo.get("notifications_enabled") {
+        if let Some(ne) = get_val("notifications_enabled") {
             settings.notifications_enabled = ne == "true";
         }
-        if let Ok(Some(tse)) = self.repo.get("timer_sound_enabled") {
+        if let Some(tse) = get_val("timer_sound_enabled") {
             settings.timer_sound_enabled = tse == "true";
         }
-        if let Ok(Some(rse)) = self.repo.get("reminder_sound_enabled") {
+        if let Some(rse) = get_val("reminder_sound_enabled") {
             settings.reminder_sound_enabled = rse == "true";
         }
-        if let Ok(Some(dw)) = self.repo.get("disabled_widgets") {
-            if let Ok(mut list) = serde_json::from_str::<Vec<String>>(&dw) {
+        if let Some(dw) = get_val("disabled_widgets") {
+            if let Ok(mut list) = serde_json::from_str::<Vec<String>>(dw) {
                 list.truncate(bbq_core::MAX_DISABLED_WIDGETS);
                 settings.disabled_widgets = list;
             }
         }
-        if let Ok(Some(cio)) = self.repo.get("compact_indicator_order") {
-            if let Ok(mut list) = serde_json::from_str::<Vec<String>>(&cio) {
+        if let Some(cio) = get_val("compact_indicator_order") {
+            if let Ok(mut list) = serde_json::from_str::<Vec<String>>(cio) {
                 list.truncate(bbq_core::MAX_DISABLED_WIDGETS);
                 settings.compact_indicator_order = list;
             }
         }
-        if let Ok(Some(frc)) = self.repo.get("first_run_completed") {
+        if let Some(frc) = get_val("first_run_completed") {
             settings.first_run_completed = frc == "true";
         }
-        if let Ok(Some(oc)) = self.repo.get("onboarding_completed") {
+        if let Some(oc) = get_val("onboarding_completed") {
             settings.onboarding_completed = oc == "true";
         }
-        if let Ok(Some(pos)) = self.repo.get("island_position") {
+        if let Some(pos) = get_val("island_position") {
             let trimmed = pos.trim().to_lowercase();
             match trimmed.as_str() {
                 "top-center" | "top-left" | "top-right" | "bottom-left" | "bottom-center"
@@ -208,23 +211,23 @@ impl SettingsServiceTrait for SettingsService {
                 _ => {}
             }
         }
-        if let Ok(Some(tr)) = self.repo.get("island_transparency") {
+        if let Some(tr) = get_val("island_transparency") {
             if let Ok(num) = tr.parse::<u32>() {
                 settings.island_transparency = num.min(100);
             }
         }
-        if let Ok(Some(bl)) = self.repo.get("island_blur") {
+        if let Some(bl) = get_val("island_blur") {
             if let Ok(num) = bl.parse::<u32>() {
                 settings.island_blur = num.min(50);
             }
         }
-        if let Ok(Some(aot)) = self.repo.get("always_on_top") {
+        if let Some(aot) = get_val("always_on_top") {
             settings.always_on_top = aot == "true";
         }
-        if let Ok(Some(mh)) = self.repo.get("move_hud") {
+        if let Some(mh) = get_val("move_hud") {
             settings.move_hud = mh == "true";
         }
-        if let Ok(Some(lang)) = self.repo.get("language") {
+        if let Some(lang) = get_val("language") {
             let trimmed = lang.trim().to_lowercase();
             match trimmed.as_str() {
                 "en" | "es" | "fr" | "de" | "tr" => {
@@ -469,5 +472,41 @@ mod tests {
         assert!(!updated.move_hud);
         assert_eq!(repo.get("always_on_top").unwrap().as_deref(), Some("true"));
         assert_eq!(repo.get("move_hud").unwrap().as_deref(), Some("false"));
+    }
+
+    #[test]
+    fn test_single_pass_get_all_and_defaults_preservation() {
+        let db = DatabaseManager::open_in_memory().expect("in-memory db");
+        let repo = db.settings_repository();
+        let service = SettingsService::new(repo.clone());
+
+        // 1. Initially empty: returns default settings
+        let defaults = service.get_settings().expect("load default settings");
+        assert_eq!(defaults, BbqSettings::default());
+
+        // 2. Populate settings in DB
+        repo.set("island_width", "360").expect("set width");
+        repo.set("island_height", "44").expect("set height");
+        repo.set("theme", "Dark").expect("set theme");
+        repo.set("language", "tr").expect("set lang");
+        repo.set("island_blur", "24").expect("set blur");
+
+        // 3. Verify get_all in repository returns exactly those keys
+        let all = repo.get_all().expect("get_all from repo");
+        assert_eq!(all.get("island_width").map(String::as_str), Some("360"));
+        assert_eq!(all.get("theme").map(String::as_str), Some("Dark"));
+        assert_eq!(all.get("language").map(String::as_str), Some("tr"));
+        assert_eq!(all.get("island_blur").map(String::as_str), Some("24"));
+
+        // 4. Verify service.get_settings loads and parses them correctly in single pass
+        let loaded = service.get_settings().expect("load custom settings");
+        assert_eq!(loaded.island_width, 360);
+        assert_eq!(loaded.island_height, 44);
+        assert_eq!(loaded.theme, ThemePreference::Dark);
+        assert_eq!(loaded.language, "tr");
+        assert_eq!(loaded.island_blur, 24);
+        // Unset keys still resolve to defaults
+        assert!(loaded.always_on_top);
+        assert_eq!(loaded.global_hotkey, BbqSettings::default().global_hotkey);
     }
 }

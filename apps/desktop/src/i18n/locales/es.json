@@ -112,7 +112,11 @@
       "autoExpand": "Autoexpandir en eventos",
       "autoExpandDesc": "Expandir la isla automáticamente con cambios de música o temporizadores.",
       "moveHud": "Mover HUD",
-      "moveHudDesc": "Activa la superposición para reposicionar el HUD entre pantallas."
+      "moveHudDesc": "Activa la superposición para reposicionar el HUD entre pantallas.",
+      "moveHudAction": "Mover isla (HUD)",
+      "resetPosition": "Restablecer a posición predeterminada",
+      "resetPositionDesc": "Restaurar colocación superior central predeterminada y borrar coordenadas personalizadas.",
+      "positionResetSuccess": "Posición de la isla restablecida por defecto"
     },
     "hotkey": {
       "title": "Atajo global",
@@ -178,7 +182,35 @@
       "copyDiagnostics": "Copiar diagnósticos",
       "replayTour": "Repetir recorrido de bienvenida",
       "diagnosticsCopied": "Diagnósticos depurados copiados al portapapeles"
-    }
+    },
+    "status": {
+      "preferenceUpdated": "Preferencia actualizada",
+      "customAccentSet": "Acento personalizado establecido en {{color}}",
+      "islandTransparency": "Transparencia de la isla actualizada",
+      "islandBlur": "Desenfoque de la isla actualizado",
+      "islandWidth": "Ancho de la isla actualizado",
+      "islandHeight": "Altura de la isla actualizada",
+      "clipboardCapacity": "Capacidad del portapapeles actualizada",
+      "clipboardRetention": "Retención del portapapeles actualizada",
+      "globalHotkey": "Acceso rápido global actualizado",
+      "resetDefaults": "Restablecido a valores predeterminados",
+      "widgetOrder": "Orden de widgets compactos actualizado",
+      "widgetOrderReset": "Orden de widgets restablecido al predeterminado",
+      "enabledWidget": "{{widget}} activado",
+      "disabledWidget": "{{widget}} desactivado",
+      "diagnosticsCopied": "Información de diagnóstico copiada al portapapeles",
+      "tourActivated": "Guía de bienvenida activada",
+      "islandPositionReset": "Posición de la isla restablecida a predeterminada",
+      "moveHudEnabled": "HUD de movimiento activado",
+      "moveHudDisabled": "HUD de movimiento desactivado"
+    },
+    "resetModal": {
+      "title": "¿Restablecer preferencias?",
+      "description": "¿Está seguro de que desea restablecer todas las preferencias a sus valores predeterminados? Esta acción no se puede deshacer.",
+      "confirm": "Restablecer por defecto",
+      "cancel": "Cancelar"
+    },
+    "savedNotice": "Las preferencias se guardan automáticamente en SQLite"
   },
   "widgets": {
     "media": {
@@ -282,7 +314,8 @@
     "settings": "Ajustes",
     "launchAtLogin": "Iniciar al inicio de sesión",
     "about": "Acerca de BBQ",
-    "quit": "Salir de BBQ"
+    "quit": "Salir de BBQ",
+    "resetPosition": "Restablecer posición de la isla"
   },
   "onboarding": {
     "welcomeTitle": "Te damos la bienvenida a BBQ",
@@ -297,7 +330,55 @@
     "step4Desc": "Historial de portapapeles estrictamente local con enmascaramiento de credenciales.",
     "step5Title": "Enfoque y temporizadores",
     "step5Desc": "Mantén tu concentración con cuentas atrás, cronómetros y ciclos Pomodoro.",
-    "finishBtn": "Empezar"
+    "finishBtn": "Empezar",
+    "skipTour": "Saltar guía (Esc)",
+    "back": "← Atrás",
+    "next": "Siguiente →",
+    "getStarted": "Comenzar",
+    "tour": {
+      "step1": {
+        "badge": "Bienvenido",
+        "title": "Bienvenido a BBQ",
+        "subtitle": "Su isla de productividad de escritorio",
+        "description": "BBQ transforma el margen superior de su pantalla en una superficie de control inteligente y acelerada por hardware. Permanece discretamente como una cápsula compacta y se expande suavemente a herramientas de productividad cuando las necesita.",
+        "tip": "Consejo: Pase el ratón o haga clic en la isla en la parte superior de su monitor para comenzar."
+      },
+      "step2": {
+        "badge": "Arquitectura",
+        "title": "Estados dinámicos de la isla",
+        "subtitle": "Interacción fluida acelerada por GPU",
+        "description": "En modo inactivo, BBQ muestra indicadores compactos para medios activos, temporizadores, vista previa del portapapeles y estado del sistema. Arrastrar archivos sobre la isla la convierte al instante en una Zona de Arrastre.",
+        "tip": "Todas las animaciones están aceleradas por GPU usando transform y opacity para evitar tirones de diseño."
+      },
+      "step3": {
+        "badge": "Navegación",
+        "title": "Acceso rápido global y lanzador",
+        "subtitle": "Acceso instantáneo desde cualquier lugar",
+        "description": "Presione Ctrl+Espacio (o Cmd+Espacio en macOS) globalmente para invocar BBQ. El lanzador de búsqueda unificado le permite abrir aplicaciones, archivos o activar acciones del sistema con rapidez determinista.",
+        "tip": "Puede personalizar la combinación de acceso rápido global en cualquier momento en Preferencias."
+      },
+      "step4": {
+        "badge": "Privacidad",
+        "title": "100% local y con privacidad primero",
+        "subtitle": "Cero telemetría, cero seguimiento",
+        "description": "Sus datos nunca salen de su ordenador. Todo se almacena localmente en una base de datos SQLite integrada. Funciones como el Historial del Portapapeles son estrictamente opcionales y vienen desactivadas por defecto.",
+        "tip": "Desactivar el historial del portapapeles purga de inmediato los elementos guardados de la base de datos."
+      },
+      "step5": {
+        "badge": "Personalización",
+        "title": "Adapte su experiencia",
+        "subtitle": "Tema, accesibilidad e indicadores",
+        "description": "BBQ admite temas de Sistema, Oscuro y Claro, junto con el modo de Movimiento Reducido para accesibilidad. Puede priorizar qué indicadores compactos aparecen primero en su cápsula.",
+        "tip": "Use los botones de tema a continuación para configurar su apariencia preferida ahora:"
+      },
+      "step6": {
+        "badge": "Listo",
+        "title": "¡Está listo para comenzar!",
+        "subtitle": "Bienvenido a la edición de producción de BBQ",
+        "description": "Ahora tiene a su disposición una isla de productividad rápida y discreta. ¡Disfrute de un flujo de trabajo optimizado!",
+        "tip": "Puede repetir esta guía de bienvenida en cualquier momento desde el widget de Preferencias."
+      }
+    }
   },
   "errors": {
     "title": "Aviso de la aplicación",
@@ -305,5 +386,31 @@
     "recover": "Recuperar",
     "details": "Detalles",
     "unknown": "Se ha producido un error inesperado."
+  },
+  "compact": {
+    "dropShelf": "Zona de Arrastre",
+    "releaseToStage": "Soltar para preparar",
+    "staged": "preparados",
+    "dragFilesHere": "Arrastrar archivos aquí",
+    "file": "archivo",
+    "files": "archivos",
+    "clipboard": "Portapapeles",
+    "latestItem": "Elemento reciente",
+    "unknownArtist": "Artista desconocido",
+    "unknownTrack": "Pista desconocida",
+    "previousTrack": "Pista anterior",
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "nextTrack": "Pista siguiente",
+    "system": "Sistema",
+    "online": "En línea",
+    "offline": "Sin conexión",
+    "search": "Buscar",
+    "reminder": "recordatorio",
+    "reminders": "recordatorios"
+  },
+  "shell": {
+    "stageFilesDrop": "Preparar archivos en la Zona de Arrastre",
+    "ariaLabel": "Isla de productividad BBQ"
   }
 }

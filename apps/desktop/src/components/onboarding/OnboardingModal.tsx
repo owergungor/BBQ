@@ -4,78 +4,70 @@ import { islandRuntime } from "../../island/IslandRuntime.ts";
 import { escapeManager, EscapePriority } from "../../island/escapeManager.ts";
 import type { ThemePreference } from "@bbq/types";
 import { Icon, type IconName } from "../common/Icon.tsx";
+import { useTranslation } from "../../i18n/index.ts";
 
-interface OnboardingStep {
-  badge: string;
-  icon: IconName;
-  title: string;
-  subtitle: string;
-  description: string;
-  tip?: string;
-}
-
-const ONBOARDING_STEPS: OnboardingStep[] = [
+const ONBOARDING_STEPS = [
   {
+    key: "step1",
     badge: "Welcome",
-    icon: "sparkles",
-    title: "Welcome to BBQ",
-    subtitle: "Your Desktop Productivity Island",
-    description:
-      "BBQ transforms the top margin of your screen into an intelligent, hardware-accelerated command surface. It sits quietly as a compact pill and expands smoothly into productivity tools whenever you need them.",
-    tip: "Tip: Hover or click the island at the top of your monitor to get started.",
+    icon: "sparkles" as IconName,
+    fallbackTitle: "Welcome to BBQ",
+    fallbackSubtitle: "Your Desktop Productivity Island",
+    fallbackDescription: "BBQ transforms the top margin of your screen into an intelligent command surface.",
   },
   {
+    key: "step2",
     badge: "Architecture",
-    icon: "refresh",
-    title: "Dynamic Island States",
-    subtitle: "Fluid, GPU-accelerated interaction",
-    description:
-      "In idle mode, BBQ displays glanceable compact indicators for active media, running timers, clipboard preview, and system health. Dragging files over the island instantly turns it into a Drop Zone.",
-    tip: "All animations are GPU-accelerated using transform and opacity for zero layout thrashing.",
+    icon: "refresh" as IconName,
+    fallbackTitle: "Atoll Architecture",
+    fallbackSubtitle: "Fluid, GPU-accelerated interaction",
+    fallbackDescription: "In idle mode, BBQ displays glanceable compact indicators for active media, running timers, clipboard preview, and system health.",
+    fallbackTip: "All animations are GPU-accelerated using transform and opacity for zero layout thrashing.",
   },
   {
+    key: "step3",
     badge: "Navigation",
-    icon: "launcher",
-    title: "Global Hotkey & Launcher",
-    subtitle: "Instant access from anywhere",
-    description:
-      "Press Ctrl+Space (or Cmd+Space on macOS) globally to summon BBQ forward. The unified search launcher lets you open apps, files, or trigger system actions with deterministic keyboard speed.",
-    tip: "You can customize the global hotkey combination anytime in Preferences.",
+    icon: "launcher" as IconName,
+    fallbackTitle: "Global Hotkey & Launcher",
+    fallbackSubtitle: "Instant access from anywhere",
+    fallbackDescription: "Press Ctrl+Space (or Cmd+Space on macOS) globally to summon BBQ forward.",
+    fallbackTip: "You can customize the global hotkey combination anytime in Preferences.",
   },
   {
+    key: "step4",
     badge: "Privacy",
-    icon: "lock",
-    title: "100% Local & Privacy-First",
-    subtitle: "Zero telemetry, zero tracking",
-    description:
-      "Your data never leaves your computer. Everything is stored locally in an embedded SQLite database. Features like Clipboard History are strictly opt-in and disabled by default.",
-    tip: "Disabling clipboard history immediately purges stored clips from the database.",
+    icon: "lock" as IconName,
+    fallbackTitle: "100% Local & Privacy-First",
+    fallbackSubtitle: "Zero telemetry, zero tracking",
+    fallbackDescription: "Your data never leaves your computer. Everything is stored locally in an embedded SQLite database.",
+    fallbackTip: "Disabling clipboard history immediately purges stored clips from the database.",
   },
   {
+    key: "step5",
     badge: "Customization",
-    icon: "settings",
-    title: "Tailor Your Experience",
-    subtitle: "Theme, accessibility & indicators",
-    description:
-      "BBQ supports System, Dark, and Light themes, along with dedicated Reduced Motion mode for accessibility. You can prioritize which compact indicators appear first in your island pill.",
-    tip: "Use the theme buttons below to set your preferred appearance now:",
+    icon: "settings" as IconName,
+    fallbackTitle: "Tailor Your Experience",
+    fallbackSubtitle: "Theme, accessibility & indicators",
+    fallbackDescription: "BBQ supports System, Dark, and Light themes, along with dedicated Reduced Motion mode for accessibility.",
+    fallbackTip: "Use the theme buttons below to set your preferred appearance now:",
   },
   {
+    key: "step6",
     badge: "Ready",
-    icon: "check",
-    title: "You're Ready to Launch!",
-    subtitle: "Welcome to BBQ Production Edition",
-    description:
-      "You now have a fast, discreet productivity island at your command. Enjoy your streamlined desktop workflow!",
-    tip: "You can replay this welcome tour anytime from the Preferences widget.",
+    icon: "check" as IconName,
+    fallbackTitle: "You're Ready to Launch!",
+    fallbackSubtitle: "Welcome to BBQ Production Edition",
+    fallbackDescription: "You now have a fast, discreet productivity island at your command. Enjoy your streamlined desktop workflow!",
+    fallbackTip: "You can replay this welcome tour anytime from the Preferences widget.",
   },
-];
+] as const;
 
 export interface OnboardingModalProps {
   onClose?: () => void;
 }
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => {
+  const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState(0);
   const { settings } = useSettingsState();
 
@@ -140,7 +132,18 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleNext, handleBack, handleFinish]);
 
-  const step = ONBOARDING_STEPS[currentStep] ?? ONBOARDING_STEPS[0];
+  const currentStepDef = ONBOARDING_STEPS[currentStep] || ONBOARDING_STEPS[0];
+  const step = {
+    badge: t(`onboarding.tour.${currentStepDef.key}.badge`) || currentStepDef.badge,
+    icon: currentStepDef.icon,
+    title: t(`onboarding.tour.${currentStepDef.key}.title`) || currentStepDef.fallbackTitle,
+    subtitle: t(`onboarding.tour.${currentStepDef.key}.subtitle`) || currentStepDef.fallbackSubtitle,
+    description:
+      t(`onboarding.tour.${currentStepDef.key}.description`) ||
+      currentStepDef.fallbackDescription,
+    tip: t(`onboarding.tour.${currentStepDef.key}.tip`) || ("fallbackTip" in currentStepDef ? currentStepDef.fallbackTip : undefined),
+  };
+
   const isLastStep = currentStep === ONBOARDING_STEPS.length - 1;
 
   const handleThemeSelect = async (theme: ThemePreference) => {
@@ -170,10 +173,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
             type="button"
             className="bbq-onboarding-skip-btn"
             onClick={handleFinish}
-            title="Skip onboarding (Esc)"
-            aria-label="Skip welcome tour"
+            title={t("onboarding.skipTour") || "Skip Tour (Esc)"}
+            aria-label={t("onboarding.skipTour") || "Skip welcome tour"}
           >
-            Skip Tour (Esc)
+            {t("onboarding.skipTour") || "Skip Tour (Esc)"}
           </button>
         </div>
 
@@ -192,18 +195,26 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
 
           {/* Interactive Personalization controls on step 4 */}
           {currentStep === 4 && (
-            <div className="bbq-onboarding-theme-group" role="group" aria-label="Theme selection">
-              {(["system", "dark", "light"] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => handleThemeSelect(t)}
-                  className={`bbq-onboarding-theme-btn ${settings.theme === t ? "active" : ""}`}
-                  aria-label={`Select ${t} theme`}
-                >
-                  {t}
-                </button>
-              ))}
+            <div className="bbq-onboarding-theme-group" role="group" aria-label={t("settings.appearance.themeMode") || "Theme selection"}>
+              {(["system", "dark", "light"] as const).map((th) => {
+                const label =
+                  th === "system"
+                    ? t("settings.appearance.themeSystem") || "System"
+                    : th === "dark"
+                    ? t("settings.appearance.themeDark") || "Dark"
+                    : t("settings.appearance.themeLight") || "Light";
+                return (
+                  <button
+                    key={th}
+                    type="button"
+                    onClick={() => handleThemeSelect(th)}
+                    className={`bbq-onboarding-theme-btn ${settings.theme === th ? "active" : ""}`}
+                    aria-label={label}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -231,18 +242,18 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ onClose }) => 
             className="bbq-btn bbq-onboarding-back-btn"
             onClick={handleBack}
             disabled={currentStep === 0}
-            aria-label="Previous step"
+            aria-label={t("onboarding.back") || "Previous step"}
           >
-            ← Back
+            {t("onboarding.back") || "← Back"}
           </button>
 
           <button
             type="button"
             className="bbq-btn bbq-btn-primary bbq-onboarding-next-btn"
             onClick={handleNext}
-            aria-label={isLastStep ? "Finish onboarding" : "Next step"}
+            aria-label={isLastStep ? (t("onboarding.getStarted") || "Finish onboarding") : (t("onboarding.next") || "Next step")}
           >
-            {isLastStep ? "Get Started" : "Next →"}
+            {isLastStep ? (t("onboarding.getStarted") || "Get Started") : (t("onboarding.next") || "Next →")}
           </button>
         </div>
       </div>

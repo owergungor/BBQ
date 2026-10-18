@@ -12,6 +12,7 @@ import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon } from "../common/Icon.tsx";
 import { formatTimeDisplay, formatStopwatchDisplay } from "../widgets/TimerWidget.tsx";
 import { resolveArtworkUrl } from "../widgets/mediaModel.ts";
+import { useTranslation } from "../../i18n/index.ts";
 
 export function useBatteryDisplay(): string {
   return useSystemState((s) => {
@@ -22,6 +23,7 @@ export function useBatteryDisplay(): string {
 }
 
 export const CompactDropIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const isDraggingOver = useDropState((s) => s.isDraggingOver);
   const currentBatch = useDropState((s) => s.currentBatch);
 
@@ -31,15 +33,15 @@ export const CompactDropIndicator: React.FC = () => {
         <span className="bbq-status-dot" style={{ background: "var(--bbq-accent, #0A84FF)" }} />
         <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 600 }}>
           <Icon name="drop" size={13} aria-hidden="true" />
-          <span>Drop Shelf</span>
+          <span>{t("compact.dropShelf") || "Drop Shelf"}</span>
         </span>
         <span className="bbq-media-separator">—</span>
         <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
           {isDraggingOver
-            ? "Release to stage"
+            ? (t("compact.releaseToStage") || "Release to stage")
             : currentBatch
-            ? `${currentBatch.count} staged`
-            : "Drag files here"}
+            ? `${currentBatch.count} ${t("compact.staged") || "staged"}`
+            : (t("compact.dragFilesHere") || "Drag files here")}
         </span>
       </div>
     </div>
@@ -47,6 +49,7 @@ export const CompactDropIndicator: React.FC = () => {
 };
 
 export const CompactFilesIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const fileEntries = useFileState((s) => s.entries);
   return (
     <div className="bbq-island-file-pill">
@@ -54,7 +57,7 @@ export const CompactFilesIndicator: React.FC = () => {
         <Icon name="files" size={13} />
       </span>
       <span className="bbq-file-pill-title">
-        {fileEntries.length} {fileEntries.length === 1 ? "file" : "files"}
+        {fileEntries.length} {fileEntries.length === 1 ? (t("compact.file") || "file") : (t("compact.files") || "files")}
       </span>
       <span className="bbq-media-separator">—</span>
       <span className="bbq-file-name" style={{ maxWidth: "160px" }}>
@@ -65,22 +68,24 @@ export const CompactFilesIndicator: React.FC = () => {
 };
 
 export const CompactClipboardIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const clipboardEntries = useClipboardState((s) => s.entries);
   return (
     <div className="bbq-island-clipboard-pill">
       <span className="bbq-clipboard-pill-icon" aria-hidden="true">
         <Icon name="clipboard" size={13} />
       </span>
-      <span className="bbq-clipboard-pill-title">Clipboard</span>
+      <span className="bbq-clipboard-pill-title">{t("compact.clipboard") || "Clipboard"}</span>
       <span className="bbq-media-separator">—</span>
       <span className="bbq-clipboard-pill-preview">
-        {clipboardEntries[0]?.preview ?? "Latest item"}
+        {clipboardEntries[0]?.preview ?? (t("compact.latestItem") || "Latest item")}
       </span>
     </div>
   );
 };
 
 export const CompactMediaIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const currentSession = useMediaState((s) => s.currentSession);
   const [artFailed, setArtFailed] = React.useState(false);
   const resolvedArt = resolveArtworkUrl(currentSession?.albumArt);
@@ -93,6 +98,15 @@ export const CompactMediaIndicator: React.FC = () => {
 
   const isPlaying = currentSession.state === "playing";
   const caps = currentSession.capabilities;
+  const unknownArtist = t("compact.unknownArtist") || "Unknown Artist";
+  const unknownTrack = t("compact.unknownTrack") || "Unknown Track";
+  const artistText = currentSession.artist ?? unknownArtist;
+  const trackText = currentSession.title ?? unknownTrack;
+  const prevTrackLabel = t("compact.previousTrack") || "Previous track";
+  const nextTrackLabel = t("compact.nextTrack") || "Next track";
+  const playLabel = t("compact.play") || "Play";
+  const pauseLabel = t("compact.pause") || "Pause";
+  const toggleLabel = isPlaying ? pauseLabel : playLabel;
 
   const handleTogglePlayPause = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -129,16 +143,14 @@ export const CompactMediaIndicator: React.FC = () => {
 
       <div
         className="bbq-media-info"
-        title={`${currentSession.artist ?? "Unknown Artist"} — ${
-          currentSession.title ?? "Unknown Track"
-        }`}
+        title={`${artistText} — ${trackText}`}
       >
         <span className="bbq-media-artist">
-          {currentSession.artist ?? "Unknown Artist"}
+          {artistText}
         </span>
         <span className="bbq-media-separator">—</span>
         <span className="bbq-media-title">
-          {currentSession.title ?? "Unknown Track"}
+          {trackText}
         </span>
       </div>
 
@@ -148,8 +160,8 @@ export const CompactMediaIndicator: React.FC = () => {
             type="button"
             className="bbq-media-ctrl-btn"
             onClick={handlePrevious}
-            title="Previous track"
-            aria-label="Previous track"
+            title={prevTrackLabel}
+            aria-label={prevTrackLabel}
           >
             <Icon name="skip-back" size={12} />
           </button>
@@ -159,8 +171,8 @@ export const CompactMediaIndicator: React.FC = () => {
             type="button"
             className="bbq-media-ctrl-btn bbq-media-ctrl-primary"
             onClick={handleTogglePlayPause}
-            title={isPlaying ? "Pause" : "Play"}
-            aria-label={isPlaying ? "Pause" : "Play"}
+            title={toggleLabel}
+            aria-label={toggleLabel}
           >
             <Icon name={isPlaying ? "pause" : "play"} size={13} />
           </button>
@@ -170,8 +182,8 @@ export const CompactMediaIndicator: React.FC = () => {
             type="button"
             className="bbq-media-ctrl-btn"
             onClick={handleNext}
-            title="Next track"
-            aria-label="Next track"
+            title={nextTrackLabel}
+            aria-label={nextTrackLabel}
           >
             <Icon name="skip-next" size={12} />
           </button>
@@ -182,6 +194,7 @@ export const CompactMediaIndicator: React.FC = () => {
 };
 
 export const CompactSystemIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const system = useSystemState((s) => s.system);
   const cpuPct = system.cpu?.usage_percent !== undefined ? Math.round(system.cpu.usage_percent) : null;
   const memPct = system.memory?.usage_percent !== undefined ? Math.round(system.memory.usage_percent) : null;
@@ -209,10 +222,10 @@ export const CompactSystemIndicator: React.FC = () => {
         {cpuPct === null && memPct === null && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
             <Icon name="stats" size={13} aria-hidden="true" />
-            <span style={{ fontWeight: 600 }}>System</span>
+            <span style={{ fontWeight: 600 }}>{t("compact.system") || "System"}</span>
             <span className="bbq-media-separator">—</span>
             <span style={{ color: "var(--text-secondary)" }}>
-              {system.network.connected ? "Online" : "Offline"}
+              {system.network.connected ? (t("compact.online") || "Online") : (t("compact.offline") || "Offline")}
             </span>
           </span>
         )}
@@ -222,6 +235,7 @@ export const CompactSystemIndicator: React.FC = () => {
 };
 
 export const CompactLauncherIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const batteryDisplay = useBatteryDisplay();
   return (
     <div className="bbq-island-idle-pill">
@@ -229,7 +243,7 @@ export const CompactLauncherIndicator: React.FC = () => {
         <span className="bbq-status-dot" style={{ background: "var(--accent, #3b82f6)" }} />
         <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 600 }}>
           <Icon name="launcher" size={12} aria-hidden="true" />
-          <span>Search</span>
+          <span>{t("compact.search") || "Search"}</span>
         </span>
       </div>
       <div style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
@@ -240,6 +254,7 @@ export const CompactLauncherIndicator: React.FC = () => {
 };
 
 export const CompactTimerIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const timerSession = useTimerState((s) => s.session);
   const batteryDisplay = useBatteryDisplay();
 
@@ -322,7 +337,7 @@ export const CompactTimerIndicator: React.FC = () => {
         <span className="bbq-media-separator">—</span>
         <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>
           {isPomodoro
-            ? timerSession.pomodoro_phase ?? "Work"
+            ? (timerSession.pomodoro_phase ?? (t("widgets.timer.work") || "Work"))
             : timerSession.state}
         </span>
       </div>
@@ -334,15 +349,20 @@ export const CompactTimerIndicator: React.FC = () => {
 };
 
 export const CompactReminderIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const reminders = useReminderState((s) => s.reminders);
   const batteryDisplay = useBatteryDisplay();
   const activeReminders = reminders.filter((r) => r.state === "Scheduled");
   const nearest = activeReminders[0];
   const diffMs = nearest ? nearest.due_at - Date.now() : 0;
   const isImminent = nearest && diffMs > 0 && diffMs < 10 * 60 * 1000;
+  const reminderLabel =
+    activeReminders.length === 1
+      ? t("compact.reminder") || "reminder"
+      : t("compact.reminders") || "reminders";
   const displayPill = isImminent
     ? formatTimeDisplay(diffMs)
-    : `${activeReminders.length} ${activeReminders.length === 1 ? "reminder" : "reminders"}`;
+    : `${activeReminders.length} ${reminderLabel}`;
 
   return (
     <div className="bbq-island-idle-pill">
@@ -378,6 +398,7 @@ export const CompactIdleIndicator: React.FC = () => {
 };
 
 export const CompactSettingsIndicator: React.FC = () => {
+  const { t } = useTranslation();
   const batteryDisplay = useBatteryDisplay();
   return (
     <div className="bbq-island-idle-pill">
@@ -385,7 +406,7 @@ export const CompactSettingsIndicator: React.FC = () => {
         <span className="bbq-status-dot" style={{ background: "var(--bbq-accent, #0a84ff)" }} />
         <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 600 }}>
           <Icon name="settings" size={12} aria-hidden="true" />
-          <span>Settings</span>
+          <span>{t("settings.title") || "Settings"}</span>
         </span>
       </div>
       {batteryDisplay ? (

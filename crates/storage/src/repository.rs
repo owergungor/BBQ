@@ -1,9 +1,11 @@
 use bbq_core::{BbqError, BbqResult};
 use rusqlite::{params, Connection};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub trait SettingsRepository: Send + Sync {
     fn get(&self, key: &str) -> BbqResult<Option<String>>;
+    fn get_all(&self) -> BbqResult<HashMap<String, String>>;
     fn set(&self, key: &str, value: &str) -> BbqResult<()>;
     fn delete(&self, key: &str) -> BbqResult<()>;
 }
@@ -44,6 +46,31 @@ impl SettingsRepository for SqliteSettingsRepository {
         } else {
             Ok(None)
         }
+    }
+
+    fn get_all(&self) -> BbqResult<HashMap<String, String>> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| BbqError::Storage(format!("DB lock error: {}", e)))?;
+        let mut stmt = conn
+            .prepare("SELECT key, value FROM settings")
+            .map_err(|e| BbqError::Storage(e.to_string()))?;
+
+        let rows = stmt
+            .query_map([], |row| {
+                let k: String = row.get(0)?;
+                let v: String = row.get(1)?;
+                Ok((k, v))
+            })
+            .map_err(|e| BbqError::Storage(e.to_string()))?;
+
+        let mut map = HashMap::new();
+        for item in rows {
+            let (k, v) = item.map_err(|e| BbqError::Storage(e.to_string()))?;
+            map.insert(k, v);
+        }
+        Ok(map)
     }
 
     fn set(&self, key: &str, value: &str) -> BbqResult<()> {

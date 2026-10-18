@@ -52,6 +52,8 @@ export interface IslandSettingsTabProps {
   onCommitTransparency: (val: number) => Promise<void>;
   onCommitBlur?: (val: number) => Promise<void>;
   onToggle: (key: string, value: any) => Promise<void>;
+  onResetPosition?: () => Promise<void>;
+  onTriggerMoveHud?: () => Promise<void>;
 }
 
 export interface HotkeySettingsTabProps {

@@ -112,7 +112,11 @@
       "autoExpand": "Auto-Expand on Events",
       "autoExpandDesc": "Automatically expand island when media track changes or timers trigger.",
       "moveHud": "Move HUD",
-      "moveHudDesc": "Enable interactive HUD repositioning overlay across displays."
+      "moveHudDesc": "Enable interactive HUD repositioning overlay across displays.",
+      "moveHudAction": "Move Island (HUD)",
+      "resetPosition": "Reset to Screen Default",
+      "resetPositionDesc": "Restore default top-center position and clear custom coordinates.",
+      "positionResetSuccess": "Island position reset to default"
     },
     "hotkey": {
       "title": "Global Hotkey",
@@ -178,7 +182,35 @@
       "copyDiagnostics": "Copy Diagnostics",
       "replayTour": "Replay Welcome Tour",
       "diagnosticsCopied": "Sanitized diagnostics copied to clipboard"
-    }
+    },
+    "status": {
+      "preferenceUpdated": "Preference updated",
+      "customAccentSet": "Custom accent set to {{color}}",
+      "islandTransparency": "Island transparency updated",
+      "islandBlur": "Island blur updated",
+      "islandWidth": "Island width updated",
+      "islandHeight": "Island height updated",
+      "clipboardCapacity": "Clipboard capacity updated",
+      "clipboardRetention": "Clipboard retention updated",
+      "globalHotkey": "Global hotkey updated",
+      "resetDefaults": "Reset to default settings",
+      "widgetOrder": "Compact widget order updated",
+      "widgetOrderReset": "Widget order reset to default",
+      "enabledWidget": "Enabled {{widget}}",
+      "disabledWidget": "Disabled {{widget}}",
+      "diagnosticsCopied": "Diagnostic info copied to clipboard",
+      "tourActivated": "Welcome tour activated",
+      "islandPositionReset": "Island position reset to default",
+      "moveHudEnabled": "Move HUD enabled",
+      "moveHudDisabled": "Move HUD disabled"
+    },
+    "resetModal": {
+      "title": "Reset Preferences?",
+      "description": "Are you sure you want to reset all preferences to default values? This action cannot be undone.",
+      "confirm": "Reset to Defaults",
+      "cancel": "Cancel"
+    },
+    "savedNotice": "Preferences are automatically saved to SQLite"
   },
   "widgets": {
     "media": {
@@ -282,7 +314,8 @@
     "settings": "Settings",
     "launchAtLogin": "Launch at Login",
     "about": "About BBQ",
-    "quit": "Quit BBQ"
+    "quit": "Quit BBQ",
+    "resetPosition": "Reset Island Position"
   },
   "onboarding": {
     "welcomeTitle": "Welcome to BBQ",
@@ -297,7 +330,55 @@
     "step4Desc": "Local-only encrypted clipboard history with sensitive token masking.",
     "step5Title": "Focus & Timers",
     "step5Desc": "Stay in flow with built-in countdowns, stopwatches, and Pomodoro cycles.",
-    "finishBtn": "Get Started"
+    "finishBtn": "Get Started",
+    "skipTour": "Skip Tour (Esc)",
+    "back": "← Back",
+    "next": "Next →",
+    "getStarted": "Get Started",
+    "tour": {
+      "step1": {
+        "badge": "Welcome",
+        "title": "Welcome to BBQ",
+        "subtitle": "Your Desktop Productivity Island",
+        "description": "BBQ transforms the top margin of your screen into an intelligent, hardware-accelerated command surface. It sits quietly as a compact pill and expands smoothly into productivity tools whenever you need them.",
+        "tip": "Tip: Hover or click the island at the top of your monitor to get started."
+      },
+      "step2": {
+        "badge": "Architecture",
+        "title": "Dynamic Island States",
+        "subtitle": "Fluid, GPU-accelerated interaction",
+        "description": "In idle mode, BBQ displays glanceable compact indicators for active media, running timers, clipboard preview, and system health. Dragging files over the island instantly turns it into a Drop Zone.",
+        "tip": "All animations are GPU-accelerated using transform and opacity for zero layout thrashing."
+      },
+      "step3": {
+        "badge": "Navigation",
+        "title": "Global Hotkey & Launcher",
+        "subtitle": "Instant access from anywhere",
+        "description": "Press Ctrl+Space (or Cmd+Space on macOS) globally to summon BBQ forward. The unified search launcher lets you open apps, files, or trigger system actions with deterministic keyboard speed.",
+        "tip": "You can customize the global hotkey combination anytime in Preferences."
+      },
+      "step4": {
+        "badge": "Privacy",
+        "title": "100% Local & Privacy-First",
+        "subtitle": "Zero telemetry, zero tracking",
+        "description": "Your data never leaves your computer. Everything is stored locally in an embedded SQLite database. Features like Clipboard History are strictly opt-in and disabled by default.",
+        "tip": "Disabling clipboard history immediately purges stored clips from the database."
+      },
+      "step5": {
+        "badge": "Customization",
+        "title": "Tailor Your Experience",
+        "subtitle": "Theme, accessibility & indicators",
+        "description": "BBQ supports System, Dark, and Light themes, along with dedicated Reduced Motion mode for accessibility. You can prioritize which compact indicators appear first in your island pill.",
+        "tip": "Use the theme buttons below to set your preferred appearance now:"
+      },
+      "step6": {
+        "badge": "Ready",
+        "title": "You're Ready to Launch!",
+        "subtitle": "Welcome to BBQ Production Edition",
+        "description": "You now have a fast, discreet productivity island at your command. Enjoy your streamlined desktop workflow!",
+        "tip": "You can replay this welcome tour anytime from the Preferences widget."
+      }
+    }
   },
   "errors": {
     "title": "Application Notice",
@@ -305,5 +386,31 @@
     "recover": "Recover",
     "details": "Details",
     "unknown": "An unexpected error occurred."
+  },
+  "compact": {
+    "dropShelf": "Drop Shelf",
+    "releaseToStage": "Release to stage",
+    "staged": "staged",
+    "dragFilesHere": "Drag files here",
+    "file": "file",
+    "files": "files",
+    "clipboard": "Clipboard",
+    "latestItem": "Latest item",
+    "unknownArtist": "Unknown Artist",
+    "unknownTrack": "Unknown Track",
+    "previousTrack": "Previous track",
+    "play": "Play",
+    "pause": "Pause",
+    "nextTrack": "Next track",
+    "system": "System",
+    "online": "Online",
+    "offline": "Offline",
+    "search": "Search",
+    "reminder": "reminder",
+    "reminders": "reminders"
+  },
+  "shell": {
+    "stageFilesDrop": "Stage files on Drop Shelf",
+    "ariaLabel": "BBQ Productivity Island"
   }
 }

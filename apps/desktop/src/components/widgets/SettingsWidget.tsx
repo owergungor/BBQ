@@ -95,15 +95,7 @@ export const SettingsWidget: React.FC = () => {
     setDraftClipboardMax(settings.clipboard_max_entries);
     setDraftRetention(settings.clipboard_retention_days);
     setDraftHotkey(settings.global_hotkey);
-  }, [
-    settings.island_width,
-    settings.island_height,
-    settings.island_transparency,
-    settings.island_blur,
-    settings.clipboard_max_entries,
-    settings.clipboard_retention_days,
-    settings.global_hotkey,
-  ]);
+  }, [settings.island_width, settings.island_height, settings.island_transparency, settings.island_blur, settings.clipboard_max_entries, settings.clipboard_retention_days, settings.global_hotkey]);
 
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -126,12 +118,12 @@ export const SettingsWidget: React.FC = () => {
 
   const handleThemeChange = async (theme: ThemePreference) => {
     await updateSettingsBatch({ theme });
-    showStatus(`Theme set to ${theme}`);
+    showStatus(t("settings.status.preferenceUpdated") || `Theme set to ${theme}`);
   };
 
   const handleAccentColorChange = async (accentColor: AccentColor) => {
     await updateSettingsBatch({ accent_color: accentColor });
-    showStatus(`Accent color set to ${accentColor}`);
+    showStatus(t("settings.status.preferenceUpdated") || `Accent color set to ${accentColor}`);
   };
 
   const handleCopyDiagnostics = async () => {
@@ -146,7 +138,7 @@ export const SettingsWidget: React.FC = () => {
         // Fallback
       }
     }
-    showStatus("Diagnostic info copied to clipboard");
+    showStatus(t("settings.status.diagnosticsCopied") || "Diagnostic info copied to clipboard");
   };
 
   const handleCustomAccentChange = async (hex: string) => {
@@ -155,12 +147,25 @@ export const SettingsWidget: React.FC = () => {
       accent_color: "custom",
       custom_accent_color: validated.normalized,
     });
-    showStatus(`Custom accent set to ${validated.normalized}`);
+    showStatus(
+      t("settings.status.customAccentSet", { color: validated.normalized }) ||
+        `Custom accent set to ${validated.normalized}`
+    );
   };
 
   const handleToggle = async (key: string, value: any) => {
     await updateSettingsBatch({ [key]: value });
-    showStatus("Preference updated");
+    showStatus(t("settings.status.preferenceUpdated") || "Preference updated");
+  };
+
+  const handleResetIslandPosition = async () => {
+    try {
+      await bbqCommands.resetIslandPosition();
+      await updateSettingsBatch({ island_position: "top-center", move_hud: false });
+      showStatus(t("settings.status.islandPositionReset") || "Island position reset to default");
+    } catch {
+      showStatus("Failed to reset position");
+    }
   };
 
   const handleLanguageChange = async (lang: string) => {
@@ -172,7 +177,7 @@ export const SettingsWidget: React.FC = () => {
     const clamped = Math.max(0, Math.min(80, Math.round(val / 10) * 10));
     if (clamped !== settings.island_transparency) {
       await updateSettingsBatch({ island_transparency: clamped });
-      showStatus("Island transparency updated");
+      showStatus(t("settings.status.islandTransparency") || "Island transparency updated");
     }
   };
 
@@ -180,7 +185,7 @@ export const SettingsWidget: React.FC = () => {
     const clamped = Math.max(0, Math.min(40, Math.round(val)));
     if (clamped !== settings.island_blur) {
       await updateSettingsBatch({ island_blur: clamped });
-      showStatus((t("settings.island.blur") || "Island blur") + " " + (t("common.saved") || "updated"));
+      showStatus(t("settings.status.islandBlur") || "Island blur updated");
     }
   };
 
@@ -188,7 +193,7 @@ export const SettingsWidget: React.FC = () => {
     const clamped = clampIslandWidth(draftWidth);
     if (clamped !== settings.island_width) {
       await updateSettingsBatch({ island_width: clamped });
-      showStatus("Island width updated");
+      showStatus(t("settings.status.islandWidth") || "Island width updated");
     }
   };
 
@@ -196,7 +201,7 @@ export const SettingsWidget: React.FC = () => {
     const clamped = clampIslandHeight(draftHeight);
     if (clamped !== settings.island_height) {
       await updateSettingsBatch({ island_height: clamped });
-      showStatus("Island height updated");
+      showStatus(t("settings.status.islandHeight") || "Island height updated");
     }
   };
 
@@ -204,7 +209,7 @@ export const SettingsWidget: React.FC = () => {
     const clamped = clampClipboardCapacity(draftClipboardMax);
     if (clamped !== settings.clipboard_max_entries) {
       await updateSettingsBatch({ clipboard_max_entries: clamped });
-      showStatus("Clipboard capacity updated");
+      showStatus(t("settings.status.clipboardCapacity") || "Clipboard capacity updated");
     }
   };
 
@@ -212,14 +217,18 @@ export const SettingsWidget: React.FC = () => {
     const clamped = clampClipboardRetention(draftRetention);
     if (clamped !== settings.clipboard_retention_days) {
       await updateSettingsBatch({ clipboard_retention_days: clamped });
-      showStatus("Clipboard retention updated");
+      showStatus(t("settings.status.clipboardRetention") || "Clipboard retention updated");
     }
   };
 
   const handleSaveHotkey = async () => {
     const validation = validateHotkeyInput(draftHotkey);
     if (!validation.valid) {
-      setHotkeyError(validation.error || "Shortcut must include at least one modifier key plus a key.");
+      setHotkeyError(
+        validation.error ||
+          t("settings.hotkey.modifierHint") ||
+          "Shortcut must include at least one modifier key plus a key."
+      );
       return;
     }
     setHotkeyError(null);
@@ -230,9 +239,12 @@ export const SettingsWidget: React.FC = () => {
     const ok = await updateSettingsBatch({ global_hotkey: validation.normalized });
     if (ok) {
       setDraftHotkey(validation.normalized);
-      showStatus("Global hotkey updated");
+      showStatus(t("settings.status.globalHotkey") || "Global hotkey updated");
     } else {
-      setHotkeyError("Failed to register hotkey with the operating system.");
+      setHotkeyError(
+        t("settings.hotkey.conflictWarning") ||
+          "Failed to register hotkey with the operating system."
+      );
     }
   };
 
@@ -319,10 +331,8 @@ export const SettingsWidget: React.FC = () => {
   };
 
   const handleReset = async () => {
-    if (window.confirm("Are you sure you want to reset all preferences to default values?")) {
-      await resetSettingsToDefaults();
-      showStatus("Reset to default settings");
-    }
+    await resetSettingsToDefaults();
+    showStatus(t("settings.status.resetDefaults") || "Reset to default settings");
   };
 
   const allRegisteredWidgets = widgetRegistry.getAll().filter((w) => w.id !== "settings");
@@ -333,7 +343,12 @@ export const SettingsWidget: React.FC = () => {
       ? settings.disabled_widgets.filter((id) => id !== widgetId)
       : [...settings.disabled_widgets, widgetId];
     await updateSettingsBatch({ disabled_widgets: nextList });
-    showStatus(disabledSet.has(widgetId) ? `Enabled ${widgetId}` : `Disabled ${widgetId}`);
+    const isNowEnabled = disabledSet.has(widgetId);
+    showStatus(
+      isNowEnabled
+        ? t("settings.status.enabledWidget", { widget: widgetId }) || `Enabled ${widgetId}`
+        : t("settings.status.disabledWidget", { widget: widgetId }) || `Disabled ${widgetId}`
+    );
   };
 
   // Compact Indicator Ordering Logic
@@ -352,25 +367,19 @@ export const SettingsWidget: React.FC = () => {
 
     const sanitized = sanitizeIndicatorOrder(reordered, DEFAULT_COMPACT_INDICATOR_ORDER);
     await updateSettingsBatch({ compact_indicator_order: sanitized });
-    showStatus("Compact widget order updated");
+    showStatus(t("settings.status.widgetOrder") || "Compact widget order updated");
   };
 
   const resetIndicatorOrder = async () => {
     await updateSettingsBatch({
       compact_indicator_order: DEFAULT_COMPACT_INDICATOR_ORDER,
     });
-    showStatus("Widget order reset to default");
+    showStatus(t("settings.status.widgetOrderReset") || "Widget order reset to default");
   };
 
   const TAB_ICONS: Record<SettingsTab, IconName> = {
-    appearance: "palette",
-    island: "monitor",
-    hotkey: "keyboard",
-    privacy: "lock",
-    notifications: "bell",
-    widgets: "layout",
-    update: "refresh",
-    about: "info",
+    appearance: "palette", island: "monitor", hotkey: "keyboard", privacy: "lock",
+    notifications: "bell", widgets: "layout", update: "refresh", about: "info",
   };
 
   const tabs: { id: SettingsTab; label: string }[] = [
@@ -540,6 +549,7 @@ export const SettingsWidget: React.FC = () => {
             onCommitTransparency={commitTransparency}
             onCommitBlur={commitBlur}
             onToggle={handleToggle}
+            onResetPosition={handleResetIslandPosition}
           />
         )}
 
@@ -554,20 +564,9 @@ export const SettingsWidget: React.FC = () => {
             hotkeySupported={hotkeySupported}
             capabilities={capabilities}
             hotkeyInputRef={hotkeyInputRef}
-            onDraftHotkeyChange={(val) => {
-              setDraftHotkey(val);
-              setHotkeyError(null);
-            }}
-            onStartRecording={() => {
-              setDraftHotkey("");
-              setIsRecordingHotkey(true);
-              setHotkeyError(null);
-              setTimeout(() => hotkeyInputRef.current?.focus(), 50);
-            }}
-            onStopRecording={() => {
-              setIsRecordingHotkey(false);
-              setDraftHotkey(settings.global_hotkey);
-            }}
+            onDraftHotkeyChange={(val) => { setDraftHotkey(val); setHotkeyError(null); }}
+            onStartRecording={() => { setDraftHotkey(""); setIsRecordingHotkey(true); setHotkeyError(null); setTimeout(() => hotkeyInputRef.current?.focus(), 50); }}
+            onStopRecording={() => { setIsRecordingHotkey(false); setDraftHotkey(settings.global_hotkey); }}
             onSaveHotkey={handleSaveHotkey}
             onCancelHotkey={handleCancelHotkey}
             onHotkeyKeyDown={handleHotkeyKeyDown}
@@ -620,7 +619,7 @@ export const SettingsWidget: React.FC = () => {
             onCopyDiagnostics={handleCopyDiagnostics}
             onReplayTour={async () => {
               await updateSettingsBatch({ onboarding_completed: false });
-              showStatus("Welcome tour activated");
+              showStatus(t("settings.status.tourActivated") || "Welcome tour activated");
             }}
           />
         )}
@@ -640,7 +639,7 @@ export const SettingsWidget: React.FC = () => {
         }}
       >
         <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)" }}>
-          Preferences are automatically saved to SQLite
+          {t("settings.savedNotice") || "Preferences are automatically saved to SQLite"}
         </span>
       </div>
     </div>

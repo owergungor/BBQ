@@ -257,6 +257,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       action: handleToggleMoveHud,
     },
     {
+      id: "reset_position",
+      label: t("contextMenu.resetPosition") || "Reset Island Position",
+      icon: "refresh" as const,
+      action: async () => {
+        await bbqCommands.resetIslandPosition();
+        await updateSetting("move_hud", "false");
+        await updateSetting("island_position", "top-center");
+        onClose();
+      },
+    },
+    {
       id: "expand",
       label: isExpanded
         ? (t("contextMenu.collapseHud") || "Collapse HUD")

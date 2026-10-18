@@ -2,6 +2,8 @@ import React from "react";
 import { Slider, Switch, ThemeSelect } from "../../common/SettingsControls.tsx";
 import { type IslandSettingsTabProps } from "./settingsTypes.ts";
 import { useTranslation } from "../../../i18n/index.ts";
+import { Icon } from "../../common/Icon.tsx";
+import { bbqCommands } from "../../../ipc/commands.ts";
 
 export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
   draftWidth,
@@ -20,6 +22,8 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
   onCommitTransparency,
   onCommitBlur,
   onToggle,
+  onResetPosition,
+  onTriggerMoveHud,
 }) => {
   const { t } = useTranslation();
 
@@ -100,6 +104,55 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
           options={positionOptions}
           onChange={(val) => onToggle("island_position", val)}
         />
+      </div>
+
+      <div style={{ display: "flex", gap: "8px", marginTop: "2px" }}>
+        <button
+          type="button"
+          id="btn-move-island-hud"
+          className="bbq-btn bbq-btn-secondary"
+          style={{
+            flex: 1,
+            padding: "6px 12px",
+            fontSize: "11px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
+            cursor: "pointer",
+          }}
+          onClick={onTriggerMoveHud ? onTriggerMoveHud : () => onToggle("move_hud", true)}
+        >
+          <Icon name="move" size={13} aria-hidden="true" />
+          <span>{t("settings.island.moveHudAction") || "Move Island (HUD)"}</span>
+        </button>
+        <button
+          type="button"
+          id="btn-reset-island-position"
+          className="bbq-btn bbq-btn-secondary"
+          style={{
+            flex: 1,
+            padding: "6px 12px",
+            fontSize: "11px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
+            cursor: "pointer",
+          }}
+          onClick={
+            onResetPosition
+              ? onResetPosition
+              : async () => {
+                  await bbqCommands.resetIslandPosition();
+                  await onToggle("island_position", "top-center");
+                  await onToggle("move_hud", false);
+                }
+          }
+        >
+          <Icon name="refresh" size={13} aria-hidden="true" />
+          <span>{t("settings.island.resetPosition") || "Reset to Screen Default"}</span>
+        </button>
       </div>
 
       <Slider

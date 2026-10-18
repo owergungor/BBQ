@@ -112,7 +112,11 @@
       "autoExpand": "Déploiement automatique",
       "autoExpandDesc": "Déployer automatiquement l'îlot lors d'un changement de piste ou d'un rappel.",
       "moveHud": "Déplacer le HUD",
-      "moveHudDesc": "Activer le guide interactif de repositionnement sur vos écrans."
+      "moveHudDesc": "Activer le guide interactif de repositionnement sur vos écrans.",
+      "moveHudAction": "Déplacer l'îlot (HUD)",
+      "resetPosition": "Restaurer la position par défaut",
+      "resetPositionDesc": "Restaurer le placement supérieur central par défaut et effacer les coordonnées personnalisées.",
+      "positionResetSuccess": "Position de l'îlot réinitialisée par défaut"
     },
     "hotkey": {
       "title": "Raccourci global",
@@ -178,7 +182,35 @@
       "copyDiagnostics": "Copier les diagnostics",
       "replayTour": "Revoir la visite guidée",
       "diagnosticsCopied": "Diagnostics anonymisés copiés dans le presse-papiers"
-    }
+    },
+    "status": {
+      "preferenceUpdated": "Préférence mise à jour",
+      "customAccentSet": "Couleur personnalisée définie sur {{color}}",
+      "islandTransparency": "Transparence de l'îlot mise à jour",
+      "islandBlur": "Flou de l'îlot mis à jour",
+      "islandWidth": "Largeur de l'îlot mise à jour",
+      "islandHeight": "Hauteur de l'îlot mise à jour",
+      "clipboardCapacity": "Capacité du presse-papiers mise à jour",
+      "clipboardRetention": "Rétention du presse-papiers mise à jour",
+      "globalHotkey": "Raccourci global mis à jour",
+      "resetDefaults": "Paramètres par défaut rétablis",
+      "widgetOrder": "Ordre des widgets compacts mis à jour",
+      "widgetOrderReset": "Ordre des widgets réinitialisé par défaut",
+      "enabledWidget": "{{widget}} activé",
+      "disabledWidget": "{{widget}} désactivé",
+      "diagnosticsCopied": "Informations de diagnostic copiées dans le presse-papiers",
+      "tourActivated": "Visite de bienvenue activée",
+      "islandPositionReset": "Position de l'îlot réinitialisée par défaut",
+      "moveHudEnabled": "HUD de déplacement activé",
+      "moveHudDisabled": "HUD de déplacement désactivé"
+    },
+    "resetModal": {
+      "title": "Réinitialiser les préférences ?",
+      "description": "Voulez-vous vraiment réinitialiser toutes les préférences à leurs valeurs par défaut ? Cette action est irréversible.",
+      "confirm": "Rétablir les valeurs par défaut",
+      "cancel": "Annuler"
+    },
+    "savedNotice": "Les préférences sont automatiquement enregistrées dans SQLite"
   },
   "widgets": {
     "media": {
@@ -282,7 +314,8 @@
     "settings": "Paramètres",
     "launchAtLogin": "Lancer au démarrage",
     "about": "À propos de BBQ",
-    "quit": "Quitter BBQ"
+    "quit": "Quitter BBQ",
+    "resetPosition": "Réinitialiser la position de l'îlot"
   },
   "onboarding": {
     "welcomeTitle": "Bienvenue sur BBQ",
@@ -297,7 +330,55 @@
     "step4Desc": "Historique local chiffré avec masquage intelligent des identifiants et clés sensibles.",
     "step5Title": "Focus et minuteurs",
     "step5Desc": "Restez concentré grâce aux comptes à rebours, chronomètres et cycles Pomodoro intégrés.",
-    "finishBtn": "Commencer"
+    "finishBtn": "Commencer",
+    "skipTour": "Passer la visite (Échap)",
+    "back": "← Retour",
+    "next": "Suivant →",
+    "getStarted": "Commencer",
+    "tour": {
+      "step1": {
+        "badge": "Bienvenue",
+        "title": "Bienvenue sur BBQ",
+        "subtitle": "Votre îlot de productivité de bureau",
+        "description": "BBQ transforme la marge supérieure de votre écran en une surface de commande intelligente accélérée par le matériel. Il reste discrètement sous forme de pilule compacte et s'étend en douceur vers vos outils de productivité dès que nécessaire.",
+        "tip": "Astuce : Survolez ou cliquez sur l'îlot en haut de votre écran pour commencer."
+      },
+      "step2": {
+        "badge": "Architecture",
+        "title": "États dynamiques de l'îlot",
+        "subtitle": "Interaction fluide accélérée par GPU",
+        "description": "En mode veille, BBQ affiche des indicateurs compacts pour les médias actifs, les minuteurs, l'aperçu du presse-papiers et la santé du système. Glisser des fichiers sur l'îlot le transforme instantanément en Zone de Dépôt.",
+        "tip": "Toutes les animations sont accélérées par GPU avec transform et opacity pour une fluidité sans saccade."
+      },
+      "step3": {
+        "badge": "Navigation",
+        "title": "Raccourci global et lanceur",
+        "subtitle": "Accès instantané depuis n'importe où",
+        "description": "Appuyez sur Ctrl+Espace (ou Cmd+Espace sur macOS) globalement pour appeler BBQ. Le lanceur de recherche unifié vous permet d'ouvrir des applications, des fichiers ou de déclencher des actions système à la vitesse du clavier.",
+        "tip": "Vous pouvez personnaliser le raccourci global à tout moment dans les Préférences."
+      },
+      "step4": {
+        "badge": "Confidentialité",
+        "title": "100 % local et priorité à la vie privée",
+        "subtitle": "Zéro télémétrie, zéro traçage",
+        "description": "Vos données ne quittent jamais votre ordinateur. Tout est stocké localement dans une base de données SQLite intégrée. Des fonctionnalités comme l'Historique du presse-papiers sont strictement optionnelles et désactivées par défaut.",
+        "tip": "La désactivation de l'historique du presse-papiers purge immédiatement les éléments stockés de la base de données."
+      },
+      "step5": {
+        "badge": "Personnalisation",
+        "title": "Personnalisez votre expérience",
+        "subtitle": "Thème, accessibilité et indicateurs",
+        "description": "BBQ prend en charge les thèmes Système, Sombre et Clair, ainsi qu'un mode Mouvement réduit pour l'accessibilité. Vous pouvez définir la priorité des indicateurs compacts affichés sur votre pilule.",
+        "tip": "Utilisez les boutons de thème ci-dessous pour choisir votre apparence préférée dès maintenant :"
+      },
+      "step6": {
+        "badge": "Prêt",
+        "title": "Vous êtes prêt à démarrer !",
+        "subtitle": "Bienvenue sur l'édition de production de BBQ",
+        "description": "Vous disposez désormais d'un îlot de productivité rapide et discret. Profitez d'un flux de travail simplifié !",
+        "tip": "Vous pouvez rejouer cette visite de bienvenue à tout moment depuis le widget Préférences."
+      }
+    }
   },
   "errors": {
     "title": "Avis de l'application",
@@ -305,5 +386,31 @@
     "recover": "Récupérer",
     "details": "Détails",
     "unknown": "Une erreur inattendue est survenue."
+  },
+  "compact": {
+    "dropShelf": "Zone de Dépôt",
+    "releaseToStage": "Relâcher pour préparer",
+    "staged": "préparés",
+    "dragFilesHere": "Glisser les fichiers ici",
+    "file": "fichier",
+    "files": "fichiers",
+    "clipboard": "Presse-papiers",
+    "latestItem": "Dernier élément",
+    "unknownArtist": "Artiste inconnu",
+    "unknownTrack": "Piste inconnue",
+    "previousTrack": "Piste précédente",
+    "play": "Lecture",
+    "pause": "Pause",
+    "nextTrack": "Piste suivante",
+    "system": "Système",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "search": "Recherche",
+    "reminder": "rappel",
+    "reminders": "rappels"
+  },
+  "shell": {
+    "stageFilesDrop": "Déposer les fichiers sur la Zone de Dépôt",
+    "ariaLabel": "Îlot de productivité BBQ"
   }
 }

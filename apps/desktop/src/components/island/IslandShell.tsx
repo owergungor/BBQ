@@ -6,6 +6,7 @@ import { Icon } from "../common/Icon.tsx";
 
 import { useSettingsState } from "../../state/settingsState.ts";
 import { resolveEffectiveCompactWidth } from "../../island/geometryResolution.ts";
+import { useTranslation } from "../../i18n/index.ts";
 
 interface IslandShellProps {
   state: IslandMachineState;
@@ -48,6 +49,7 @@ export const IslandShell: React.FC<IslandShellProps> = ({
   moveHud = false,
   onPointerDown,
 }) => {
+  const { t } = useTranslation();
   const userCompactWidth = useSettingsState((s) => s.settings.island_width);
   const islandPosition = useSettingsState((s) => s.settings.island_position || "top-center");
   const modeClass = `mode-${mode.toLowerCase()}`;
@@ -95,7 +97,7 @@ export const IslandShell: React.FC<IslandShellProps> = ({
     <div
       id="bbq-island-shell"
       role="region"
-      aria-label="BBQ Productivity Island"
+      aria-label={t("shell.ariaLabel") || "BBQ Productivity Island"}
       tabIndex={0}
       data-anchor={islandPosition}
       data-move-hud={moveHud ? "true" : undefined}
@@ -117,7 +119,7 @@ export const IslandShell: React.FC<IslandShellProps> = ({
       >
         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
           <Icon name="drop" size={14} aria-hidden="true" />
-          <span>Stage files on Drop Shelf</span>
+          <span>{t("shell.stageFilesDrop") || "Stage files on Drop Shelf"}</span>
         </span>
       </div>
       {children}

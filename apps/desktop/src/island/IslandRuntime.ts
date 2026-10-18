@@ -15,6 +15,49 @@ export class IslandRuntime {
   private transitionTimeout: ReturnType<typeof setTimeout> | null = null;
 
   private isBackendSyncing = false;
+  private focusRestoreTimeout: ReturnType<typeof setTimeout> | null = null;
+  private boundFocusOutListener: (() => void) | null = null;
+
+  /**
+   * Checks whether an interactive control has focus or a modal/menu overlay is open.
+   * Auto-collapse must be suppressed whenever user interaction is in progress.
+   */
+  public isFocusOrOverlayActive(): boolean {
+    if (typeof document === "undefined") return false;
+
+    const activeEl = document.activeElement;
+    if (activeEl && activeEl !== document.body && activeEl !== document.documentElement) {
+      const tagName = activeEl.tagName?.toLowerCase();
+      if (tagName === "input" || tagName === "textarea" || tagName === "select") {
+        return true;
+      }
+      const role = activeEl.getAttribute?.("role");
+      if (
+        role === "textbox" ||
+        role === "searchbox" ||
+        role === "combobox" ||
+        role === "spinbutton"
+      ) {
+        return true;
+      }
+      if (
+        (activeEl as HTMLElement).isContentEditable ||
+        activeEl.getAttribute?.("contenteditable") === "true" ||
+        activeEl.getAttribute?.("data-hotkey-recording") === "true"
+      ) {
+        return true;
+      }
+    }
+
+    const openOverlay = document.querySelector?.(
+      '.bbq-context-menu, .bbq-dropdown-menu:not([hidden]), [role="dialog"], [role="alertdialog"], [role="menu"], [aria-modal="true"], .bbq-modal-backdrop, .bbq-confirmation-dialog, [data-menu-open="true"]'
+    );
+    if (openOverlay) {
+      return true;
+    }
+
+    return false;
+  }
 
   public async init(): Promise<void> {
     try {
@@ -23,13 +66,22 @@ export class IslandRuntime {
     } catch {
       // Running in headless or non-tauri test environment
     }
+
+    if (typeof document !== "undefined" && !this.boundFocusOutListener) {
+      this.boundFocusOutListener = () => this.handleFocusOut();
+      document.addEventListener("focusout", this.boundFocusOutListener);
+    }
   }
 
   public destroy(): void {
     this.clearAllTimers();
+    if (typeof document !== "undefined" && this.boundFocusOutListener) {
+      document.removeEventListener("focusout", this.boundFocusOutListener);
+      this.boundFocusOutListener = null;
+    }
   }
 
-  private clearAllTimers(): void {
+  public clearAllTimers(): void {
     if (this.autoCollapseTimeout) {
       clearTimeout(this.autoCollapseTimeout);
       this.autoCollapseTimeout = null;
@@ -42,6 +94,40 @@ export class IslandRuntime {
       clearTimeout(this.transitionTimeout);
       this.transitionTimeout = null;
     }
+    if (this.focusRestoreTimeout) {
+      clearTimeout(this.focusRestoreTimeout);
+      this.focusRestoreTimeout = null;
+    }
+  }
+
+  public scheduleAutoCollapse(delay = 6000): void {
+    if (this.autoCollapseTimeout) {
+      clearTimeout(this.autoCollapseTimeout);
+    }
+    this.autoCollapseTimeout = setTimeout(async () => {
+      this.autoCollapseTimeout = null;
+      const freshState = islandStore.getState();
+      if (
+        freshState.state === "Expanded" &&
+        !freshState.isHovered &&
+        !this.isFocusOrOverlayActive()
+      ) {
+        await this.transitionTo("Idle", "mouse");
+      }
+    }, delay);
+  }
+
+  public handleFocusOut(): void {
+    if (this.focusRestoreTimeout) {
+      clearTimeout(this.focusRestoreTimeout);
+    }
+    this.focusRestoreTimeout = setTimeout(() => {
+      this.focusRestoreTimeout = null;
+      const fresh = islandStore.getState();
+      if (fresh.state === "Expanded" && !fresh.isHovered && !this.isFocusOrOverlayActive()) {
+        this.scheduleAutoCollapse(6000);
+      }
+    }, 50);
   }
 
   private syncFromBackendMode(mode: IslandMode): void {
@@ -97,6 +183,10 @@ export class IslandRuntime {
     const prev = islandStore.getState();
     if (prev.state === nextState) {
       return;
+    }
+
+    if (nextState !== "Expanded") {
+      this.clearAllTimers();
     }
 
     let nextMode: IslandMode = "IDLE";
@@ -163,6 +253,10 @@ export class IslandRuntime {
           clearTimeout(this.autoCollapseTimeout);
           this.autoCollapseTimeout = null;
         }
+        if (this.focusRestoreTimeout) {
+          clearTimeout(this.focusRestoreTimeout);
+          this.focusRestoreTimeout = null;
+        }
 
         if (current.state === "Idle") {
           await this.transitionTo("Hovering", "mouse");
@@ -179,25 +273,13 @@ export class IslandRuntime {
             }
           }, 150);
         } else if (current.state === "Expanded") {
-          // Discrete auto-collapse timeout after 6 seconds of mouse absence
-          if (this.autoCollapseTimeout) {
-            clearTimeout(this.autoCollapseTimeout);
-          }
-          this.autoCollapseTimeout = setTimeout(async () => {
-            const freshState = islandStore.getState();
-            if (freshState.state === "Expanded" && !freshState.isHovered) {
-              await this.transitionTo("Idle", "mouse");
-            }
-          }, 6000);
+          this.scheduleAutoCollapse(6000);
         }
         break;
       }
 
       case "USER_CLICK": {
-        if (this.autoCollapseTimeout) {
-          clearTimeout(this.autoCollapseTimeout);
-          this.autoCollapseTimeout = null;
-        }
+        this.clearAllTimers();
 
         if (current.state === "Expanded") {
           await this.transitionTo("Hovering", "mouse");
@@ -244,6 +326,7 @@ export class IslandRuntime {
       }
 
       case "DROP": {
+        this.clearAllTimers();
         islandStore.setState({ isDragOver: false });
         setActiveWidget("drop", true);
         await this.transitionTo("Expanded", "drag");
@@ -251,11 +334,11 @@ export class IslandRuntime {
       }
 
       case "WIDGET_SELECT": {
-        if (this.autoCollapseTimeout) {
-          clearTimeout(this.autoCollapseTimeout);
-          this.autoCollapseTimeout = null;
-        }
+        this.clearAllTimers();
         setActiveWidget(event.widgetId, true);
+        if (!current.isHovered) {
+          this.scheduleAutoCollapse(6000);
+        }
         break;
       }
 
@@ -299,6 +382,9 @@ export class IslandRuntime {
     } else {
       setActiveWidget("launcher", true);
       await this.transitionTo("Expanded", "keyboard");
+      if (!current.isHovered) {
+        this.scheduleAutoCollapse(6000);
+      }
     }
   }
 

@@ -112,7 +112,11 @@
       "autoExpand": "Olaylarda Otomatik Genişlet",
       "autoExpandDesc": "Parça değiştiğinde veya zamanlayıcı bittiğinde adayı otomatik açar.",
       "moveHud": "HUD'ı Taşı",
-      "moveHudDesc": "Ekranlar arasında ada konumunu interaktif olarak sürükleyin."
+      "moveHudDesc": "Ekranlar arasında ada konumunu interaktif olarak sürükleyin.",
+      "moveHudAction": "Adayı Taşı (HUD)",
+      "resetPosition": "Varsayılan Konuma Sıfırla",
+      "resetPositionDesc": "Varsayılan üst-orta yerleşimi geri yükleyin ve özel koordinatları temizleyin.",
+      "positionResetSuccess": "Ada konumu varsayılana sıfırlandı"
     },
     "hotkey": {
       "title": "Genel Kısayol",
@@ -178,7 +182,35 @@
       "copyDiagnostics": "Tanı Bilgilerini Kopyala",
       "replayTour": "Başlangıç Turunu Yeniden Başlat",
       "diagnosticsCopied": "Gizlilik korumalı tanı bilgileri panoya kopyalandı"
-    }
+    },
+    "status": {
+      "preferenceUpdated": "Tercih güncellendi",
+      "customAccentSet": "Özel vurgu rengi {{color}} olarak ayarlandı",
+      "islandTransparency": "Ada saydamlığı güncellendi",
+      "islandBlur": "Ada bulanıklığı güncellendi",
+      "islandWidth": "Ada genişliği güncellendi",
+      "islandHeight": "Ada yüksekliği güncellendi",
+      "clipboardCapacity": "Pano kapasitesi güncellendi",
+      "clipboardRetention": "Pano saklama süresi güncellendi",
+      "globalHotkey": "Genel kısayol güncellendi",
+      "resetDefaults": "Varsayılan ayarlara sıfırlandı",
+      "widgetOrder": "Kompakt bileşen sırası güncellendi",
+      "widgetOrderReset": "Bileşen sırası varsayılana sıfırlandı",
+      "enabledWidget": "{{widget}} etkinleştirildi",
+      "disabledWidget": "{{widget}} devre dışı bırakıldı",
+      "diagnosticsCopied": "Tanılama bilgisi panoya kopyalandı",
+      "tourActivated": "Hoş geldiniz turu etkinleştirildi",
+      "islandPositionReset": "Ada konumu varsayılana sıfırlandı",
+      "moveHudEnabled": "Taşıma HUD'ı etkinleştirildi",
+      "moveHudDisabled": "Taşıma HUD'ı kapatıldı"
+    },
+    "resetModal": {
+      "title": "Tercihler Sıfırlansın mı?",
+      "description": "Tüm tercihleri varsayılan değerlere sıfırlamak istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+      "confirm": "Varsayılanlara Sıfırla",
+      "cancel": "İptal"
+    },
+    "savedNotice": "Tercihler otomatik olarak SQLite'a kaydedilir"
   },
   "widgets": {
     "media": {
@@ -282,7 +314,8 @@
     "settings": "Ayarlar",
     "launchAtLogin": "Açılışta Başlat",
     "about": "BBQ Hakkında",
-    "quit": "BBQ'dan Çık"
+    "quit": "BBQ'dan Çık",
+    "resetPosition": "Ada Konumunu Sıfırla"
   },
   "onboarding": {
     "welcomeTitle": "BBQ'ya Hoş Geldiniz",
@@ -297,7 +330,55 @@
     "step4Desc": "Hassas verileri otomatik maskeleyen, yalnızca cihazınızda saklanan pano geçmişi.",
     "step5Title": "Odaklanma ve Sayaçlar",
     "step5Desc": "Dahili geri sayım, kronometre ve Pomodoro sayaçlarıyla iş akışınızı koruyun.",
-    "finishBtn": "Başlayın"
+    "finishBtn": "Başlayın",
+    "skipTour": "Turu Atla (Esc)",
+    "back": "← Geri",
+    "next": "İleri →",
+    "getStarted": "Başlayın",
+    "tour": {
+      "step1": {
+        "badge": "Hoş Geldiniz",
+        "title": "BBQ'ya Hoş Geldiniz",
+        "subtitle": "Masaüstü Verimlilik Adanız",
+        "description": "BBQ, ekranınızın üst kenarını akıllı, donanım hızlandırmalı bir komut yüzeyine dönüştürür. Sessizce kompakt bir hap olarak bekler ve ihtiyaç duyduğunuz her an verimlilik araçlarına genişler.",
+        "tip": "İpucu: Başlamak için monitörünüzün üstündeki adanın üzerine gelin veya tıklayın."
+      },
+      "step2": {
+        "badge": "Mimari",
+        "title": "Dinamik Ada Durumları",
+        "subtitle": "Akıcı, GPU hızlandırmalı etkileşim",
+        "description": "Boşta modunda BBQ; aktif medya, çalışan sayaçlar, pano önizlemesi ve sistem sağlığı için kompakt göstergeler sunar. Dosyaları adanın üzerine sürüklemek onu anında bir Bırakma Alanına dönüştürür.",
+        "tip": "Tüm animasyonlar sıfır düzen sarsıntısı için transform ve opacity ile GPU hızlandırmalıdır."
+      },
+      "step3": {
+        "badge": "Gezinme",
+        "title": "Genel Kısayol ve Başlatıcı",
+        "subtitle": "Her yerden anında erişim",
+        "description": "BBQ'yu öne getirmek için genel olarak Ctrl+Space (veya macOS'ta Cmd+Space) tuşlarına basın. Birleşik arama başlatıcısı, uygulamaları ve dosyaları açmanıza veya klavye hızıyla sistem eylemlerini tetiklemenize olanak tanır.",
+        "tip": "Genel kısayol tuş kombinasyonunu istediğiniz zaman Tercihler'den özelleştirebilirsiniz."
+      },
+      "step4": {
+        "badge": "Gizlilik",
+        "title": "%100 Yerel ve Önce Gizlilik",
+        "subtitle": "Sıfır telemetri, sıfır takip",
+        "description": "Verileriniz asla bilgisayarınızdan dışarı çıkmaz. Her şey yerel gömülü bir SQLite veritabanında saklanır. Pano Geçmişi gibi özellikler kesinlikle isteğe bağlıdır ve varsayılan olarak kapalıdır.",
+        "tip": "Pano geçmişini devre dışı bırakmak, saklanan kayıtları veritabanından anında temizler."
+      },
+      "step5": {
+        "badge": "Özelleştirme",
+        "title": "Deneyiminizi Özelleştirin",
+        "subtitle": "Tema, erişilebilirlik ve göstergeler",
+        "description": "BBQ; Sistem, Koyu ve Açık temaların yanı sıra erişilebilirlik için Azaltılmış Hareket modunu destekler. Kompakt göstergelerin adanızda hangi sırayla görüneceğini önceliklendirebilirsiniz.",
+        "tip": "Tercih ettiğiniz görünümü ayarlamak için aşağıdaki tema düğmelerini kullanın:"
+      },
+      "step6": {
+        "badge": "Hazır",
+        "title": "Kullanmaya Hazırsınız!",
+        "subtitle": "BBQ Production Sürümüne Hoş Geldiniz",
+        "description": "Artık emrinizde hızlı ve şık bir masaüstü verimlilik adası var. Akıcı masaüstü iş akışınızın keyfini çıkarın!",
+        "tip": "Bu hoş geldiniz turunu Tercihler bileşeninden istediğiniz zaman yeniden başlatabilirsiniz."
+      }
+    }
   },
   "errors": {
     "title": "Uygulama Bildirimi",
@@ -305,5 +386,31 @@
     "recover": "Kurtar",
     "details": "Ayrıntılar",
     "unknown": "Beklenmeyen bir hata oluştu."
+  },
+  "compact": {
+    "dropShelf": "Bırakma Rafı",
+    "releaseToStage": "Hazırlamak için bırakın",
+    "staged": "hazırlandı",
+    "dragFilesHere": "Dosyaları buraya sürükleyin",
+    "file": "dosya",
+    "files": "dosya",
+    "clipboard": "Pano",
+    "latestItem": "Son öğe",
+    "unknownArtist": "Bilinmeyen Sanatçı",
+    "unknownTrack": "Bilinmeyen Parça",
+    "previousTrack": "Önceki parça",
+    "play": "Oynat",
+    "pause": "Duraklat",
+    "nextTrack": "Sonraki parça",
+    "system": "Sistem",
+    "online": "Çevrimiçi",
+    "offline": "Çevrimdışı",
+    "search": "Ara",
+    "reminder": "hatırlatıcı",
+    "reminders": "hatırlatıcı"
+  },
+  "shell": {
+    "stageFilesDrop": "Dosyaları Bırakma Rafına ekleyin",
+    "ariaLabel": "BBQ Verimlilik Adası"
   }
 }
