@@ -11,6 +11,7 @@
  */
 
 import type { MediaSession, PlaybackState } from "@bbq/types";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 export interface NormalizedMediaMetadata {
   id: string;
@@ -333,8 +334,8 @@ export function resolveArtworkUrl(raw: string | null | undefined): string | null
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
-  // Base64 data URIs (PNG, JPEG, WEBP)
-  if (/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(trimmed)) {
+  // Base64 data URIs (PNG, JPEG, WEBP, GIF, BMP)
+  if (/^data:image\/(png|jpe?g|webp|gif|bmp);base64,/i.test(trimmed)) {
     return trimmed;
   }
 
@@ -343,17 +344,25 @@ export function resolveArtworkUrl(raw: string | null | undefined): string | null
     return trimmed;
   }
 
-  // Local file URLs or paths (convert to asset URI or preserved valid path)
+  // Local file URLs or absolute paths (convert to asset URI or preserved valid path)
   if (trimmed.startsWith("file://") || trimmed.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(trimmed)) {
+    let cleanPath = trimmed;
+    if (cleanPath.startsWith("file://")) {
+      cleanPath = decodeURIComponent(cleanPath.replace(/^file:\/\/\/?/, ""));
+      if (!/^[a-zA-Z]:/.test(cleanPath) && !cleanPath.startsWith("/")) {
+        cleanPath = "/" + cleanPath;
+      }
+    }
+    // Normalize Windows backslashes to forward slashes for Tauri asset protocol
+    cleanPath = cleanPath.replace(/\\/g, "/");
     try {
       if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
-        const cleanPath = trimmed.startsWith("file://") ? trimmed.replace(/^file:\/\//, "") : trimmed;
-        return `asset://localhost/${encodeURIComponent(cleanPath)}`;
+        return convertFileSrc(cleanPath);
       }
     } catch {
       // Fallback
     }
-    return trimmed;
+    return cleanPath;
   }
 
   return null;

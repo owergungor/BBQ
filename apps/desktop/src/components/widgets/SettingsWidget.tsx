@@ -1,40 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  useSettingsState,
-  updateSettingsBatch,
-  resetSettingsToDefaults,
-} from "../../state/settingsState.ts";
+import { useSettingsState, updateSettingsBatch, resetSettingsToDefaults } from "../../state/settingsState.ts";
 import { widgetRegistry } from "../../island/widgetRegistry.ts";
-import {
-  DEFAULT_COMPACT_INDICATOR_ORDER,
-  resolveEffectiveIndicatorOrder,
-} from "../../island/compactOrder.ts";
+import { islandRuntime } from "../../island/IslandRuntime.ts";
+import { DEFAULT_COMPACT_INDICATOR_ORDER, resolveEffectiveIndicatorOrder } from "../../island/compactOrder.ts";
 import { useHotkeyState } from "../../state/hotkeyState.ts";
 import type { ThemePreference, AccentColor, PlatformCapabilities } from "@bbq/types";
 import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon, type IconName } from "../common/Icon.tsx";
 import {
-  clampIslandWidth,
-  clampIslandHeight,
-  clampClipboardCapacity,
-  clampClipboardRetention,
-  validateHexColor,
-  validateHotkeyInput,
-  sanitizeIndicatorOrder,
-  isHotkeySupported,
-  isClipboardLiveSupported,
-  generateSanitizedDiagnostics,
+  clampIslandWidth, clampIslandHeight, clampClipboardCapacity, clampClipboardRetention,
+  validateHexColor, validateHotkeyInput, sanitizeIndicatorOrder, isHotkeySupported,
+  isClipboardLiveSupported, generateSanitizedDiagnostics,
 } from "./settingsModel.ts";
 import {
-  type SettingsTab,
-  AppearanceSettingsTab,
-  IslandSettingsTab,
-  HotkeySettingsTab,
-  PrivacySettingsTab,
-  NotificationsSettingsTab,
-  WidgetsSettingsTab,
-  UpdateSettingsTab,
-  AboutSettingsTab,
+  type SettingsTab, AppearanceSettingsTab, IslandSettingsTab, HotkeySettingsTab,
+  PrivacySettingsTab, NotificationsSettingsTab, WidgetsSettingsTab, UpdateSettingsTab, AboutSettingsTab,
 } from "./settings/index.ts";
 import { useTranslation } from "../../i18n/index.ts";
 
@@ -166,6 +146,11 @@ export const SettingsWidget: React.FC = () => {
     } catch {
       showStatus("Failed to reset position");
     }
+  };
+
+  const handleTriggerMoveHud = async () => {
+    await updateSettingsBatch({ move_hud: true });
+    await islandRuntime.handleEvent({ type: "USER_ESCAPE" });
   };
 
   const handleLanguageChange = async (lang: string) => {
@@ -550,6 +535,7 @@ export const SettingsWidget: React.FC = () => {
             onCommitBlur={commitBlur}
             onToggle={handleToggle}
             onResetPosition={handleResetIslandPosition}
+            onTriggerMoveHud={handleTriggerMoveHud}
           />
         )}
 

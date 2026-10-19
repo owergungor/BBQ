@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./scripts/safety-guard.sh",
+            "command": "node scripts/safety-guard.js",
             "timeout": 10
           }
         ]

@@ -220,7 +220,11 @@
       "pause": "Pausar",
       "previous": "Pista anterior",
       "next": "Pista siguiente",
-      "volume": "Volumen"
+      "volume": "Volumen",
+      "mute": "Silenciar",
+      "unmute": "Activar sonido",
+      "volumeUnavailable": "Control de volumen no disponible",
+      "emptyPrompt": "Reproduce música o vídeo para controlarlo desde BBQ"
     },
     "clipboard": {
       "name": "Portapapeles",
@@ -230,7 +234,11 @@
       "enablePrompt": "Activa el historial en Ajustes para registrar elementos copiados.",
       "copyItem": "Copiar al portapapeles",
       "deleteItem": "Eliminar elemento",
-      "sensitiveHidden": "Contenido confidencial oculto"
+      "sensitiveHidden": "Contenido confidencial oculto",
+      "copied": "Copiado al portapapeles",
+      "clearHistory": "Borrar historial",
+      "enableHistory": "Activar historial",
+      "disableHistory": "Desactivar historial"
     },
     "timer": {
       "name": "Temporizador",
@@ -260,7 +268,14 @@
       "hours": "h",
       "add": "Añadir recordatorio",
       "empty": "No hay recordatorios programados",
-      "clearFired": "Borrar completados"
+      "clearFired": "Borrar completados",
+      "in10m": "10 min",
+      "in30m": "30 min",
+      "in1h": "1 hora",
+      "tomorrow": "Mañana 09:00",
+      "custom": "Personalizado...",
+      "due": "Vencimiento",
+      "completed": "Completado"
     },
     "files": {
       "name": "Archivos",
@@ -270,7 +285,21 @@
       "open": "Abrir",
       "reveal": "Mostrar en explorador",
       "copyPath": "Copiar ruta",
-      "clear": "Vaciar todo"
+      "clear": "Vaciar todo",
+      "all": "Todos",
+      "documents": "Documentos",
+      "images": "Imágenes",
+      "media": "Medios",
+      "archives": "Archivos comprimidos",
+      "code": "Código",
+      "other": "Otros",
+      "searchPlaceholder": "Buscar archivos de trabajo...",
+      "sortByDate": "Ordenar por fecha",
+      "sortByName": "Ordenar por nombre",
+      "sortBySize": "Ordenar por tamaño",
+      "refreshed": "Espacio de trabajo actualizado",
+      "refreshFailed": "Error al actualizar",
+      "openAll": "Abrir todo"
     },
     "system": {
       "name": "Sistema",
@@ -283,14 +312,83 @@
       "unmuted": "Con sonido",
       "connected": "Conectado",
       "disconnected": "Sin conexión",
-      "charging": "Cargando"
+      "charging": "Cargando",
+      "discharging": "Descargando",
+      "powerSource": "Fuente de alimentación",
+      "ac": "Corriente alterna",
+      "batteryPower": "Batería",
+      "refresh": "Actualizar estadísticas del sistema",
+      "refreshed": "Métricas del sistema actualizadas",
+      "refreshCooldown": "Espera antes de volver a actualizar",
+      "cores": "núcleos",
+      "used": "Usado"
     },
     "launcher": {
       "name": "Lanzador",
       "searchPlaceholder": "Buscar aplicaciones, archivos o acciones...",
       "favorites": "Favoritos",
       "recents": "Recientes",
-      "empty": "No se encontraron resultados"
+      "empty": "No se encontraron resultados",
+      "quickActions": "Acciones rápidas",
+      "launch": "Lanzar",
+      "actions": "Acciones"
+    },
+    "titles": {
+      "drop": "Zona de soltar",
+      "files": "Archivos",
+      "clipboard": "Portapapeles",
+      "media": "Medios",
+      "system": "Sistema",
+      "launcher": "Lanzador",
+      "timer": "Temporizador",
+      "reminder": "Recordatorios",
+      "settings": "Ajustes"
+    },
+    "drop": {
+      "name": "Zona de soltar",
+      "title": "Estante de soltar",
+      "prompt": "Arrastra archivos o carpetas aquí para preparar",
+      "releasePrompt": "Suelta para preparar archivos en el estante",
+      "hint": "Cero huella de memoria binaria. BBQ solo inspecciona referencias de metadatos.",
+      "clearShelf": "Vaciar estante",
+      "clearShelfTooltip": "Vaciar archivos preparados (Escape)",
+      "inspecting": "Inspeccionando metadatos de archivos...",
+      "quickActions": "Acciones rápidas",
+      "openAll": "Abrir todo",
+      "open": "Abrir",
+      "openDesc": "Abrir con la aplicación predeterminada",
+      "revealAll": "Mostrar todo",
+      "reveal": "Mostrar en carpeta",
+      "revealDesc": "Mostrar en el explorador de archivos",
+      "copyAll": "Copiar todas las rutas",
+      "copyPath": "Copiar ruta",
+      "copyPathDesc": "Copiar ruta al portapapeles",
+      "addAll": "Añadir todo al espacio de trabajo",
+      "addToWorkspace": "Añadir al espacio de trabajo",
+      "addToWorkspaceDesc": "Guardar referencia en archivos de trabajo",
+      "dragOutAll": "Arrastrar todo fuera",
+      "dragOut": "Arrastrar fuera",
+      "dragOutDesc": "Iniciar arrastre nativo al escritorio o explorador",
+      "cappedNotice": "Elementos limitados a un máximo de {{max}} por seguridad de memoria."
+    },
+    "reminder": {
+      "name": "Recordatorios",
+      "newReminder": "Nuevo Recordatorio",
+      "titlePlaceholder": "¿De qué te gustaría que te recordemos?",
+      "notesPlaceholder": "Notas opcionales...",
+      "dueIn": "Vence en",
+      "minutes": "min",
+      "hours": "h",
+      "add": "Añadir recordatorio",
+      "empty": "Sin recordatorios programados",
+      "clearFired": "Borrar completados",
+      "in10m": "10 min",
+      "in30m": "30 min",
+      "in1h": "1 hora",
+      "tomorrow": "Mañana 09:00",
+      "custom": "Personalizado...",
+      "due": "Vencimiento",
+      "completed": "Completado"
     }
   },
   "contextMenu": {

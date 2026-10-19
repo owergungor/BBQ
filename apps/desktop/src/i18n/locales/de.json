@@ -220,7 +220,11 @@
       "pause": "Pause",
       "previous": "Vorheriger Titel",
       "next": "Nächster Titel",
-      "volume": "Lautstärke"
+      "volume": "Lautstärke",
+      "mute": "Stummschalten",
+      "unmute": "Stummschaltung aufheben",
+      "volumeUnavailable": "Lautstärkeregelung nicht verfügbar",
+      "emptyPrompt": "Musik oder Videos abspielen, um sie über BBQ zu steuern"
     },
     "clipboard": {
       "name": "Zwischenablage",
@@ -230,7 +234,11 @@
       "enablePrompt": "Aktiviere den Verlauf in den Einstellungen, um kopierte Inhalte zu erfassen.",
       "copyItem": "In die Zwischenablage kopieren",
       "deleteItem": "Eintrag löschen",
-      "sensitiveHidden": "Sensibler Inhalt maskiert"
+      "sensitiveHidden": "Sensibler Inhalt maskiert",
+      "copied": "In Zwischenablage kopiert",
+      "clearHistory": "Verlauf löschen",
+      "enableHistory": "Verlauf aktivieren",
+      "disableHistory": "Verlauf deaktivieren"
     },
     "timer": {
       "name": "Timer",
@@ -260,7 +268,14 @@
       "hours": "Std",
       "add": "Erinnerung hinzufügen",
       "empty": "Keine geplanten Erinnerungen",
-      "clearFired": "Erledigte entfernen"
+      "clearFired": "Erledigte entfernen",
+      "in10m": "10 Min.",
+      "in30m": "30 Min.",
+      "in1h": "1 Std.",
+      "tomorrow": "Morgen 09:00",
+      "custom": "Benutzerdefiniert...",
+      "due": "Fällig",
+      "completed": "Erledigt"
     },
     "files": {
       "name": "Dateien",
@@ -270,7 +285,21 @@
       "open": "Öffnen",
       "reveal": "Im Explorer anzeigen",
       "copyPath": "Pfad kopieren",
-      "clear": "Alle leeren"
+      "clear": "Alle leeren",
+      "all": "Alle",
+      "documents": "Dokumente",
+      "images": "Bilder",
+      "media": "Medien",
+      "archives": "Archive",
+      "code": "Code",
+      "other": "Sonstige",
+      "searchPlaceholder": "Arbeitsbereichsdateien durchsuchen...",
+      "sortByDate": "Nach Datum sortieren",
+      "sortByName": "Nach Name sortieren",
+      "sortBySize": "Nach Größe sortieren",
+      "refreshed": "Arbeitsbereich aktualisiert",
+      "refreshFailed": "Aktualisierung fehlgeschlagen",
+      "openAll": "Alle öffnen"
     },
     "system": {
       "name": "System",
@@ -283,14 +312,83 @@
       "unmuted": "Laut",
       "connected": "Verbunden",
       "disconnected": "Getrennt",
-      "charging": "Wird geladen"
+      "charging": "Wird geladen",
+      "discharging": "Wird entladen",
+      "powerSource": "Stromquelle",
+      "ac": "Netzbetrieb",
+      "batteryPower": "Batterie",
+      "refresh": "Systemstatistiken aktualisieren",
+      "refreshed": "Systemmetriken aktualisiert",
+      "refreshCooldown": "Bitte warten vor erneuter Aktualisierung",
+      "cores": "Kerne",
+      "used": "Verwendet"
     },
     "launcher": {
       "name": "Schnellstarter",
       "searchPlaceholder": "Apps, Dateien oder Aktionen suchen...",
       "favorites": "Favoriten",
       "recents": "Zuletzt verwendet",
-      "empty": "Keine Treffer gefunden"
+      "empty": "Keine Treffer gefunden",
+      "quickActions": "Schnellaktionen",
+      "launch": "Starten",
+      "actions": "Aktionen"
+    },
+    "titles": {
+      "drop": "Drop-Zone",
+      "files": "Dateien",
+      "clipboard": "Zwischenablage",
+      "media": "Medien",
+      "system": "System",
+      "launcher": "Starter",
+      "timer": "Timer",
+      "reminder": "Erinnerungen",
+      "settings": "Einstellungen"
+    },
+    "drop": {
+      "name": "Drop-Zone",
+      "title": "Drop-Ablage",
+      "prompt": "Dateien oder Ordner hierher ziehen zum Bereitstellen",
+      "releasePrompt": "Loslassen, um Dateien abzulegen",
+      "hint": "Null Binärspeicher-Fußabdruck. BBQ prüft und speichert nur Metadaten-Referenzen.",
+      "clearShelf": "Ablage leeren",
+      "clearShelfTooltip": "Bereitgestellte Dateien leeren (Escape)",
+      "inspecting": "Dateimetadaten werden geprüft...",
+      "quickActions": "Schnellaktionen",
+      "openAll": "Alle öffnen",
+      "open": "Öffnen",
+      "openDesc": "Mit Standardanwendung öffnen",
+      "revealAll": "Alle anzeigen",
+      "reveal": "Im Ordner anzeigen",
+      "revealDesc": "Im Dateimanager anzeigen",
+      "copyAll": "Alle Pfade kopieren",
+      "copyPath": "Pfad kopieren",
+      "copyPathDesc": "Dateipfad in die Zwischenablage kopieren",
+      "addAll": "Alle zum Arbeitsbereich hinzufügen",
+      "addToWorkspace": "Zum Arbeitsbereich hinzufügen",
+      "addToWorkspaceDesc": "Referenz in Arbeitsbereichsdateien speichern",
+      "dragOutAll": "Alle herausziehen",
+      "dragOut": "Herausziehen",
+      "dragOutDesc": "Natives Herausziehen auf Desktop oder Explorer starten",
+      "cappedNotice": "Bereitgestellte Elemente aus Speichersicherheitsgründen auf maximal {{max}} begrenzt."
+    },
+    "reminder": {
+      "name": "Erinnerungen",
+      "newReminder": "Neue Erinnerung",
+      "titlePlaceholder": "Woran möchten Sie erinnert werden?",
+      "notesPlaceholder": "Optionale Notizen...",
+      "dueIn": "Fällig in",
+      "minutes": "Min.",
+      "hours": "Std.",
+      "add": "Erinnerung hinzufügen",
+      "empty": "Keine geplanten Erinnerungen",
+      "clearFired": "Erledigte löschen",
+      "in10m": "10 Min.",
+      "in30m": "30 Min.",
+      "in1h": "1 Std.",
+      "tomorrow": "Morgen 09:00",
+      "custom": "Benutzerdefiniert...",
+      "due": "Fällig",
+      "completed": "Erledigt"
     }
   },
   "contextMenu": {

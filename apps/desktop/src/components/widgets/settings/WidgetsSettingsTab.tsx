@@ -16,9 +16,9 @@ export const WidgetsSettingsTab: React.FC<WidgetsSettingsTabProps> = ({
   const moveIndicator = onMoveIndicator;
 
   const getLocalizedWidgetTitle = (id: string, fallback: string) => {
-    if (id === "settings") return t("settings.title") || fallback;
-    const translated = t(`widgets.${id}.name`);
-    return translated && translated !== `widgets.${id}.name` ? translated : fallback;
+    const key = `widgets.titles.${id}`;
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
   };
 
   return (

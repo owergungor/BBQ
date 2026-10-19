@@ -204,6 +204,11 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
               `${Math.round(nextVal * 1.33)}px`
             );
             document.documentElement.style.setProperty("--bbq-glass-blur", `${nextVal}px`);
+            if (nextVal === 0) {
+              document.documentElement.setAttribute("data-blur-zero", "true");
+            } else {
+              document.documentElement.removeAttribute("data-blur-zero");
+            }
           }
         }}
         onCommit={(val) => {

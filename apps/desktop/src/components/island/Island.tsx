@@ -183,6 +183,7 @@ export const Island: React.FC = () => {
 
   const isPlacementDraggingRef = useRef(false);
   const justDisarmedMoveHudRef = useRef(false);
+  const disarmedForExpandRef = useRef(false);
   const disarmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clean up any pending disarm timer on unmount
@@ -194,10 +195,13 @@ export const Island: React.FC = () => {
     };
   }, []);
 
-  // One-shot Move HUD pointerup listener to finish placement drag
+  // One-shot Move HUD pointerup, pointermove (after native OS modal drag), and window blur listener to finish placement drag safely
   useEffect(() => {
-    if (!moveHud) return;
-    const handlePointerUp = () => {
+    if (!moveHud) {
+      isPlacementDraggingRef.current = false;
+      return;
+    }
+    const handleDisarm = () => {
       if (isPlacementDraggingRef.current) {
         isPlacementDraggingRef.current = false;
         justDisarmedMoveHudRef.current = true;
@@ -206,11 +210,28 @@ export const Island: React.FC = () => {
         disarmTimerRef.current = setTimeout(() => {
           justDisarmedMoveHudRef.current = false;
           disarmTimerRef.current = null;
-        }, 300);
+        }, 180);
       }
     };
-    window.addEventListener("pointerup", handlePointerUp);
-    return () => window.removeEventListener("pointerup", handlePointerUp);
+    const handlePointerMoveAfterDrag = (e: PointerEvent) => {
+      if (isPlacementDraggingRef.current && e.buttons === 0) {
+        isPlacementDraggingRef.current = false;
+        disarmedForExpandRef.current = true;
+        void updateSetting("move_hud", "false");
+      }
+    };
+    const handleBlurCancel = () => {
+      isPlacementDraggingRef.current = false;
+      void updateSetting("move_hud", "false");
+    };
+    window.addEventListener("pointerup", handleDisarm);
+    window.addEventListener("pointermove", handlePointerMoveAfterDrag);
+    window.addEventListener("blur", handleBlurCancel);
+    return () => {
+      window.removeEventListener("pointerup", handleDisarm);
+      window.removeEventListener("pointermove", handlePointerMoveAfterDrag);
+      window.removeEventListener("blur", handleBlurCancel);
+    };
   }, [moveHud]);
 
   // One-shot Move HUD escape coordinator
@@ -239,9 +260,12 @@ export const Island: React.FC = () => {
       return;
     }
     if (moveHud) {
-      await updateSetting("move_hud", "false");
-      return;
+      if (!disarmedForExpandRef.current) {
+        await updateSetting("move_hud", "false");
+        return;
+      }
     }
+    disarmedForExpandRef.current = false;
     if (state !== "Expanded") {
       await islandRuntime.handleEvent({ type: "USER_CLICK" });
     }
@@ -270,6 +294,7 @@ export const Island: React.FC = () => {
     if (moveHud && e.button === 2) {
       e.preventDefault();
       e.stopPropagation();
+      isPlacementDraggingRef.current = false;
       await bbqCommands.resetIslandPosition();
       await updateSetting("move_hud", "false");
       return;
@@ -288,6 +313,16 @@ export const Island: React.FC = () => {
         "button, input, select, textarea, a, [role='button'], [role='menuitem'], [role='tab'], [role='checkbox'], [contenteditable='true'], .bbq-interactive, .bbq-tab, .bbq-btn, .bbq-context-menu"
       )
     ) {
+      return;
+    }
+
+    // If a native OS modal drag already occurred and swallowed pointerup, disarm now
+    // so this first deliberate left click at the new location expands the island.
+    if (isPlacementDraggingRef.current) {
+      isPlacementDraggingRef.current = false;
+      justDisarmedMoveHudRef.current = false;
+      disarmedForExpandRef.current = true;
+      void updateSetting("move_hud", "false");
       return;
     }
 

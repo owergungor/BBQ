@@ -24,30 +24,56 @@ pub async fn system_get_capabilities(
 }
 
 #[tauri::command]
-pub async fn system_set_volume(state: State<'_, AppState>, volume: f32) -> Result<(), String> {
+pub async fn system_set_volume(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    volume: f32,
+) -> Result<(), String> {
     state
         .system_service
         .set_volume(volume)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if let Ok(updated) = state.system_service.get_state().await {
+        use tauri::Emitter;
+        let _ = app.emit("bbq://system_changed", updated);
+    }
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn system_set_muted(state: State<'_, AppState>, muted: bool) -> Result<(), String> {
+pub async fn system_set_muted(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    muted: bool,
+) -> Result<(), String> {
     state
         .system_service
         .set_muted(muted)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if let Ok(updated) = state.system_service.get_state().await {
+        use tauri::Emitter;
+        let _ = app.emit("bbq://system_changed", updated);
+    }
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn system_toggle_muted(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn system_toggle_muted(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     state
         .system_service
         .toggle_muted()
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if let Ok(updated) = state.system_service.get_state().await {
+        use tauri::Emitter;
+        let _ = app.emit("bbq://system_changed", updated);
+    }
+    Ok(())
 }
 
 #[tauri::command]

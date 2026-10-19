@@ -7,6 +7,7 @@ import {
   toggleFavorite,
 } from "../../state/launcherState.ts";
 import { Icon } from "../common/Icon.tsx";
+import { useTranslation } from "../../i18n/index.ts";
 import {
   resolveLauncherItemIcon,
   filterAndRankLauncherItems,
@@ -33,6 +34,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
   onSelectWidget,
   onCollapse,
 }) => {
+  const { t } = useTranslation();
   const {
     items,
     favorites,
@@ -281,7 +283,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
           ref={inputRef}
           type="text"
           className="bbq-launcher-input"
-          placeholder="Search quick actions, apps, files, links..."
+          placeholder={t("widgets.launcher.searchPlaceholder")}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -328,7 +330,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
           <div className="bbq-launcher-empty">Loading launcher...</div>
         ) : visibleItems.length === 0 ? (
           <div className="bbq-launcher-empty">
-            <div>No matching actions found</div>
+            <div>{t("widgets.launcher.empty")}</div>
             <div className="bbq-launcher-empty-suggestions">
               <span className="bbq-launcher-suggestion-label">Try:</span>
               <button
@@ -366,7 +368,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
         ) : !query.trim() ? (
           // Default view: 2x2 Quick Actions grid fitting cleanly into expanded island
           <div className="bbq-launcher-quick-actions-container">
-            <div className="bbq-launcher-section-header">Quick Actions</div>
+            <div className="bbq-launcher-section-header">{t("widgets.launcher.quickActions")}</div>
             <div className="bbq-launcher-grid-2x2">
               {visibleItems.map((item, idx) => renderGridCard(item, idx))}
             </div>
@@ -374,7 +376,7 @@ export const LauncherWidget: React.FC<LauncherWidgetProps> = ({
         ) : (
           // Flat list for search results
           <div className="bbq-launcher-section">
-            <div className="bbq-launcher-section-header">Search Results</div>
+            <div className="bbq-launcher-section-header">{t("widgets.launcher.actions")}</div>
             {visibleItems.map((item, idx) => renderItemRow(item, idx))}
           </div>
         )}

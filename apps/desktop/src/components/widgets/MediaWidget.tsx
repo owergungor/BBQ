@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useMediaState, refreshMediaSession } from "../../state/mediaState.ts";
-import { useSystemState } from "../../state/systemState.ts";
+import { useSystemState, refreshSystemState, setSystemState } from "../../state/systemState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon } from "../common/Icon.tsx";
+import { useTranslation } from "../../i18n/index.ts";
 import {
   normalizeMediaSession,
   formatTime,
@@ -14,23 +15,43 @@ import {
 } from "./mediaModel.ts";
 
 export const MediaWidget: React.FC = () => {
+  const { t } = useTranslation();
   const { currentSession } = useMediaState();
-  const { system } = useSystemState();
+  const { system, capabilities } = useSystemState();
   const volume = system?.volume ?? 1;
   const isMuted = system?.muted ?? false;
+  const canControlVolume = capabilities?.can_control_volume ?? false;
 
   const handleToggleMuted = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    await bbqCommands.systemToggleMuted();
-  }, []);
+    try {
+      if (system) {
+        setSystemState({ ...system, muted: !isMuted });
+      }
+      await bbqCommands.systemToggleMuted();
+      await refreshSystemState();
+    } catch (err) {
+      console.error("Failed to toggle system mute:", err);
+    }
+  }, [system, isMuted]);
 
   const handleVolumeChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
     const val = parseFloat(e.target.value);
     if (!isNaN(val)) {
-      await bbqCommands.systemSetVolume(val);
+      try {
+        if (system) {
+          setSystemState({ ...system, volume: val, muted: val > 0 ? false : isMuted });
+        }
+        if (isMuted && val > 0) {
+          await bbqCommands.systemSetMuted(false);
+        }
+        await bbqCommands.systemSetVolume(val);
+      } catch (err) {
+        console.error("Failed to set system volume:", err);
+      }
     }
-  }, []);
+  }, [system, isMuted]);
 
   const [ambientPalette, setAmbientPalette] = useState<AmbientPalette>(DEFAULT_AMBIENT_PALETTE);
   const [artError, setArtError] = useState(false);
@@ -52,17 +73,18 @@ export const MediaWidget: React.FC = () => {
     };
   }, []);
 
-  // Lazily query latest media session on widget activation
+  // Lazily query latest media session and system audio state on widget activation
   useEffect(() => {
     refreshMediaSession();
+    refreshSystemState();
   }, []);
 
   const resolvedArt = resolveArtworkUrl(meta?.albumArt);
 
-  // Reset art error when artwork URL changes
+  // Reset art error when artwork URL or current track changes
   useEffect(() => {
     setArtError(false);
-  }, [resolvedArt]);
+  }, [resolvedArt, meta?.id, meta?.title]);
 
   // Synchronize interpolated position when meta changes (rebased on timeline event, pause, resume, track change)
   useEffect(() => {
@@ -272,9 +294,9 @@ export const MediaWidget: React.FC = () => {
           <div className="bbq-media-empty-icon-wrap" aria-hidden="true">
             <Icon name="media" size={28} />
           </div>
-          <span className="bbq-media-empty-title">No Active Media</span>
+          <span className="bbq-media-empty-title">{t("widgets.media.noTrack") || "No active playback"}</span>
           <span className="bbq-media-empty-subtitle">
-            Play music or video on your system to control it from BBQ
+            {t("widgets.media.emptyPrompt") || "Play music or video on your system to control it from BBQ"}
           </span>
         </div>
       </div>
@@ -397,9 +419,9 @@ export const MediaWidget: React.FC = () => {
               type="button"
               className="bbq-media-ctrl-btn secondary"
               onClick={handlePrevious}
-              disabled={!meta.canGoPrevious}
-              aria-label="Previous track"
-              title="Previous track"
+              disabled={!meta.canGoPrevious && meta.isStopped}
+              aria-label={t("widgets.media.previous") || "Previous track"}
+              title={t("widgets.media.previous") || "Previous track"}
             >
               <Icon name="skip-back" size={16} />
             </button>
@@ -408,9 +430,9 @@ export const MediaWidget: React.FC = () => {
               type="button"
               className="bbq-media-ctrl-btn primary"
               onClick={handleTogglePlayPause}
-              disabled={!meta.canPlay && !meta.canPause}
-              aria-label={meta.isPlaying ? "Pause" : "Play"}
-              title={meta.isPlaying ? "Pause" : "Play"}
+              disabled={!meta || (meta.isStopped && !meta.canPlay && !meta.canPause)}
+              aria-label={meta.isPlaying ? t("widgets.media.pause") || "Pause" : t("widgets.media.play") || "Play"}
+              title={meta.isPlaying ? t("widgets.media.pause") || "Pause" : t("widgets.media.play") || "Play"}
             >
               <Icon name={meta.isPlaying ? "pause" : "play"} size={20} />
             </button>
@@ -419,22 +441,36 @@ export const MediaWidget: React.FC = () => {
               type="button"
               className="bbq-media-ctrl-btn secondary"
               onClick={handleNext}
-              disabled={!meta.canGoNext}
-              aria-label="Next track"
-              title="Next track"
+              disabled={!meta.canGoNext && meta.isStopped}
+              aria-label={t("widgets.media.next") || "Next track"}
+              title={t("widgets.media.next") || "Next track"}
             >
               <Icon name="skip-next" size={16} />
             </button>
 
             {/* Quick System Volume Adjuster */}
-            <div className="bbq-media-volume-control">
+            <div className="bbq-media-volume-control" data-disabled={!canControlVolume}>
               <button
                 type="button"
                 id="media-volume-toggle-btn"
                 className="bbq-media-ctrl-btn secondary bbq-media-volume-btn"
                 onClick={handleToggleMuted}
-                aria-label={isMuted ? "Unmute system volume" : "Mute system volume"}
-                title={isMuted ? "Unmute" : "Mute"}
+                disabled={!canControlVolume}
+                aria-disabled={!canControlVolume}
+                aria-label={
+                  !canControlVolume
+                    ? t("widgets.media.volumeUnavailable") || "Volume control unavailable"
+                    : isMuted
+                    ? t("widgets.media.unmute") || "Unmute system volume"
+                    : t("widgets.media.mute") || "Mute system volume"
+                }
+                title={
+                  !canControlVolume
+                    ? t("widgets.media.volumeUnavailable") || "Volume control unavailable"
+                    : isMuted
+                    ? t("widgets.media.unmute") || "Unmute"
+                    : t("widgets.media.mute") || "Mute"
+                }
               >
                 <Icon name={isMuted || volume === 0 ? "volume-mute" : "volume"} size={14} />
               </button>
@@ -446,8 +482,14 @@ export const MediaWidget: React.FC = () => {
                 step="0.05"
                 value={isMuted ? 0 : volume}
                 onChange={handleVolumeChange}
-                aria-label="System volume"
-                title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                disabled={!canControlVolume}
+                aria-disabled={!canControlVolume}
+                aria-label={t("widgets.media.volume") || "System volume"}
+                title={
+                  !canControlVolume
+                    ? t("widgets.media.volumeUnavailable") || "Volume control unavailable"
+                    : `${t("widgets.media.volume") || "Volume"}: ${Math.round((isMuted ? 0 : volume) * 100)}%`
+                }
                 className="bbq-media-volume-slider"
               />
             </div>

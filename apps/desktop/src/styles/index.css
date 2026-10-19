@@ -1361,12 +1361,12 @@ html, body {
   white-space: nowrap;
 }
 
-.bbq-media-artist {
+.bbq-media-title {
   font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 80px;
+  max-width: 95px;
 }
 
 .bbq-media-separator {
@@ -1375,15 +1375,22 @@ html, body {
   flex-shrink: 0;
 }
 
-.bbq-media-title {
+.bbq-media-artist {
+  font-weight: 400;
   color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 95px;
+  max-width: 80px;
 }
 
 .bbq-island-media-pill .bbq-media-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bbq-island-media-pill .bbq-media-artist {
   font-weight: 400;
+  color: var(--text-secondary);
 }
 
 .bbq-media-controls {
@@ -5387,21 +5394,23 @@ input[type="number"] {
 }
 
 /* ==========================================================================
-   BBQ v2.6 — Fully Opaque Mode Surface Overrides
+   BBQ v3.5 — Island Blur Behind Island & Fully Opaque Mode Surface
    ========================================================================== */
 
 :root[data-opaque="true"] .bbq-island-shell.state-idle,
 [data-opaque="true"] .bbq-island-shell.state-idle,
 :root[data-opaque="true"] .bbq-island-shell.state-hovering,
 [data-opaque="true"] .bbq-island-shell.state-hovering {
-  background: var(--bbq-bg-idle) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  background: var(--bbq-surface-glass-idle);
 }
 
 :root[data-opaque="true"] .bbq-island-shell.state-expanded,
 [data-opaque="true"] .bbq-island-shell.state-expanded {
-  background: var(--bbq-bg-expanded) !important;
+  background: var(--bbq-surface-glass-expanded);
+}
+
+:root[data-blur-zero="true"] .bbq-island-shell,
+[data-blur-zero="true"] .bbq-island-shell {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -5411,8 +5420,6 @@ input[type="number"] {
 :root[data-opaque="true"] .bbq-context-menu,
 [data-opaque="true"] .bbq-context-menu {
   background: var(--bbq-bg-active) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
 }
 
 /* ==========================================================================

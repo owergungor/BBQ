@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useMemo, useState, useRef } from "react"
 import { useSystemState, refreshSystemState, setSystemState } from "../../state/systemState.ts";
 import { subscribeToSystemChanged } from "../../ipc/events.ts";
 import { Icon } from "../common/Icon.tsx";
+import { useTranslation } from "../../i18n/index.ts";
 import {
   normalizeStats,
   calculateGaugeDash,
@@ -10,6 +11,7 @@ import {
 } from "./statsModel.ts";
 
 export const SystemWidget: React.FC = () => {
+  const { t } = useTranslation();
   const { system, capabilities, isLoading } = useSystemState();
   const [trendHistory, setTrendHistory] = useState<TrendSample[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -143,7 +145,7 @@ export const SystemWidget: React.FC = () => {
         <div className="bbq-stats-title-group">
           <div className="bbq-stats-badge">
             <Icon name="stats" size={13} aria-hidden="true" />
-            <span>Hardware Telemetry</span>
+            <span>{t("widgets.system.name")}</span>
           </div>
           <span className="bbq-stats-host-subtitle">
             {stats.systemInfo.hostname ? `${stats.systemInfo.hostname} • ` : ""}
@@ -156,8 +158,8 @@ export const SystemWidget: React.FC = () => {
           className="bbq-stats-refresh-btn"
           onClick={handleManualRefresh}
           disabled={isRefreshing || isLoading || isCoolingDown}
-          title={isCoolingDown ? "Refresh cooldown active (1s)" : "Refresh hardware metrics on demand"}
-          aria-label={isCoolingDown ? "Refresh cooldown active" : "Refresh hardware metrics"}
+          title={t("widgets.system.refresh")}
+          aria-label={t("widgets.system.refresh")}
         >
           <Icon name="search" size={11} className={isRefreshing ? "spin" : ""} aria-hidden="true" />
           <span>{isRefreshing ? "Refreshing..." : isCoolingDown ? "Cooldown..." : "Snapshot"}</span>
@@ -253,7 +255,7 @@ export const SystemWidget: React.FC = () => {
           </div>
 
           <div className="bbq-stats-gauge-info">
-            <span className="bbq-stats-gauge-name">Memory</span>
+            <span className="bbq-stats-gauge-name">{t("widgets.system.memory")}</span>
             <span className="bbq-stats-gauge-detail">
               {stats.memory.formattedUsed} / {stats.memory.formattedTotal}
             </span>
@@ -273,7 +275,7 @@ export const SystemWidget: React.FC = () => {
           </div>
           <div className="bbq-stats-tile-content">
             <div className="bbq-stats-tile-top">
-              <span className="bbq-stats-tile-label">Battery</span>
+              <span className="bbq-stats-tile-label">{t("widgets.system.battery")}</span>
               <span className="bbq-stats-tile-val">
                 {stats.battery.available ? `${stats.battery.percentage}%` : "Unavailable"}
               </span>
@@ -292,9 +294,9 @@ export const SystemWidget: React.FC = () => {
           </div>
           <div className="bbq-stats-tile-content">
             <div className="bbq-stats-tile-top">
-              <span className="bbq-stats-tile-label">Network</span>
+              <span className="bbq-stats-tile-label">{t("widgets.system.network")}</span>
               <span className="bbq-stats-tile-val">
-                {stats.network.connected ? "Online" : "Offline"}
+                {stats.network.connected ? t("widgets.system.connected") : t("widgets.system.disconnected")}
               </span>
             </div>
             <span className="bbq-stats-tile-subtext" title={stats.network.statusText}>

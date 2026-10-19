@@ -304,6 +304,11 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
           "--bbq-glass-blur",
           `${blur}px`
         );
+        if (blur === 0) {
+          document.documentElement.setAttribute("data-blur-zero", "true");
+        } else {
+          document.documentElement.removeAttribute?.("data-blur-zero");
+        }
       }
     }
   }

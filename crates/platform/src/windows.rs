@@ -804,7 +804,7 @@ fn base64_encode(bytes: &[u8]) -> String {
 fn extract_artwork(
     props: &GlobalSystemMediaTransportControlsSessionMediaProperties,
 ) -> Option<String> {
-    const MAX_THUMBNAIL_BYTES: u32 = 512 * 1024; // 512 KB memory bound
+    const MAX_THUMBNAIL_BYTES: u32 = 3 * 1024 * 1024; // 3 MB memory bound
     if let Ok(thumb_ref) = props.Thumbnail() {
         if let Ok(op) = thumb_ref.OpenReadAsync() {
             if let Ok(stream) = op.get() {
@@ -824,6 +824,15 @@ fn extract_artwork(
                                     let b64 = base64_encode(&buffer);
                                     let mime = if buffer.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
                                         "image/png"
+                                    } else if buffer.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                                        "image/jpeg"
+                                    } else if buffer.len() >= 12
+                                        && &buffer[0..4] == b"RIFF"
+                                        && &buffer[8..12] == b"WEBP"
+                                    {
+                                        "image/webp"
+                                    } else if buffer.starts_with(b"BM") {
+                                        "image/bmp"
                                     } else {
                                         "image/jpeg"
                                     };
@@ -865,21 +874,43 @@ fn extract_session_from_smtc(
         })
         .unwrap_or(PlaybackState::Unknown);
 
+    let is_active_session = state == PlaybackState::Playing || state == PlaybackState::Paused;
     let capabilities = if let Some(ref pi) = playback_info {
         if let Ok(controls) = pi.Controls() {
+            let can_play = controls.IsPlayEnabled().unwrap_or(false)
+                || state == PlaybackState::Paused
+                || state == PlaybackState::Stopped;
+            let can_pause =
+                controls.IsPauseEnabled().unwrap_or(false) || state == PlaybackState::Playing;
+            let can_next = controls.IsNextEnabled().unwrap_or(true) || is_active_session;
+            let can_prev = controls.IsPreviousEnabled().unwrap_or(true) || is_active_session;
             MediaCapabilities {
-                can_play: controls.IsPlayEnabled().unwrap_or(false),
-                can_pause: controls.IsPauseEnabled().unwrap_or(false),
-                can_go_next: controls.IsNextEnabled().unwrap_or(false),
-                can_go_previous: controls.IsPreviousEnabled().unwrap_or(false),
+                can_play,
+                can_pause,
+                can_go_next: can_next,
+                can_go_previous: can_prev,
                 can_seek: controls.IsPlaybackPositionEnabled().unwrap_or(false),
                 can_change_volume: false,
             }
         } else {
-            MediaCapabilities::default()
+            MediaCapabilities {
+                can_play: state == PlaybackState::Paused || state == PlaybackState::Stopped,
+                can_pause: state == PlaybackState::Playing,
+                can_go_next: true,
+                can_go_previous: true,
+                can_seek: false,
+                can_change_volume: false,
+            }
         }
     } else {
-        MediaCapabilities::default()
+        MediaCapabilities {
+            can_play: state == PlaybackState::Paused || state == PlaybackState::Stopped,
+            can_pause: state == PlaybackState::Playing,
+            can_go_next: true,
+            can_go_previous: true,
+            can_seek: false,
+            can_change_volume: false,
+        }
     };
 
     let (title, artist, album, album_art) =
@@ -1060,6 +1091,25 @@ fn sync_manager_session(
     }
 }
 
+#[cfg(windows)]
+fn resolve_active_smtc_session(
+    manager: &GlobalSystemMediaTransportControlsSessionManager,
+) -> BbqResult<GlobalSystemMediaTransportControlsSession> {
+    if let Ok(session) = manager.GetCurrentSession() {
+        return Ok(session);
+    }
+    if let Ok(sessions) = manager.GetSessions() {
+        if let Ok(count) = sessions.Size() {
+            for i in 0..count {
+                if let Ok(session) = sessions.GetAt(i) {
+                    return Ok(session);
+                }
+            }
+        }
+    }
+    Err(BbqError::Platform("No active SMTC session".to_string()))
+}
+
 #[async_trait]
 impl PlatformMedia for WindowsMedia {
     async fn initialize(&self) -> BbqResult<()> {
@@ -1184,16 +1234,15 @@ impl PlatformMedia for WindowsMedia {
     async fn play(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            tokio::task::spawn_blocking(|| {
+            let subs = self.subscribers.clone();
+            tokio::task::spawn_blocking(move || {
                 let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
                     |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
                 )?;
                 let manager = op.get().map_err(|e| {
                     BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
                 })?;
-                let session = manager
-                    .GetCurrentSession()
-                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                let session = resolve_active_smtc_session(&manager)?;
                 let play_op = session.TryPlayAsync().map_err(|e| {
                     BbqError::Platform(format!("TryPlayAsync invocation failed: {}", e))
                 })?;
@@ -1204,6 +1253,13 @@ impl PlatformMedia for WindowsMedia {
                     return Err(BbqError::Platform(
                         "TryPlayAsync rejected by media player".to_string(),
                     ));
+                }
+                if let Some(ms) = extract_session_from_smtc(&session) {
+                    if let Ok(listeners) = subs.lock() {
+                        for l in listeners.iter() {
+                            l(MediaEvent::SessionChanged(Some(ms.clone())));
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -1217,16 +1273,15 @@ impl PlatformMedia for WindowsMedia {
     async fn pause(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            tokio::task::spawn_blocking(|| {
+            let subs = self.subscribers.clone();
+            tokio::task::spawn_blocking(move || {
                 let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
                     |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
                 )?;
                 let manager = op.get().map_err(|e| {
                     BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
                 })?;
-                let session = manager
-                    .GetCurrentSession()
-                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                let session = resolve_active_smtc_session(&manager)?;
                 let pause_op = session.TryPauseAsync().map_err(|e| {
                     BbqError::Platform(format!("TryPauseAsync invocation failed: {}", e))
                 })?;
@@ -1237,6 +1292,13 @@ impl PlatformMedia for WindowsMedia {
                     return Err(BbqError::Platform(
                         "TryPauseAsync rejected by media player".to_string(),
                     ));
+                }
+                if let Some(ms) = extract_session_from_smtc(&session) {
+                    if let Ok(listeners) = subs.lock() {
+                        for l in listeners.iter() {
+                            l(MediaEvent::SessionChanged(Some(ms.clone())));
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -1250,26 +1312,53 @@ impl PlatformMedia for WindowsMedia {
     async fn toggle_play_pause(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            tokio::task::spawn_blocking(|| {
+            let subs = self.subscribers.clone();
+            tokio::task::spawn_blocking(move || {
                 let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
                     |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
                 )?;
                 let manager = op.get().map_err(|e| {
                     BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
                 })?;
-                let session = manager
-                    .GetCurrentSession()
-                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
-                let toggle_op = session.TryTogglePlayPauseAsync().map_err(|e| {
-                    BbqError::Platform(format!("TryTogglePlayPauseAsync invocation failed: {}", e))
-                })?;
-                let ok = toggle_op.get().map_err(|e| {
-                    BbqError::Platform(format!("TryTogglePlayPauseAsync completion failed: {}", e))
-                })?;
-                if !ok {
-                    return Err(BbqError::Platform(
-                        "TryTogglePlayPauseAsync rejected by media player".to_string(),
-                    ));
+                let session = resolve_active_smtc_session(&manager)?;
+                let toggled = session
+                    .TryTogglePlayPauseAsync()
+                    .and_then(|toggle_op| toggle_op.get())
+                    .unwrap_or(false);
+                if !toggled {
+                    // Fallback to explicit TryPauseAsync / TryPlayAsync if player does not handle toggle directly
+                    let is_playing = session
+                        .GetPlaybackInfo()
+                        .and_then(|pi| pi.PlaybackStatus())
+                        .map(|st| {
+                            st == GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing
+                        })
+                        .unwrap_or(false);
+
+                    let fallback_ok = if is_playing {
+                        session
+                            .TryPauseAsync()
+                            .and_then(|op| op.get())
+                            .unwrap_or(false)
+                    } else {
+                        session
+                            .TryPlayAsync()
+                            .and_then(|op| op.get())
+                            .unwrap_or(false)
+                    };
+
+                    if !fallback_ok {
+                        return Err(BbqError::Platform(
+                            "TryTogglePlayPauseAsync rejected by media player".to_string(),
+                        ));
+                    }
+                }
+                if let Some(ms) = extract_session_from_smtc(&session) {
+                    if let Ok(listeners) = subs.lock() {
+                        for l in listeners.iter() {
+                            l(MediaEvent::SessionChanged(Some(ms.clone())));
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -1283,16 +1372,15 @@ impl PlatformMedia for WindowsMedia {
     async fn next(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            tokio::task::spawn_blocking(|| {
+            let subs = self.subscribers.clone();
+            tokio::task::spawn_blocking(move || {
                 let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
                     |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
                 )?;
                 let manager = op.get().map_err(|e| {
                     BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
                 })?;
-                let session = manager
-                    .GetCurrentSession()
-                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                let session = resolve_active_smtc_session(&manager)?;
                 let next_op = session.TrySkipNextAsync().map_err(|e| {
                     BbqError::Platform(format!("TrySkipNextAsync invocation failed: {}", e))
                 })?;
@@ -1303,6 +1391,13 @@ impl PlatformMedia for WindowsMedia {
                     return Err(BbqError::Platform(
                         "TrySkipNextAsync rejected by media player".to_string(),
                     ));
+                }
+                if let Some(ms) = extract_session_from_smtc(&session) {
+                    if let Ok(listeners) = subs.lock() {
+                        for l in listeners.iter() {
+                            l(MediaEvent::SessionChanged(Some(ms.clone())));
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -1316,16 +1411,15 @@ impl PlatformMedia for WindowsMedia {
     async fn previous(&self) -> BbqResult<()> {
         #[cfg(windows)]
         {
-            tokio::task::spawn_blocking(|| {
+            let subs = self.subscribers.clone();
+            tokio::task::spawn_blocking(move || {
                 let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
                     |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
                 )?;
                 let manager = op.get().map_err(|e| {
                     BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
                 })?;
-                let session = manager
-                    .GetCurrentSession()
-                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                let session = resolve_active_smtc_session(&manager)?;
                 let prev_op = session.TrySkipPreviousAsync().map_err(|e| {
                     BbqError::Platform(format!("TrySkipPreviousAsync invocation failed: {}", e))
                 })?;
@@ -1336,6 +1430,13 @@ impl PlatformMedia for WindowsMedia {
                     return Err(BbqError::Platform(
                         "TrySkipPreviousAsync rejected by media player".to_string(),
                     ));
+                }
+                if let Some(ms) = extract_session_from_smtc(&session) {
+                    if let Ok(listeners) = subs.lock() {
+                        for l in listeners.iter() {
+                            l(MediaEvent::SessionChanged(Some(ms.clone())));
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -1349,6 +1450,7 @@ impl PlatformMedia for WindowsMedia {
     async fn seek(&self, position_ms: u64) -> BbqResult<()> {
         #[cfg(windows)]
         {
+            let subs = self.subscribers.clone();
             tokio::task::spawn_blocking(move || {
                 let op = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().map_err(
                     |e| BbqError::Platform(format!("Failed to request SMTC manager: {}", e)),
@@ -1356,9 +1458,7 @@ impl PlatformMedia for WindowsMedia {
                 let manager = op.get().map_err(|e| {
                     BbqError::Platform(format!("Failed to get SMTC manager: {}", e))
                 })?;
-                let session = manager
-                    .GetCurrentSession()
-                    .map_err(|e| BbqError::Platform(format!("No active SMTC session: {}", e)))?;
+                let session = resolve_active_smtc_session(&manager)?;
                 // WinRT expects 100-nanosecond units (1 ms = 10,000 ticks)
                 let pos_100ns = (position_ms as i64).saturating_mul(10_000);
                 let seek_op = session
@@ -1379,6 +1479,13 @@ impl PlatformMedia for WindowsMedia {
                     return Err(BbqError::Platform(
                         "TryChangePlaybackPositionAsync rejected by media player".to_string(),
                     ));
+                }
+                if let Some(ms) = extract_session_from_smtc(&session) {
+                    if let Ok(listeners) = subs.lock() {
+                        for l in listeners.iter() {
+                            l(MediaEvent::SessionChanged(Some(ms.clone())));
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -1449,7 +1556,7 @@ impl PlatformNotification for WindowsNotification {
 
 #[derive(Clone, Default)]
 pub struct WindowsSystem {
-    sink: Arc<std::sync::Mutex<Option<SystemEventSink>>>,
+    sink: Arc<std::sync::Mutex<Vec<SystemEventSink>>>,
 }
 
 impl std::fmt::Debug for WindowsSystem {
@@ -1459,6 +1566,14 @@ impl std::fmt::Debug for WindowsSystem {
 }
 
 impl WindowsSystem {
+    fn emit_event(sinks: &Arc<std::sync::Mutex<Vec<SystemEventSink>>>, event: SystemEvent) {
+        if let Ok(listeners) = sinks.lock() {
+            for listener in listeners.iter() {
+                listener(event.clone());
+            }
+        }
+    }
+
     fn read_battery() -> BatteryState {
         use windows::System::Power::{BatteryStatus, PowerManager, PowerSupplyStatus};
 
@@ -1635,11 +1750,26 @@ impl WindowsSystem {
         None
     }
 
+    fn read_audio_state() -> (Option<f32>, Option<bool>) {
+        match get_audio_endpoint_volume() {
+            Ok(endpoint) => unsafe {
+                let volume = endpoint.GetMasterVolumeLevelScalar().ok();
+                let muted = endpoint.GetMute().ok().map(|b| b.as_bool());
+                (volume, muted)
+            },
+            Err(e) => {
+                tracing::debug!("No active audio endpoint for volume reading: {e}");
+                (None, None)
+            }
+        }
+    }
+
     fn read_state() -> SystemState {
         let battery = Self::read_battery();
         let network = Self::read_network();
         let cpu = Self::read_cpu();
         let memory = Self::read_memory();
+        let (volume, muted) = Self::read_audio_state();
         let hostname = std::env::var("COMPUTERNAME").ok();
 
         SystemState {
@@ -1647,13 +1777,33 @@ impl WindowsSystem {
             network,
             cpu,
             memory,
-            muted: Some(false),
-            volume: Some(1.0),
+            muted,
+            volume,
             uptime_seconds: None,
             hostname,
             operating_system: "Windows".to_string(),
             platform: "windows".to_string(),
         }
+    }
+}
+
+fn get_audio_endpoint_volume(
+) -> windows::core::Result<windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume> {
+    use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
+    use windows::Win32::Media::Audio::{
+        eMultimedia, eRender, IMMDeviceEnumerator, MMDeviceEnumerator,
+    };
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED,
+    };
+
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let enumerator: IMMDeviceEnumerator =
+            CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+        let device = enumerator.GetDefaultAudioEndpoint(eRender, eMultimedia)?;
+        let endpoint_volume: IAudioEndpointVolume = device.Activate(CLSCTX_ALL, None)?;
+        Ok(endpoint_volume)
     }
 }
 
@@ -1670,19 +1820,20 @@ impl PlatformSystem for WindowsSystem {
 
     async fn capabilities(&self) -> BbqResult<SystemCapabilities> {
         let has_battery = Self::read_battery().available;
+        let can_audio = get_audio_endpoint_volume().is_ok();
         Ok(SystemCapabilities {
             has_battery,
             can_read_network: true,
             can_read_cpu: true,
             can_read_memory: true,
-            can_control_volume: false,
-            can_mute: false,
+            can_control_volume: can_audio,
+            can_mute: can_audio,
         })
     }
 
     async fn subscribe(&self, sink: SystemEventSink) -> BbqResult<()> {
         if let Ok(mut slot) = self.sink.lock() {
-            *slot = Some(sink.clone());
+            slot.push(sink.clone());
         }
 
         // Register Windows Runtime PowerManager event handlers (zero polling)
@@ -1738,22 +1889,84 @@ impl PlatformSystem for WindowsSystem {
         Ok(())
     }
 
-    async fn set_volume(&self, _volume: f32) -> BbqResult<()> {
-        Err(BbqError::Platform(
-            "Volume control unsupported via default Windows endpoint".to_string(),
-        ))
+    async fn set_volume(&self, volume: f32) -> BbqResult<()> {
+        let clamped = volume.clamp(0.0, 1.0);
+        let sinks = self.sink.clone();
+        tokio::task::spawn_blocking(move || {
+            let endpoint = get_audio_endpoint_volume().map_err(|e| {
+                BbqError::Platform(format!("Failed to acquire default audio endpoint: {e}"))
+            })?;
+            let muted = unsafe {
+                endpoint
+                    .SetMasterVolumeLevelScalar(clamped, std::ptr::null())
+                    .map_err(|e| BbqError::Platform(format!("Failed to set master volume: {e}")))?;
+                endpoint.GetMute().ok().map(|b| b.as_bool())
+            };
+            Self::emit_event(
+                &sinks,
+                SystemEvent::VolumeChanged {
+                    volume: Some(clamped),
+                    muted,
+                },
+            );
+            Ok(())
+        })
+        .await
+        .map_err(|e| BbqError::Platform(format!("Audio task join error: {e}")))?
     }
 
-    async fn set_muted(&self, _muted: bool) -> BbqResult<()> {
-        Err(BbqError::Platform(
-            "Mute control unsupported via default Windows endpoint".to_string(),
-        ))
+    async fn set_muted(&self, muted: bool) -> BbqResult<()> {
+        let sinks = self.sink.clone();
+        tokio::task::spawn_blocking(move || {
+            let endpoint = get_audio_endpoint_volume().map_err(|e| {
+                BbqError::Platform(format!("Failed to acquire default audio endpoint: {e}"))
+            })?;
+            let volume = unsafe {
+                endpoint
+                    .SetMute(muted, std::ptr::null())
+                    .map_err(|e| BbqError::Platform(format!("Failed to set master mute: {e}")))?;
+                endpoint.GetMasterVolumeLevelScalar().ok()
+            };
+            Self::emit_event(
+                &sinks,
+                SystemEvent::VolumeChanged {
+                    volume,
+                    muted: Some(muted),
+                },
+            );
+            Ok(())
+        })
+        .await
+        .map_err(|e| BbqError::Platform(format!("Audio task join error: {e}")))?
     }
 
     async fn toggle_muted(&self) -> BbqResult<()> {
-        Err(BbqError::Platform(
-            "Toggle mute unsupported via default Windows endpoint".to_string(),
-        ))
+        let sinks = self.sink.clone();
+        tokio::task::spawn_blocking(move || {
+            let endpoint = get_audio_endpoint_volume().map_err(|e| {
+                BbqError::Platform(format!("Failed to acquire default audio endpoint: {e}"))
+            })?;
+            let (volume, next_muted) = unsafe {
+                let current = endpoint
+                    .GetMute()
+                    .map_err(|e| BbqError::Platform(format!("Failed to get master mute: {e}")))?
+                    .as_bool();
+                endpoint.SetMute(!current, std::ptr::null()).map_err(|e| {
+                    BbqError::Platform(format!("Failed to toggle master mute: {e}"))
+                })?;
+                (endpoint.GetMasterVolumeLevelScalar().ok(), !current)
+            };
+            Self::emit_event(
+                &sinks,
+                SystemEvent::VolumeChanged {
+                    volume,
+                    muted: Some(next_muted),
+                },
+            );
+            Ok(())
+        })
+        .await
+        .map_err(|e| BbqError::Platform(format!("Audio task join error: {e}")))?
     }
 }
 
@@ -2928,5 +3141,101 @@ mod tests {
             .expect("Subscribe should succeed");
 
         assert_eq!(media.subscribers.lock().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_windows_wasapi_volume_and_mute_roundtrip() {
+        let sys = WindowsSystem::default();
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let events_clone = events.clone();
+        sys.subscribe(Arc::new(move |ev| {
+            if let Ok(mut lock) = events_clone.lock() {
+                lock.push(ev);
+            }
+        }))
+        .await
+        .expect("WindowsSystem subscribe should succeed");
+
+        let caps = sys
+            .capabilities()
+            .await
+            .expect("capabilities should succeed");
+        if !caps.can_control_volume {
+            // Skip hardware roundtrip if host has no audio output endpoint
+            return;
+        }
+
+        let initial = sys
+            .current_state()
+            .await
+            .expect("current_state should succeed");
+        let orig_vol = initial.volume.unwrap_or(0.5);
+        let orig_muted = initial.muted.unwrap_or(false);
+
+        // Choose a nearby scalar test volume in [0.0, 1.0] that differs by 0.05
+        let target_vol = if orig_vol >= 0.1 {
+            orig_vol - 0.05
+        } else {
+            orig_vol + 0.05
+        };
+        sys.set_volume(target_vol)
+            .await
+            .expect("set_volume should succeed");
+        let after_vol = sys
+            .current_state()
+            .await
+            .expect("current_state after set_volume");
+        let read_vol = after_vol.volume.expect("volume should be Some");
+        assert!(
+            (read_vol - target_vol).abs() < 0.02,
+            "Expected scalar volume ~{}, got {}",
+            target_vol,
+            read_vol
+        );
+
+        // Toggle mute and verify readback
+        sys.toggle_muted()
+            .await
+            .expect("toggle_muted should succeed");
+        let after_toggle = sys
+            .current_state()
+            .await
+            .expect("current_state after toggle_muted");
+        assert_eq!(after_toggle.muted, Some(!orig_muted));
+
+        // Restore exact initial volume and mute state
+        sys.set_volume(orig_vol)
+            .await
+            .expect("restore volume should succeed");
+        sys.set_muted(orig_muted)
+            .await
+            .expect("restore muted should succeed");
+
+        let restored = sys
+            .current_state()
+            .await
+            .expect("current_state after restore");
+        let restored_vol = restored.volume.expect("restored volume should be Some");
+        assert!(
+            (restored_vol - orig_vol).abs() < 0.02,
+            "Expected restored volume ~{}, got {}",
+            orig_vol,
+            restored_vol
+        );
+        assert_eq!(restored.muted, Some(orig_muted));
+
+        // Confirm VolumeChanged events were emitted to subscribers
+        assert!(!events.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_windows_smtc_current_session_query() {
+        let media = WindowsMedia::default();
+        let res = media.current_session().await;
+        assert!(
+            res.is_ok(),
+            "SMTC current_session query should not error: {:?}",
+            res
+        );
     }
 }

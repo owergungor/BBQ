@@ -220,7 +220,11 @@
       "pause": "Pause",
       "previous": "Previous track",
       "next": "Next track",
-      "volume": "Volume"
+      "volume": "Volume",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "volumeUnavailable": "Volume control unavailable",
+      "emptyPrompt": "Play music or video on your system to control it from BBQ"
     },
     "clipboard": {
       "name": "Clipboard",
@@ -230,7 +234,11 @@
       "enablePrompt": "Enable clipboard history in Settings to track copied items.",
       "copyItem": "Copy to clipboard",
       "deleteItem": "Delete item",
-      "sensitiveHidden": "Sensitive content masked"
+      "sensitiveHidden": "Sensitive content masked",
+      "copied": "Copied to clipboard",
+      "clearHistory": "Clear History",
+      "enableHistory": "Enable History",
+      "disableHistory": "Disable History"
     },
     "timer": {
       "name": "Timer",
@@ -260,7 +268,14 @@
       "hours": "hr",
       "add": "Add Reminder",
       "empty": "No scheduled reminders",
-      "clearFired": "Clear Completed"
+      "clearFired": "Clear Completed",
+      "in10m": "10 min",
+      "in30m": "30 min",
+      "in1h": "1 hour",
+      "tomorrow": "Tomorrow 9am",
+      "custom": "Custom...",
+      "due": "Due",
+      "completed": "Completed"
     },
     "files": {
       "name": "Files",
@@ -270,7 +285,21 @@
       "open": "Open",
       "reveal": "Reveal in Explorer",
       "copyPath": "Copy Path",
-      "clear": "Clear All"
+      "clear": "Clear All",
+      "all": "All",
+      "documents": "Documents",
+      "images": "Images",
+      "media": "Media",
+      "archives": "Archives",
+      "code": "Code",
+      "other": "Other",
+      "searchPlaceholder": "Search workspace files...",
+      "sortByDate": "Sort by Date",
+      "sortByName": "Sort by Name",
+      "sortBySize": "Sort by Size",
+      "refreshed": "Workspace refreshed",
+      "refreshFailed": "Refresh failed",
+      "openAll": "Open All"
     },
     "system": {
       "name": "System",
@@ -283,14 +312,83 @@
       "unmuted": "Unmuted",
       "connected": "Connected",
       "disconnected": "Offline",
-      "charging": "Charging"
+      "charging": "Charging",
+      "discharging": "Discharging",
+      "powerSource": "Power Source",
+      "ac": "AC Power",
+      "batteryPower": "Battery",
+      "refresh": "Refresh System Stats",
+      "refreshed": "System metrics refreshed",
+      "refreshCooldown": "Please wait before refreshing again",
+      "cores": "cores",
+      "used": "Used"
     },
     "launcher": {
       "name": "Launcher",
       "searchPlaceholder": "Search apps, files, or actions...",
       "favorites": "Favorites",
       "recents": "Recents",
-      "empty": "No results found"
+      "empty": "No results found",
+      "quickActions": "Quick Actions",
+      "launch": "Launch",
+      "actions": "Actions"
+    },
+    "titles": {
+      "drop": "Drop Zone",
+      "files": "Files",
+      "clipboard": "Clipboard",
+      "media": "Media",
+      "system": "System",
+      "launcher": "Launcher",
+      "timer": "Timer",
+      "reminder": "Reminders",
+      "settings": "Settings"
+    },
+    "drop": {
+      "name": "Drop Zone",
+      "title": "Drop Shelf",
+      "prompt": "Drag files or folders here to stage",
+      "releasePrompt": "Release to stage files on Shelf",
+      "hint": "Zero binary memory footprint. BBQ inspects and stages metadata references only.",
+      "clearShelf": "Clear Shelf",
+      "clearShelfTooltip": "Clear staged files (Escape)",
+      "inspecting": "Inspecting file metadata...",
+      "quickActions": "Quick Actions",
+      "openAll": "Open All",
+      "open": "Open",
+      "openDesc": "Launch with default application",
+      "revealAll": "Reveal All",
+      "reveal": "Reveal in Folder",
+      "revealDesc": "Show in system file manager",
+      "copyAll": "Copy All Paths",
+      "copyPath": "Copy Path",
+      "copyPathDesc": "Copy file path to clipboard (explicit only)",
+      "addAll": "Add All to Workspace",
+      "addToWorkspace": "Add to Workspace",
+      "addToWorkspaceDesc": "Store reference in Workspace Files",
+      "dragOutAll": "Drag Out All",
+      "dragOut": "Drag Out",
+      "dragOutDesc": "Initiate native drag-out to desktop or Explorer",
+      "cappedNotice": "Staged items capped at {{max}} maximum for memory safety."
+    },
+    "reminder": {
+      "name": "Reminders",
+      "newReminder": "New Reminder",
+      "titlePlaceholder": "What would you like to be reminded of?",
+      "notesPlaceholder": "Optional notes...",
+      "dueIn": "Due in",
+      "minutes": "min",
+      "hours": "hr",
+      "add": "Add Reminder",
+      "empty": "No scheduled reminders",
+      "clearFired": "Clear Completed",
+      "in10m": "10 min",
+      "in30m": "30 min",
+      "in1h": "1 hour",
+      "tomorrow": "Tomorrow 9am",
+      "custom": "Custom...",
+      "due": "Due",
+      "completed": "Completed"
     }
   },
   "contextMenu": {

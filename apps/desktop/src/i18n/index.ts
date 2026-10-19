@@ -77,10 +77,9 @@ export function t(
     text = resolveNestedKey(enLocale, key);
   }
 
-  // Graceful fallback to the last segment of the key if entirely missing
+  // Graceful fallback to the requested key if entirely missing (never collapse to accidental segment like "name")
   if (!text) {
-    const fallback = key.split(".").pop() || key;
-    return interpolate(fallback, params);
+    return interpolate(key, params);
   }
 
   return interpolate(text, params);

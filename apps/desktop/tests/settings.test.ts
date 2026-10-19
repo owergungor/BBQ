@@ -186,7 +186,9 @@ describe("Milestone 15: Persistent User Preferences & Personalization", () => {
     it("ensures CSS defines prefers-color-scheme: light for data-theme=system", async () => {
       const fs = await import("node:fs");
       const path = await import("node:path");
-      const cssPath = path.resolve(process.cwd(), "src/styles/index.css");
+      const cssPath = fs.existsSync(path.resolve(process.cwd(), "src/styles/index.css"))
+        ? path.resolve(process.cwd(), "src/styles/index.css")
+        : path.resolve(process.cwd(), "apps/desktop/src/styles/index.css");
       const cssContent = fs.readFileSync(cssPath, "utf-8");
 
       assert.ok(

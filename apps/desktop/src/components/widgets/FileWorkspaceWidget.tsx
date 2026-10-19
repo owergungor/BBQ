@@ -8,6 +8,7 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from "react"
 import { useFileState } from "../../state/fileState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon } from "../common/Icon.tsx";
+import { useTranslation } from "../../i18n/index.ts";
 import {
   classifyWorkspaceFile,
   filterWorkspaceFiles,
@@ -18,6 +19,7 @@ import {
 } from "./fileWorkspaceModel.ts";
 
 export const FileWorkspaceWidget: React.FC = () => {
+  const { t } = useTranslation();
   const { entries, isLoading } = useFileState();
   const [selectedCategory, setSelectedCategory] = useState<FileCategory>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,11 +55,11 @@ export const FileWorkspaceWidget: React.FC = () => {
     e.stopPropagation();
     try {
       await bbqCommands.fileGetWorkspace();
-      showStatus("Workspace refreshed");
+      showStatus(t("widgets.files.refreshed"));
     } catch {
-      showStatus("Refresh failed");
+      showStatus(t("widgets.files.refreshFailed"));
     }
-  }, []);
+  }, [t]);
 
   const handleOpen = useCallback(async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -131,13 +133,13 @@ export const FileWorkspaceWidget: React.FC = () => {
 
   const stats = useMemo(() => calculateWorkspaceStats(entries), [entries]);
 
-  const categories: { id: FileCategory; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "code", label: "Code" },
-    { id: "media", label: "Media" },
-    { id: "document", label: "Docs" },
-    { id: "archive", label: "Archives" },
-  ];
+  const categories: { id: FileCategory; label: string }[] = useMemo(() => [
+    { id: "all", label: t("widgets.files.all") },
+    { id: "code", label: t("widgets.files.code") },
+    { id: "media", label: t("widgets.files.media") },
+    { id: "document", label: t("widgets.files.documents") },
+    { id: "archive", label: t("widgets.files.archives") },
+  ], [t]);
 
   return (
     <div
@@ -165,7 +167,7 @@ export const FileWorkspaceWidget: React.FC = () => {
         <div className="bbq-file-title-group" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span className="bbq-status-dot" style={{ background: "var(--bbq-accent, #0a84ff)" }} />
           <span className="bbq-file-title" style={{ fontWeight: 600, fontSize: "13px" }}>
-            Workspace Files
+            {t("widgets.files.workspace")}
           </span>
           <span
             className="bbq-clipboard-badge"
@@ -211,8 +213,8 @@ export const FileWorkspaceWidget: React.FC = () => {
             type="button"
             id="file-workspace-refresh-btn"
             onClick={handleRefresh}
-            title="Refresh workspace status"
-            aria-label="Refresh workspace status"
+            title={t("widgets.files.refreshed")}
+            aria-label={t("widgets.files.refreshed")}
             style={{
               background: "var(--bbq-surface-elevated)",
               border: "1px solid var(--bbq-border)",
@@ -234,7 +236,7 @@ export const FileWorkspaceWidget: React.FC = () => {
               className="bbq-btn bbq-btn-secondary"
               onClick={handleOpenAll}
               disabled={isOpeningAll}
-              title="Open up to 10 files in default applications"
+              title={t("widgets.files.openAll")}
               style={{
                 fontSize: "11px",
                 padding: "3px 8px",
@@ -245,7 +247,7 @@ export const FileWorkspaceWidget: React.FC = () => {
                 color: "var(--bbq-text)",
               }}
             >
-              {isOpeningAll ? "Opening..." : "Open All"}
+              {isOpeningAll ? "..." : t("widgets.files.openAll")}
             </button>
           )}
 
@@ -255,7 +257,7 @@ export const FileWorkspaceWidget: React.FC = () => {
               id="file-workspace-clear-all-btn"
               className="bbq-btn bbq-btn-danger"
               onClick={handleClear}
-              title="Clear workspace references (does not delete user files)"
+              title={t("widgets.files.clear")}
               style={{
                 fontSize: "11px",
                 padding: "3px 8px",
@@ -266,7 +268,7 @@ export const FileWorkspaceWidget: React.FC = () => {
                 color: "var(--bbq-danger, #ff453a)",
               }}
             >
-              Clear All
+              {t("widgets.files.clear")}
             </button>
           )}
         </div>
@@ -347,8 +349,8 @@ export const FileWorkspaceWidget: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              aria-label="Search workspace files"
+              placeholder={t("widgets.files.searchPlaceholder")}
+              aria-label={t("widgets.files.searchPlaceholder")}
               style={{
                 width: "100%",
                 padding: "3px 20px 3px 6px",
@@ -400,7 +402,7 @@ export const FileWorkspaceWidget: React.FC = () => {
             fontSize: "12px",
           }}
         >
-          <span>Loading workspace files...</span>
+          <span>Loading...</span>
         </div>
       ) : filteredEntries.length === 0 ? (
         <div
@@ -420,14 +422,9 @@ export const FileWorkspaceWidget: React.FC = () => {
         >
           <Icon name="files" size={24} aria-hidden="true" style={{ opacity: 0.5, marginBottom: "4px" }} />
           {entries.length === 0 ? (
-            <>
-              <span>Drop files onto the Island to stage project references.</span>
-              <span style={{ fontSize: "11px", opacity: 0.7 }}>
-                Files remain in place — BBQ stores metadata references only.
-              </span>
-            </>
+            <span>{t("widgets.files.dropHint")}</span>
           ) : (
-            <span>No files match the selected filter.</span>
+            <span>{t("widgets.files.empty")}</span>
           )}
         </div>
       ) : (
@@ -559,13 +556,13 @@ export const FileWorkspaceWidget: React.FC = () => {
                       cursor: "pointer",
                     }}
                   >
-                    Open
+                    {t("widgets.files.open")}
                   </button>
                   <button
                     type="button"
                     className="bbq-file-btn"
                     onClick={(e) => handleReveal(e, entry.id)}
-                    title="Reveal in file explorer"
+                    title={t("widgets.files.reveal")}
                     aria-label={`Reveal ${entry.name}`}
                     style={{
                       fontSize: "11px",
@@ -577,7 +574,7 @@ export const FileWorkspaceWidget: React.FC = () => {
                       cursor: "pointer",
                     }}
                   >
-                    Reveal
+                    {t("widgets.files.reveal")}
                   </button>
                   <button
                     type="button"

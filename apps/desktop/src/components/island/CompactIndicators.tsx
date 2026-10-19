@@ -92,7 +92,7 @@ export const CompactMediaIndicator: React.FC = () => {
 
   React.useEffect(() => {
     setArtFailed(false);
-  }, [resolvedArt]);
+  }, [resolvedArt, currentSession?.id, currentSession?.title]);
 
   if (!currentSession || currentSession.state === "stopped") return null;
 
@@ -143,14 +143,14 @@ export const CompactMediaIndicator: React.FC = () => {
 
       <div
         className="bbq-media-info"
-        title={`${artistText} — ${trackText}`}
+        title={`${trackText} — ${artistText}`}
       >
-        <span className="bbq-media-artist">
-          {artistText}
-        </span>
-        <span className="bbq-media-separator">—</span>
         <span className="bbq-media-title">
           {trackText}
+        </span>
+        <span className="bbq-media-separator">—</span>
+        <span className="bbq-media-artist">
+          {artistText}
         </span>
       </div>
 

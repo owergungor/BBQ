@@ -54,11 +54,9 @@ export const SegmentedTabBar: React.FC<SegmentedTabBarProps> = ({
   });
 
   const getLocalizedTitle = (id: string, fallback: string) => {
-    if (id === "settings") {
-      return t("settings.title") || fallback;
-    }
-    const translated = t(`widgets.${id}.name`);
-    return translated && translated !== `widgets.${id}.name` ? translated : fallback;
+    const key = `widgets.titles.${id}`;
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
   };
 
   // Calculate sliding indicator coordinates based on active tab's offset relative to container

@@ -258,7 +258,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
 
     it("transitions idle -> checking -> update_available when new version is available", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.5",
+        mockAvailableVersion: "3.6",
         mockReleaseNotes: "New features and bug fixes",
         mockReleaseDate: "2026-10-15T00:00:00Z",
       });
@@ -266,7 +266,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       await checkForUpdates();
       const state = updaterStore.getState();
       assert.strictEqual(state.status, "update_available");
-      assert.strictEqual(state.availableVersion, "3.5");
+      assert.strictEqual(state.availableVersion, "3.6");
       assert.strictEqual(state.releaseNotes, "New features and bug fixes");
     });
 
@@ -713,7 +713,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       // @ts-ignore
       assert.strictEqual(t("common.close", undefined, "invalid_lang"), "Close");
       // @ts-ignore
-      assert.strictEqual(t("nonexistent.key.path", undefined, "en"), "path");
+      assert.strictEqual(t("nonexistent.key.path", undefined, "en"), "nonexistent.key.path");
     });
 
     it("formats dates and numbers correctly per locale", () => {
@@ -861,8 +861,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       const desktopCargo = fs.readFileSync(desktopCargoPath, "utf-8");
       const cargoLock = fs.readFileSync(cargoLockPath, "utf-8");
 
-      const EXPECTED_VERSION = "3.4";
-      const CARGO_INTERNAL_VERSION = "3.4.0";
+      const EXPECTED_VERSION = "3.5";
+      const CARGO_INTERNAL_VERSION = "3.5.0";
 
       // 1. Root, desktop, and types package.json
       assert.strictEqual(
@@ -948,8 +948,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       );
       assert.strictEqual(
         Array.from(uniqueVersions)[0],
-        "3.4",
-        `Canonical public version must be two-component 3.4, found: ${Array.from(uniqueVersions)[0]}`
+        "3.5",
+        `Canonical public version must be two-component 3.5, found: ${Array.from(uniqueVersions)[0]}`
       );
     });
 

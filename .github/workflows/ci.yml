@@ -222,22 +222,26 @@ jobs:
           HAS_MAC=false
 
           # 1. Platform-aware staging: Windows x64 (verified by Windows cargo check/test & NSIS packaging)
-          if [ -f artifacts/win-x64/BBQ-win-x64-setup.exe ] && [ -f artifacts/win-x64/BBQ-win-x64.zip ]; then
+          if [ -f artifacts/win-x64/BBQ-win-x64-setup.exe ]; then
             echo "Staging verified Windows x64 release artifacts..."
             cp artifacts/win-x64/BBQ-win-x64-setup.exe release-assets/
-            cp artifacts/win-x64/BBQ-win-x64.zip release-assets/
-            UPLOAD_ASSETS+=(release-assets/BBQ-win-x64-setup.exe release-assets/BBQ-win-x64.zip)
+            UPLOAD_ASSETS+=(release-assets/BBQ-win-x64-setup.exe)
             HAS_WIN=true
+
+            if [ -f artifacts/win-x64/BBQ-win-x64-setup.exe.sig ]; then
+              echo "Staging Windows signature BBQ-win-x64-setup.exe.sig..."
+              cp artifacts/win-x64/BBQ-win-x64-setup.exe.sig release-assets/
+              UPLOAD_ASSETS+=(release-assets/BBQ-win-x64-setup.exe.sig)
+            fi
           else
             echo "[Notice] Windows x64 release artifacts not found or incomplete."
           fi
 
           # 2. Platform-aware staging: macOS ARM64 (verified by macOS cargo check/test & packaging script)
-          if [ -f artifacts/mac-arm64/BBQ-mac-arm64.app.zip ] && [ -f artifacts/mac-arm64/BBQ-mac-arm64.dmg ]; then
+          if [ -f artifacts/mac-arm64/BBQ-mac-arm64.dmg ]; then
             echo "Staging verified macOS ARM64 release artifacts..."
-            cp artifacts/mac-arm64/BBQ-mac-arm64.app.zip release-assets/
             cp artifacts/mac-arm64/BBQ-mac-arm64.dmg release-assets/
-            UPLOAD_ASSETS+=(release-assets/BBQ-mac-arm64.app.zip release-assets/BBQ-mac-arm64.dmg)
+            UPLOAD_ASSETS+=(release-assets/BBQ-mac-arm64.dmg)
             HAS_MAC=true
 
             # Stage macOS updater archive if present (generated during signed builds)
@@ -246,16 +250,27 @@ jobs:
               cp artifacts/mac-arm64/BBQ-mac-arm64.app.tar.gz release-assets/
               UPLOAD_ASSETS+=(release-assets/BBQ-mac-arm64.app.tar.gz)
             fi
+
+            if [ -f artifacts/mac-arm64/BBQ-mac-arm64.app.tar.gz.sig ]; then
+              echo "Staging macOS signature BBQ-mac-arm64.app.tar.gz.sig..."
+              cp artifacts/mac-arm64/BBQ-mac-arm64.app.tar.gz.sig release-assets/
+              UPLOAD_ASSETS+=(release-assets/BBQ-mac-arm64.app.tar.gz.sig)
+            fi
           else
             echo "[Notice] macOS ARM64 release artifacts not found or incomplete."
           fi
 
-          # 2.5 Stage any signature files
+          # 2.5 Stage any signature files matching approved updater targets
           for sig in artifacts/*/*.sig; do
             if [ -f "$sig" ]; then
-              echo "Staging signature file: $sig"
-              cp "$sig" release-assets/
-              UPLOAD_ASSETS+=("release-assets/$(basename "$sig")")
+              sig_base="$(basename "$sig")"
+              if [ "$sig_base" = "BBQ-win-x64-setup.exe.sig" ] || [ "$sig_base" = "BBQ-mac-arm64.app.tar.gz.sig" ]; then
+                if [ ! -f "release-assets/$sig_base" ]; then
+                  echo "Staging signature file: $sig"
+                  cp "$sig" release-assets/
+                  UPLOAD_ASSETS+=("release-assets/$sig_base")
+                fi
+              fi
             fi
           done
 
@@ -270,14 +285,13 @@ jobs:
           if [ "$HAS_WIN" = "true" ]; then
             cat << 'EOF' >> "$NOTES_FILE"
           - **Windows x64 Installer**: `BBQ-win-x64-setup.exe` (currentUser NSIS installer)
-          - **Windows x64 Portable**: `BBQ-win-x64.zip` (standalone portable executable)
           EOF
           fi
 
           if [ "$HAS_MAC" = "true" ]; then
             cat << 'EOF' >> "$NOTES_FILE"
           - **macOS ARM64 Disk Image**: `BBQ-mac-arm64.dmg` (Apple Silicon drag-to-Applications installer)
-          - **macOS ARM64 App Zip**: `BBQ-mac-arm64.app.zip` (standalone application bundle)
+          - **macOS ARM64 Updater Bundle**: `BBQ-mac-arm64.app.tar.gz` (Auto-updater payload)
 
           > [!WARNING]
           > **macOS Gatekeeper Notice (Free Distribution)**

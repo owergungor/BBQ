@@ -3,6 +3,7 @@ import { clipboardStore, useClipboardState } from "../../state/clipboardState.ts
 import { bbqCommands } from "../../ipc/commands.ts";
 import type { ClipboardEntry } from "@bbq/types";
 import { Icon } from "../common/Icon.tsx";
+import { useTranslation } from "../../i18n/index.ts";
 import {
   normalizeClipboardEntry,
   boundClipboardEntries,
@@ -10,6 +11,7 @@ import {
 } from "./productivityModel.ts";
 
 export const ClipboardWidget: React.FC = () => {
+  const { t } = useTranslation();
   const { enabled, entries, status } = useClipboardState();
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,14 +86,14 @@ export const ClipboardWidget: React.FC = () => {
         if (copyFeedbackTimerRef.current) {
           clearTimeout(copyFeedbackTimerRef.current);
         }
-        setCopyFeedback("Copied clipping to clipboard");
+        setCopyFeedback(t("widgets.clipboard.copied"));
         copyFeedbackTimerRef.current = setTimeout(() => {
           setCopyFeedback(null);
           copyFeedbackTimerRef.current = null;
         }, 2000);
       }
     },
-    []
+    [t]
   );
 
   const toggleRevealSensitive = useCallback((id: string, e: React.MouseEvent) => {
@@ -142,7 +144,7 @@ export const ClipboardWidget: React.FC = () => {
       <div className="bbq-clipboard-header">
         <div className="bbq-clipboard-title-group">
           <span className={"bbq-status-dot " + (enabled ? "enabled" : "disabled")} />
-          <span className="bbq-clipboard-title">Clipboard History</span>
+          <span className="bbq-clipboard-title">{t("widgets.clipboard.name")}</span>
           {enabled && (
             <span className="bbq-clipboard-badge">
               {entries.length} / {status?.max_entries ?? MAX_CLIPBOARD_HISTORY_ENTRIES}
@@ -160,8 +162,8 @@ export const ClipboardWidget: React.FC = () => {
             type="button"
             className={"bbq-btn" + (enabled ? " bbq-btn-active" : "")}
             onClick={handleToggleEnabled}
-            title={enabled ? "Disable clipboard history" : "Enable clipboard history"}
-            aria-label={enabled ? "Disable clipboard history" : "Enable clipboard history"}
+            title={enabled ? t("widgets.clipboard.disableHistory") : t("widgets.clipboard.enableHistory")}
+            aria-label={enabled ? t("widgets.clipboard.disableHistory") : t("widgets.clipboard.enableHistory")}
           >
             <Icon name={enabled ? "check" : "close"} size={11} aria-hidden="true" />
             <span>{enabled ? "Enabled" : "Disabled"}</span>
@@ -172,8 +174,8 @@ export const ClipboardWidget: React.FC = () => {
               type="button"
               className="bbq-btn bbq-btn-danger"
               onClick={handleClearHistory}
-              title="Clear all saved history"
-              aria-label="Clear all clipboard history"
+              title={t("widgets.clipboard.clearHistory")}
+              aria-label={t("widgets.clipboard.clearHistory")}
             >
               <Icon name="trash" size={11} aria-hidden="true" />
               <span>Clear</span>
@@ -208,7 +210,7 @@ export const ClipboardWidget: React.FC = () => {
                   }
                 }
               }}
-              placeholder="Search clippings..."
+              placeholder={t("widgets.clipboard.searchPlaceholder")}
               className="bbq-clipboard-search-input"
               aria-label="Filter clipboard clippings"
             />
@@ -237,14 +239,13 @@ export const ClipboardWidget: React.FC = () => {
             <span>Privacy Protected</span>
           </div>
           <div className="bbq-clipboard-privacy-body">
-            Clipboard history is strictly local-first and disabled by default.
-            Enable it above to save recent text clippings securely on this device without telemetry or logs.
+            {t("widgets.clipboard.disabled")}
           </div>
         </div>
       ) : entries.length === 0 ? (
         <div className="bbq-clipboard-empty">
           <Icon name="clipboard" size={24} aria-hidden="true" className="bbq-clipboard-search-icon" />
-          <span>No clipboard items yet. Copy text to stage clippings here.</span>
+          <span>{t("widgets.clipboard.empty")}</span>
         </div>
       ) : filteredCards.length === 0 ? (
         <div className="bbq-clipboard-empty" id="clipboard-search-empty">
@@ -327,7 +328,7 @@ export const ClipboardWidget: React.FC = () => {
                         type="button"
                         className="bbq-clipboard-action-btn"
                         onClick={(e) => handleCopyAgain(e, raw)}
-                        title="Copy again"
+                        title={t("widgets.clipboard.copyItem")}
                         aria-label={"Copy clipping: " + normalized.preview}
                       >
                         <Icon name="copy" size={11} aria-hidden="true" />
@@ -337,7 +338,7 @@ export const ClipboardWidget: React.FC = () => {
                       type="button"
                       className="bbq-clipboard-action-btn delete"
                       onClick={(e) => handleDeleteEntry(e, raw.id)}
-                      title="Delete item"
+                      title={t("widgets.clipboard.deleteItem")}
                       aria-label="Delete clipboard clipping"
                     >
                       <Icon name="close" size={11} aria-hidden="true" />

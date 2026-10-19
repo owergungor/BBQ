@@ -220,7 +220,11 @@
       "pause": "Duraklat",
       "previous": "Önceki parça",
       "next": "Sonraki parça",
-      "volume": "Ses Seviyesi"
+      "volume": "Ses Seviyesi",
+      "mute": "Sessize Al",
+      "unmute": "Sesi Aç",
+      "volumeUnavailable": "Ses seviyesi kontrolü kullanılamıyor",
+      "emptyPrompt": "BBQ üzerinden kontrol etmek için müzik veya video oynatın"
     },
     "clipboard": {
       "name": "Pano",
@@ -230,7 +234,11 @@
       "enablePrompt": "Kopyalananları saklamak için Ayarlar'dan pano geçmişini açın.",
       "copyItem": "Panoya kopyala",
       "deleteItem": "Ögeyi sil",
-      "sensitiveHidden": "Hassas içerik gizlendi"
+      "sensitiveHidden": "Hassas içerik gizlendi",
+      "copied": "Panoya kopyalandı",
+      "clearHistory": "Geçmişi Temizle",
+      "enableHistory": "Geçmişi Etkinleştir",
+      "disableHistory": "Geçmişi Kapat"
     },
     "timer": {
       "name": "Sayaç",
@@ -260,7 +268,14 @@
       "hours": "sa",
       "add": "Hatırlatıcı Ekle",
       "empty": "Planlanmış hatırlatıcı yok",
-      "clearFired": "Tamamlananları Temizle"
+      "clearFired": "Tamamlananları Temizle",
+      "in10m": "10 dk",
+      "in30m": "30 dk",
+      "in1h": "1 saat",
+      "tomorrow": "Yarın 09:00",
+      "custom": "Özel...",
+      "due": "Vadesi",
+      "completed": "Tamamlandı"
     },
     "files": {
       "name": "Dosyalar",
@@ -270,7 +285,21 @@
       "open": "Aç",
       "reveal": "Dosya Yöneticisinde Göster",
       "copyPath": "Yolu Kopyala",
-      "clear": "Tümünü Temizle"
+      "clear": "Tümünü Temizle",
+      "all": "Tümü",
+      "documents": "Belgeler",
+      "images": "Görseller",
+      "media": "Medya",
+      "archives": "Arşivler",
+      "code": "Kod",
+      "other": "Diğer",
+      "searchPlaceholder": "Çalışma alanı dosyalarını ara...",
+      "sortByDate": "Tarihe Göre Sırala",
+      "sortByName": "Ada Göre Sırala",
+      "sortBySize": "Boyuta Göre Sırala",
+      "refreshed": "Çalışma alanı yenilendi",
+      "refreshFailed": "Yenileme başarısız",
+      "openAll": "Tümünü Aç"
     },
     "system": {
       "name": "Sistem",
@@ -283,14 +312,83 @@
       "unmuted": "Ses Açık",
       "connected": "Bağlı",
       "disconnected": "Çevrimdışı",
-      "charging": "Şarj Oluyor"
+      "charging": "Şarj Oluyor",
+      "discharging": "Deşarj Oluyor",
+      "powerSource": "Güç Kaynağı",
+      "ac": "Şebeke Gücü",
+      "batteryPower": "Pil",
+      "refresh": "Sistem İstatistiklerini Yenile",
+      "refreshed": "Sistem metrikleri yenilendi",
+      "refreshCooldown": "Tekrar yenilemeden önce lütfen bekleyin",
+      "cores": "çekirdek",
+      "used": "Kullanılan"
     },
     "launcher": {
       "name": "Başlatıcı",
       "searchPlaceholder": "Uygulama, dosya veya işlem arayın...",
       "favorites": "Favoriler",
       "recents": "Son Kullanılanlar",
-      "empty": "Sonuç bulunamadı"
+      "empty": "Sonuç bulunamadı",
+      "quickActions": "Hızlı Eylemler",
+      "launch": "Başlat",
+      "actions": "Eylemler"
+    },
+    "titles": {
+      "drop": "Bırakma Alanı",
+      "files": "Dosyalar",
+      "clipboard": "Pano",
+      "media": "Medya",
+      "system": "Sistem",
+      "launcher": "Başlatıcı",
+      "timer": "Zamanlayıcı",
+      "reminder": "Hatırlatıcılar",
+      "settings": "Ayarlar"
+    },
+    "drop": {
+      "name": "Bırakma Alanı",
+      "title": "Bırakma Rafı",
+      "prompt": "Hazırlamak için dosya veya klasörleri buraya sürükleyin",
+      "releasePrompt": "Dosyaları rafa bırakmak için bırakın",
+      "hint": "Sıfır ikili bellek alanı. BBQ yalnızca meta veri referanslarını inceler ve hazırlar.",
+      "clearShelf": "Rafı Temizle",
+      "clearShelfTooltip": "Hazırlanan dosyaları temizle (Escape)",
+      "inspecting": "Dosya meta verileri inceleniyor...",
+      "quickActions": "Hızlı Eylemler",
+      "openAll": "Tümünü Aç",
+      "open": "Aç",
+      "openDesc": "Varsayılan uygulama ile aç",
+      "revealAll": "Tümünü Göster",
+      "reveal": "Klasörde Göster",
+      "revealDesc": "Sistem dosya yöneticisinde göster",
+      "copyAll": "Tüm Yolları Kopyala",
+      "copyPath": "Yolu Kopyala",
+      "copyPathDesc": "Dosya yolunu panoya kopyala",
+      "addAll": "Tümünü Çalışma Alanına Ekle",
+      "addToWorkspace": "Çalışma Alanına Ekle",
+      "addToWorkspaceDesc": "Referansı Çalışma Alanı Dosyalarına kaydet",
+      "dragOutAll": "Tümünü Dışarı Sürükle",
+      "dragOut": "Dışarı Sürükle",
+      "dragOutDesc": "Masaüstüne veya Explorer'a yerel sürüklemeyi başlat",
+      "cappedNotice": "Bellek güvenliği için hazırlanan öğeler en fazla {{max}} ile sınırlandırıldı."
+    },
+    "reminder": {
+      "name": "Hatırlatıcılar",
+      "newReminder": "Yeni Hatırlatıcı",
+      "titlePlaceholder": "Neyi hatırlamak istersiniz?",
+      "notesPlaceholder": "İsteğe bağlı notlar...",
+      "dueIn": "Kalan süre",
+      "minutes": "dk",
+      "hours": "saat",
+      "add": "Hatırlatıcı Ekle",
+      "empty": "Planlanmış hatırlatıcı yok",
+      "clearFired": "Tamamlananları Temizle",
+      "in10m": "10 dk",
+      "in30m": "30 dk",
+      "in1h": "1 saat",
+      "tomorrow": "Yarın 09:00",
+      "custom": "Özel...",
+      "due": "Vadesi",
+      "completed": "Tamamlandı"
     }
   },
   "contextMenu": {

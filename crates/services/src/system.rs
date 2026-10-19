@@ -149,12 +149,12 @@ impl SystemServiceTrait for SystemService {
             }
         };
 
-        // Merge any event-driven volume or mute state cached locally
+        // Fallback to cached event-driven volume or mute state when platform current_state omits them
         if let Ok(lock) = self.current_state.read() {
-            if lock.volume.is_some() {
+            if fresh.volume.is_none() && lock.volume.is_some() {
                 fresh.volume = lock.volume;
             }
-            if lock.muted.is_some() {
+            if fresh.muted.is_none() && lock.muted.is_some() {
                 fresh.muted = lock.muted;
             }
         }

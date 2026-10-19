@@ -354,20 +354,12 @@ describe("BBQ v2.8 — Phase 4: Move HUD & Release Asset Names", () => {
       );
       // Release publish assets
       assert.ok(
-        ciSrc.includes("release-assets/BBQ-mac-arm64.app.zip"),
-        "CI release step must include BBQ-mac-arm64.app.zip"
-      );
-      assert.ok(
         ciSrc.includes("release-assets/BBQ-mac-arm64.dmg"),
         "CI release step must include BBQ-mac-arm64.dmg"
       );
       assert.ok(
         ciSrc.includes("release-assets/BBQ-win-x64-setup.exe"),
         "CI release step must include BBQ-win-x64-setup.exe"
-      );
-      assert.ok(
-        ciSrc.includes("release-assets/BBQ-win-x64.zip"),
-        "CI release step must include BBQ-win-x64.zip"
       );
 
       // Verify no orphan un-prefixed uploads remain

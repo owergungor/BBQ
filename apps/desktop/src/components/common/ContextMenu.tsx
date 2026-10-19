@@ -133,6 +133,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       const success = await updateSetting("move_hud", nextVal.toString());
       if (!success) {
         reportAppError(new Error("Unable to save Move HUD preference"), { category: "settings" });
+      } else if (nextVal && islandStore.getState().state === "Expanded") {
+        await islandRuntime.handleEvent({ type: "USER_ESCAPE" });
       }
     } catch (err) {
       reportAppError(err, { category: "settings" });

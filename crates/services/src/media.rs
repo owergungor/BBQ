@@ -312,11 +312,21 @@ impl Service for MediaService {
 impl MediaServiceTrait for MediaService {
     async fn current_session(&self) -> BbqResult<Option<MediaSession>> {
         self.ensure_platform_initialized().await?;
-        let current = self
-            .current_session
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        Ok(current.clone())
+        let cached = {
+            let current = self
+                .current_session
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            current.clone()
+        };
+        if cached.is_some() {
+            return Ok(cached);
+        }
+        if let Ok(Some(session)) = self.platform.current_session().await {
+            self.handle_media_event(MediaEvent::SessionChanged(Some(session.clone())));
+            return Ok(Some(session));
+        }
+        Ok(None)
     }
 
     async fn play(&self) -> BbqResult<()> {

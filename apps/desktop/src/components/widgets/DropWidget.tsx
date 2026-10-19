@@ -8,6 +8,7 @@ import {
 } from "../../state/dropState.ts";
 import { escapeManager, EscapePriority } from "../../island/escapeManager.ts";
 import { Icon } from "../common/Icon.tsx";
+import { useTranslation } from "../../i18n/index.ts";
 import {
   normalizeStagedFile,
   boundAndDeduplicateStagedItems,
@@ -15,6 +16,7 @@ import {
 } from "./productivityModel.ts";
 
 export const DropWidget: React.FC = () => {
+  const { t } = useTranslation();
   const {
     currentBatch,
     actions,
@@ -74,33 +76,33 @@ export const DropWidget: React.FC = () => {
     switch (action) {
       case "open":
         return {
-          label: isBatch ? "Open All" : "Open",
+          label: isBatch ? t("widgets.drop.openAll") || "Open All" : t("widgets.drop.open") || "Open",
           iconName: "external-link",
-          description: "Launch with default application",
+          description: t("widgets.drop.openDesc") || "Launch with default application",
         };
       case "reveal":
         return {
-          label: isBatch ? "Reveal All" : "Reveal in Folder",
+          label: isBatch ? t("widgets.drop.revealAll") || "Reveal All" : t("widgets.drop.reveal") || "Reveal in Folder",
           iconName: "files",
-          description: "Show in system file manager",
+          description: t("widgets.drop.revealDesc") || "Show in system file manager",
         };
       case "copy_path":
         return {
-          label: isBatch ? "Copy All Paths" : "Copy Path",
+          label: isBatch ? t("widgets.drop.copyAll") || "Copy All Paths" : t("widgets.drop.copyPath") || "Copy Path",
           iconName: "copy",
-          description: "Copy file path to clipboard (explicit only)",
+          description: t("widgets.drop.copyPathDesc") || "Copy file path to clipboard (explicit only)",
         };
       case "add_to_workspace":
         return {
-          label: isBatch ? "Add All to Workspace" : "Add to Workspace",
+          label: isBatch ? t("widgets.drop.addAll") || "Add All to Workspace" : t("widgets.drop.addToWorkspace") || "Add to Workspace",
           iconName: "check",
-          description: "Store reference in Workspace Files",
+          description: t("widgets.drop.addToWorkspaceDesc") || "Store reference in Workspace Files",
         };
       case "drag_out":
         return {
-          label: isBatch ? "Drag Out All" : "Drag Out",
+          label: isBatch ? t("widgets.drop.dragOutAll") || "Drag Out All" : t("widgets.drop.dragOut") || "Drag Out",
           iconName: "external-link",
-          description: "Initiate native drag-out to desktop or Explorer",
+          description: t("widgets.drop.dragOutDesc") || "Initiate native drag-out to desktop or Explorer",
         };
       default:
         return {
@@ -141,7 +143,7 @@ export const DropWidget: React.FC = () => {
                   : "var(--bbq-accent, #0A84FF)",
             }}
           />
-          <span className="bbq-drop-title">Drop Shelf</span>
+          <span className="bbq-drop-title">{t("widgets.drop.title") || "Drop Shelf"}</span>
           {currentBatch && (
             <span className="bbq-drop-badge">
               {stagedItems.length} / {MAX_DROP_SHELF_ITEMS}
@@ -154,11 +156,11 @@ export const DropWidget: React.FC = () => {
             type="button"
             className="bbq-btn bbq-btn-secondary"
             onClick={clearDrop}
-            title="Clear staged files (Escape)"
-            aria-label="Clear staged files from shelf"
+            title={t("widgets.drop.clearShelfTooltip") || "Clear staged files (Escape)"}
+            aria-label={t("widgets.drop.clearShelf") || "Clear staged files from shelf"}
           >
             <Icon name="trash" size={11} aria-hidden="true" />
-            <span>Clear Shelf</span>
+            <span>{t("widgets.drop.clearShelf") || "Clear Shelf"}</span>
           </button>
         )}
       </div>
@@ -166,7 +168,7 @@ export const DropWidget: React.FC = () => {
       {status === "inspecting" && (
         <div className="bbq-drop-loading" aria-live="polite">
           <span className="bbq-drop-spinner" />
-          <span>Inspecting file metadata...</span>
+          <span>{t("widgets.drop.inspecting") || "Inspecting file metadata..."}</span>
         </div>
       )}
 
@@ -191,10 +193,13 @@ export const DropWidget: React.FC = () => {
             <Icon name="drop" size={32} aria-hidden="true" />
           </div>
           <div className="bbq-drop-prompt">
-            {isDraggingOver ? "Release to stage files on Shelf" : "Drag files or folders here to stage"}
+            {isDraggingOver
+              ? t("widgets.drop.releasePrompt") || "Release to stage files on Shelf"
+              : t("widgets.drop.prompt") || "Drag files or folders here to stage"}
           </div>
           <div className="bbq-drop-hint">
-            Zero binary memory footprint. BBQ inspects and stages metadata references only.
+            {t("widgets.drop.hint") ||
+              "Zero binary memory footprint. BBQ inspects and stages metadata references only."}
           </div>
         </div>
       )}
@@ -204,7 +209,10 @@ export const DropWidget: React.FC = () => {
         <div className="bbq-drop-content">
           {wasLimited && (
             <div className="bbq-drop-limit-notice" role="status">
-              <span>Staged items capped at {MAX_DROP_SHELF_ITEMS} maximum for memory safety.</span>
+              <span>
+                {t("widgets.drop.cappedNotice", { max: MAX_DROP_SHELF_ITEMS }) ||
+                  `Staged items capped at ${MAX_DROP_SHELF_ITEMS} maximum for memory safety.`}
+              </span>
             </div>
           )}
 
@@ -246,7 +254,9 @@ export const DropWidget: React.FC = () => {
 
           {/* Contextual Smart Actions */}
           <div className="bbq-drop-actions-section">
-            <div className="bbq-drop-actions-header">Quick Actions</div>
+            <div className="bbq-drop-actions-header">
+              {t("widgets.drop.quickActions") || "Quick Actions"}
+            </div>
             <div className="bbq-drop-actions-list" role="listbox" aria-label="Available Actions">
               {actions.map((act, index) => {
                 const details = getActionDetails(act, isBatch);

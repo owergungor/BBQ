@@ -6,6 +6,7 @@ import {
 } from "../../state/reminderState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon } from "../common/Icon.tsx";
+import { useTranslation } from "../../i18n/index.ts";
 import {
   calculateReminderPresets,
   formatReminderDue,
@@ -14,6 +15,7 @@ import {
 } from "./reminderModel.ts";
 
 export const ReminderWidget: React.FC = () => {
+  const { t } = useTranslation();
   const { reminders, isLoading, error } = useReminderState();
 
   const [title, setTitle] = useState("");
@@ -103,7 +105,7 @@ export const ReminderWidget: React.FC = () => {
       <div className="bbq-reminder-header">
         <div className="bbq-reminder-title-area">
           <Icon name="bell" size={16} className="bbq-reminder-header-icon" />
-          <span className="bbq-reminder-heading">Reminders</span>
+          <span className="bbq-reminder-heading">{t("widgets.reminders.name")}</span>
           <span className="bbq-reminder-badge">
             {scheduledReminders.length}
           </span>
@@ -113,9 +115,9 @@ export const ReminderWidget: React.FC = () => {
             type="button"
             className="bbq-reminder-clear-btn"
             onClick={handleClearFired}
-            title="Clear completed reminders"
+            title={t("widgets.reminders.clearFired")}
           >
-            Clear Past ({firedReminders.length})
+            {t("widgets.reminders.clearFired")} ({firedReminders.length})
           </button>
         )}
       </div>
@@ -141,7 +143,7 @@ export const ReminderWidget: React.FC = () => {
           <input
             type="text"
             className="bbq-reminder-text-input"
-            placeholder="What should BBQ remind you about?"
+            placeholder={t("widgets.reminders.titlePlaceholder")}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={128}
@@ -153,7 +155,7 @@ export const ReminderWidget: React.FC = () => {
             className="bbq-reminder-submit-btn"
             disabled={isSubmitting || !title.trim()}
           >
-            {isSubmitting ? "..." : "Add"}
+            {isSubmitting ? "..." : t("widgets.reminders.add")}
           </button>
         </div>
 
@@ -178,7 +180,7 @@ export const ReminderWidget: React.FC = () => {
             onClick={() => setShowCustomDateTime(!showCustomDateTime)}
           >
             <Icon name="calendar" size={11} style={{ marginRight: "4px" }} />
-            Custom...
+            {t("widgets.reminders.custom")}
           </button>
         </div>
 
@@ -197,7 +199,7 @@ export const ReminderWidget: React.FC = () => {
 
         {/* Due Target Indicator */}
         <div className="bbq-reminder-due-preview">
-          Target: {formatReminderDue(selectedDueAt)} (
+          {t("widgets.reminders.due")}: {formatReminderDue(selectedDueAt)} (
           {new Date(selectedDueAt).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
@@ -211,7 +213,7 @@ export const ReminderWidget: React.FC = () => {
         <div className="bbq-reminder-section-title">Upcoming</div>
         {scheduledReminders.length === 0 ? (
           <div className="bbq-reminder-empty">
-            {isLoading ? "Loading..." : "No active reminders. Add one above!"}
+            {isLoading ? "Loading..." : t("widgets.reminders.empty")}
           </div>
         ) : (
           <ul className="bbq-reminder-list">
@@ -231,7 +233,7 @@ export const ReminderWidget: React.FC = () => {
                     type="button"
                     className="bbq-reminder-cancel-btn"
                     onClick={(e) => handleCancelReminder(rem.id, e)}
-                    title="Cancel"
+                    title={t("widgets.timer.cancel")}
                     aria-label={`Cancel reminder ${rem.title}`}
                   >
                     <Icon name="close" size={12} />
