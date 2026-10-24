@@ -42,19 +42,19 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
         id="island-width-slider"
         label={t("settings.island.compactWidth") || "Compact Width"}
         value={draftWidth}
-        min={180}
+        min={128}
         max={480}
         step={50}
         compact={true}
         valueDisplay={`${draftWidth}px`}
         onChange={(val) => {
           let nextVal: number;
-          if (val <= 180) {
-            nextVal = 180;
+          if (val <= 128) {
+            nextVal = 128;
           } else if (val >= 480) {
             nextVal = 480;
           } else {
-            nextVal = Math.max(180, Math.min(480, Math.round(val / 50) * 50));
+            nextVal = Math.max(128, Math.min(480, Math.round(val / 50) * 50));
           }
           onDraftWidthChange(nextVal);
           if (typeof document !== "undefined") {
@@ -69,13 +69,13 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
         id="island-height-slider"
         label={t("settings.island.compactHeight") || "Compact Height"}
         value={draftHeight}
-        min={36}
-        max={54}
+        min={32}
+        max={64}
         step={2}
         compact={true}
         valueDisplay={`${draftHeight}px`}
         onChange={(val) => {
-          const nextVal = Math.max(36, Math.min(54, Math.round(val)));
+          const nextVal = Math.max(32, Math.min(64, Math.round(val)));
           onDraftHeightChange(nextVal);
           if (typeof document !== "undefined") {
             document.documentElement.style.setProperty("--bbq-compact-height", `${nextVal}px`);

@@ -46,8 +46,10 @@ fn test_settings_service_single_update_and_validation() {
 
     // Invalid updates must be rejected
     assert!(service.update_setting("theme", "neon_rainbow").is_err());
-    assert!(service.update_setting("island_width", "50").is_err()); // Below MIN 180
-    assert!(service.update_setting("island_width", "1000").is_err()); // Above MAX 640
+    assert!(service.update_setting("island_width", "50").is_err()); // Below MIN 128
+    assert!(service.update_setting("island_width", "128").is_ok()); // Valid MIN 128
+    assert!(service.update_setting("island_width", "480").is_ok()); // Valid MAX 480
+    assert!(service.update_setting("island_width", "1000").is_err()); // Above MAX 480
     assert!(service
         .update_setting("clipboard_max_entries", "5")
         .is_err()); // Below MIN 10

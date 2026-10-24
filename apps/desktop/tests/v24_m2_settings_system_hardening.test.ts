@@ -464,10 +464,10 @@ describe("BBQ v2.4 — Phase 2: Settings & System UI Hardening Regression Tests"
     });
 
     it("clampIslandHeight enforces [36, 520] boundary", () => {
-      assert.equal(clampIslandHeight(20), 36);
+      assert.equal(clampIslandHeight(20), 32);
       assert.equal(clampIslandHeight(38), 38);
       assert.equal(clampIslandHeight(44), 44);
-      assert.equal(clampIslandHeight(600), 520);
+      assert.equal(clampIslandHeight(600), 64);
     });
   });
 

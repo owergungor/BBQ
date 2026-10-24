@@ -3,6 +3,7 @@ import { createDomainStore } from "../../state/createStore.ts";
 
 export const MIN_SETTINGS_HEIGHT = 200;
 export const MAX_SETTINGS_HEIGHT = 480;
+export const SETTINGS_CHROME_HEIGHT = 72; // Tab navigation bar + internal container padding
 
 export interface SettingsTabHeightState {
   height: number;
@@ -26,26 +27,14 @@ export function useSettingsTabAutoHeight(activeTab: string, language?: string) {
     if (!el) return;
 
     const measureAndSet = () => {
-      // Measure natural content height
-      const contentH = el.scrollHeight;
+      // Measure natural child tab content height, avoiding stale flex parent height
+      const child = el.firstElementChild as HTMLElement | null;
+      const contentH = child ? child.scrollHeight : el.scrollHeight;
 
-      // Calculate vertical chrome (island frame, tablist, footer, paddings)
-      let chromeH = 116;
-      if (typeof window !== "undefined") {
-        const shell = el.closest(".bbq-island-shell");
-        if (shell) {
-          const shellH = shell.getBoundingClientRect().height;
-          const panelH = el.getBoundingClientRect().height;
-          if (shellH > 0 && panelH > 0 && shellH > panelH) {
-            const diff = Math.round(shellH - panelH);
-            if (diff >= 60 && diff <= 180) {
-              chromeH = diff;
-            }
-          }
-        }
-      }
-
-      const totalH = Math.max(MIN_SETTINGS_HEIGHT, Math.min(MAX_SETTINGS_HEIGHT, contentH + chromeH));
+      const totalH = Math.max(
+        MIN_SETTINGS_HEIGHT,
+        Math.min(MAX_SETTINGS_HEIGHT, contentH + SETTINGS_CHROME_HEIGHT)
+      );
       setSettingsTabHeight(totalH);
     };
 
@@ -56,6 +45,10 @@ export function useSettingsTabAutoHeight(activeTab: string, language?: string) {
         measureAndSet();
       });
       ro.observe(el);
+      const child = el.firstElementChild;
+      if (child) {
+        ro.observe(child);
+      }
       return () => {
         ro.disconnect();
       };

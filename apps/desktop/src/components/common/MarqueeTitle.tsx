@@ -17,8 +17,7 @@ export const MarqueeTitle: React.FC<MarqueeTitleProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
-  const [overflowDistance, setOverflowDistance] = useState(0);
-  const [durationSec, setDurationSec] = useState(6);
+  const [durationSec, setDurationSec] = useState(8);
 
   const reducedMotionSetting = useSettingsState((s) => s.settings.reduced_motion);
 
@@ -35,7 +34,6 @@ export const MarqueeTitle: React.FC<MarqueeTitleProps> = ({
 
     if (reducedMotionSetting || prefersReducedMotion) {
       setIsOverflowing(false);
-      setOverflowDistance(0);
       return;
     }
 
@@ -43,15 +41,12 @@ export const MarqueeTitle: React.FC<MarqueeTitleProps> = ({
     const scrollW = textEl.scrollWidth;
 
     if (scrollW > clientW + 1) {
-      const distance = scrollW - clientW;
-      setOverflowDistance(distance);
-      // Smooth pacing: ~24px per second plus 2.5s pause budget (minimum 4s)
-      const duration = Math.max(4, Math.round(distance / 24) + 3);
+      // 24px per second continuous smooth pace
+      const duration = Math.max(6, Math.round(scrollW / 24));
       setDurationSec(duration);
       setIsOverflowing(true);
     } else {
       setIsOverflowing(false);
-      setOverflowDistance(0);
     }
   }, [reducedMotionSetting]);
 
@@ -74,7 +69,6 @@ export const MarqueeTitle: React.FC<MarqueeTitleProps> = ({
 
   const dynamicStyle = {
     ...style,
-    "--bbq-marquee-distance": `-${overflowDistance}px`,
     "--bbq-marquee-duration": `${durationSec}s`,
   } as React.CSSProperties;
 
@@ -85,14 +79,29 @@ export const MarqueeTitle: React.FC<MarqueeTitleProps> = ({
       title={title || text}
       style={dynamicStyle}
     >
-      <span
-        ref={textEl => {
-          textRef.current = textEl;
-        }}
-        className={`bbq-marquee-text ${isOverflowing ? "is-scrolling" : ""}`.trim()}
-      >
-        {text}
-      </span>
+      <div className={`bbq-marquee-track ${isOverflowing ? "is-scrolling" : ""}`.trim()}>
+        <span
+          ref={textRef}
+          className={`bbq-marquee-text ${isOverflowing ? "is-scrolling" : ""}`.trim()}
+        >
+          {text}
+        </span>
+        {isOverflowing && (
+          <>
+            <span
+              className="bbq-marquee-spacer"
+              aria-hidden="true"
+              style={{ width: "36px", display: "inline-block", flexShrink: 0 }}
+            />
+            <span
+              className="bbq-marquee-text is-scrolling"
+              aria-hidden="true"
+            >
+              {text}
+            </span>
+          </>
+        )}
+      </div>
     </div>
   );
 };

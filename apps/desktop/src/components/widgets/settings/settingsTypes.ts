@@ -25,7 +25,6 @@ export interface AppearanceSettingsTabProps {
   accentColor: string;
   customAccentColor: string | null;
   reducedMotion: boolean;
-  reducedTransparency: boolean;
   startAtLogin: boolean;
   language?: string;
   onThemeChange: (theme: ThemePreference) => Promise<void>;

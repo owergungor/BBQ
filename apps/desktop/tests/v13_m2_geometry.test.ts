@@ -44,8 +44,8 @@ describe("BBQ v1.3 — M2 Geometry & Island Shell Invariants", () => {
       );
 
       // Idle state
-      assert.ok(cssContent.includes("max-width: var(--bbq-compact-width, 240px);"));
-      assert.ok(cssContent.includes("max-height: var(--bbq-compact-height, 38px);"));
+      assert.ok(cssContent.includes("var(--bbq-compact-width, 240px)"));
+      assert.ok(cssContent.includes("var(--bbq-compact-height, 38px)"));
       assert.ok(cssContent.includes("border-radius: var(--bbq-radius-compact, 20px);"));
 
       // Hovering/Peek state

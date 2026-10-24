@@ -334,13 +334,18 @@ export function resolveArtworkUrl(raw: string | null | undefined): string | null
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
-  // Base64 data URIs (PNG, JPEG, WEBP, GIF, BMP)
-  if (/^data:image\/(png|jpe?g|webp|gif|bmp);base64,/i.test(trimmed)) {
+  // Base64 data URIs (PNG, JPEG, WEBP, GIF, BMP, etc.)
+  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(trimmed)) {
     return trimmed;
   }
 
   // Remote HTTPS URLs
   if (trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  // Already converted asset URLs
+  if (trimmed.startsWith("asset://") || /^https?:\/\/asset\.localhost/i.test(trimmed)) {
     return trimmed;
   }
 

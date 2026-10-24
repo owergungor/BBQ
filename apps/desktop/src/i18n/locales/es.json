@@ -63,7 +63,14 @@
     "lastChecked": "Última comprobación: {{time}}",
     "openModal": "Ver actualización",
     "updateNow": "Actualizar ahora",
-    "cannotCancel": "La descarga en curso no se puede cancelar"
+    "cannotCancel": "La descarga en curso no se puede cancelar",
+    "statusAvailable": "Actualización disponible",
+    "statusChecking": "Comprobando...",
+    "statusUpToDate": "Actualizado",
+    "statusDownloading": "Descargando...",
+    "statusInstalling": "Instalando...",
+    "statusReady": "Listo para instalar",
+    "statusError": "Error de actualización"
   },
   "settings": {
     "title": "Ajustes",
@@ -94,8 +101,6 @@
       "failsWcag": "No cumple WCAG AA",
       "reducedMotion": "Movimiento reducido",
       "reducedMotionDesc": "Desactiva transiciones de escala y animaciones para mejorar la accesibilidad.",
-      "reducedTransparency": "Transparencia reducida",
-      "reducedTransparencyDesc": "Aumenta la opacidad y el contraste del fondo para una mejor legibilidad.",
       "startAtLogin": "Iniciar al iniciar sesión",
       "startAtLoginDesc": "Iniciar BBQ automáticamente al encender el sistema."
     },

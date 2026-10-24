@@ -260,7 +260,6 @@ export interface BbqSettings {
   accent_color?: AccentColor;
   custom_accent_color?: string | null;
   reduced_motion: boolean;
-  reduced_transparency?: boolean;
   island_width: number;
   island_height: number;
   target_display_id: string | null;

@@ -105,6 +105,41 @@ export const UpdateSettingsTab: React.FC = () => {
               >
                 v{APP_VERSION}
               </span>
+              <span
+                id="updater-status-pill"
+                className="bbq-capability-badge"
+                style={{
+                  fontSize: "10px",
+                  padding: "1px 7px",
+                  borderRadius: "9999px",
+                  fontWeight: 500,
+                  background:
+                    updater.status === "update_available"
+                      ? "rgba(10, 132, 255, 0.15)"
+                      : updater.status === "success"
+                      ? "rgba(52, 199, 89, 0.15)"
+                      : updater.status === "error"
+                      ? "rgba(255, 69, 58, 0.15)"
+                      : "var(--bbq-surface)",
+                  color:
+                    updater.status === "update_available"
+                      ? "var(--bbq-accent, #0a84ff)"
+                      : updater.status === "success"
+                      ? "var(--bbq-success, #34c759)"
+                      : updater.status === "error"
+                      ? "var(--bbq-danger, #ff453a)"
+                      : "var(--bbq-text-muted)",
+                }}
+              >
+                {updater.status === "update_available" && (t("updater.statusAvailable") || "Update Available")}
+                {updater.status === "checking" && (t("updater.statusChecking") || "Checking...")}
+                {updater.status === "up_to_date" && (t("updater.statusUpToDate") || "Up to date")}
+                {updater.status === "downloading" && (t("updater.statusDownloading") || "Downloading...")}
+                {updater.status === "installing" && (t("updater.statusInstalling") || "Installing...")}
+                {updater.status === "success" && (t("updater.statusReady") || "Ready to Install")}
+                {updater.status === "error" && (t("updater.statusError") || "Error")}
+                {updater.status === "idle" && (t("updater.statusUpToDate") || "Up to date")}
+              </span>
             </div>
             <span
               style={{

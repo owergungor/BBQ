@@ -162,9 +162,9 @@ describe("BBQ v2.3 — System, Settings & Layout Hardening Regression Tests", ()
     });
 
     it("compact height clamps within boundary [36, 54]", () => {
-      assert.equal(clampIslandHeight(20), 36);
+      assert.equal(clampIslandHeight(20), 32);
       assert.equal(clampIslandHeight(42), 42);
-      assert.equal(clampIslandHeight(600), 520);
+      assert.equal(clampIslandHeight(600), 64);
     });
 
     it("compact width 50 px step ile degisiyor", () => {

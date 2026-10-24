@@ -577,13 +577,13 @@ describe("BBQ v2.4 — Phase 1: Launcher, Context Menu & UI Polish Regression Te
     it("clamps island dimensions safely via domain models", () => {
       assert.equal(clampIslandWidth(null), 240);
       assert.equal(clampIslandWidth(NaN), 240);
-      assert.equal(clampIslandWidth(100), 180);
-      assert.equal(clampIslandWidth(800), 640);
+      assert.equal(clampIslandWidth(100), 128);
+      assert.equal(clampIslandWidth(800), 480);
 
       assert.equal(clampIslandHeight(null), 38);
       assert.equal(clampIslandHeight(NaN), 38);
-      assert.equal(clampIslandHeight(10), 36);
-      assert.equal(clampIslandHeight(700), 520);
+      assert.equal(clampIslandHeight(10), 32);
+      assert.equal(clampIslandHeight(700), 64);
     });
   });
 });

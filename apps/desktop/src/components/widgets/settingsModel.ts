@@ -17,12 +17,13 @@ export const ACTIVE_HUD_WIDGET_IDS: readonly string[] = [
   "settings",
 ];
 
-export const MIN_ISLAND_WIDTH = 180;
-export const MAX_ISLAND_WIDTH = 640;
+export const MIN_ISLAND_WIDTH = 128;
+export const MAX_ISLAND_WIDTH = 480;
 export const DEFAULT_ISLAND_WIDTH = 240;
 
-export const MIN_ISLAND_HEIGHT = 36;
-export const MAX_ISLAND_HEIGHT = 520;
+export const MIN_ISLAND_HEIGHT = 32;
+export const MAX_ISLAND_HEIGHT = 64;
+export const MAX_ISLAND_EXPANDED_HEIGHT = 520;
 export const DEFAULT_ISLAND_HEIGHT = 38;
 
 export const MIN_CLIPBOARD_CAPACITY = 10;
@@ -63,14 +64,14 @@ export function clampDimension(
 }
 
 /**
- * Validates and clamps island width to [180, 640].
+ * Validates and clamps island width to [128, 480].
  */
 export function clampIslandWidth(val: number | null | undefined): number {
   return clampDimension(val, MIN_ISLAND_WIDTH, MAX_ISLAND_WIDTH, DEFAULT_ISLAND_WIDTH);
 }
 
 /**
- * Validates and clamps island height to [36, 520].
+ * Validates and clamps island height to [32, 64].
  */
 export function clampIslandHeight(val: number | null | undefined): number {
   return clampDimension(val, MIN_ISLAND_HEIGHT, MAX_ISLAND_HEIGHT, DEFAULT_ISLAND_HEIGHT);

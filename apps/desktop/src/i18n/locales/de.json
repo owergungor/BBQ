@@ -63,7 +63,14 @@
     "lastChecked": "Zuletzt geprüft: {{time}}",
     "openModal": "Update ansehen",
     "updateNow": "Jetzt aktualisieren",
-    "cannotCancel": "Laufender Download kann nicht abgebrochen werden"
+    "cannotCancel": "Laufender Download kann nicht abgebrochen werden",
+    "statusAvailable": "Update verfügbar",
+    "statusChecking": "Wird geprüft...",
+    "statusUpToDate": "Auf dem neuesten Stand",
+    "statusDownloading": "Wird heruntergeladen...",
+    "statusInstalling": "Wird installiert...",
+    "statusReady": "Bereit zur Installation",
+    "statusError": "Update-Fehler"
   },
   "settings": {
     "title": "Einstellungen",
@@ -94,8 +101,6 @@
       "failsWcag": "Verfehlt WCAG AA",
       "reducedMotion": "Reduzierte Bewegung",
       "reducedMotionDesc": "Deaktiviert Animationen und Skalierungsübergänge für bessere Barrierefreiheit.",
-      "reducedTransparency": "Reduzierte Transparenz",
-      "reducedTransparencyDesc": "Erhöht die Hintergrunddeckkraft und den Kontrast für bessere Lesbarkeit.",
       "startAtLogin": "Beim Anmelden starten",
       "startAtLoginDesc": "BBQ automatisch beim Hochfahren des Systems starten."
     },

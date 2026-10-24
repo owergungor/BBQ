@@ -1,9 +1,9 @@
 use crate::error::{BbqError, BbqResult};
 use serde::{Deserialize, Serialize};
 
-pub const MIN_ISLAND_WIDTH: u32 = 180;
-pub const MAX_ISLAND_WIDTH: u32 = 640;
-pub const MIN_ISLAND_HEIGHT: u32 = 36;
+pub const MIN_ISLAND_WIDTH: u32 = 128;
+pub const MAX_ISLAND_WIDTH: u32 = 480;
+pub const MIN_ISLAND_HEIGHT: u32 = 32;
 pub const MAX_ISLAND_HEIGHT: u32 = 520;
 
 pub const MIN_CLIPBOARD_MAX_ENTRIES: usize = 10;
@@ -87,8 +87,6 @@ pub struct BbqSettings {
     #[serde(default)]
     pub custom_accent_color: Option<String>,
     pub reduced_motion: bool,
-    #[serde(default)]
-    pub reduced_transparency: bool,
     pub island_width: u32,
     pub island_height: u32,
     pub target_display_id: Option<String>,
@@ -141,7 +139,6 @@ impl Default for BbqSettings {
             accent_color: "blue".to_string(),
             custom_accent_color: None,
             reduced_motion: false,
-            reduced_transparency: false,
             island_width: 240,
             island_height: 38,
             target_display_id: None,
@@ -326,7 +323,6 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
             }
         }
         "reduced_motion"
-        | "reduced_transparency"
         | "auto_expand_on_event"
         | "start_at_login"
         | "hotkey_enabled"

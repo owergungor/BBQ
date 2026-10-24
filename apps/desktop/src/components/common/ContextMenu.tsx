@@ -110,7 +110,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
   const startAtLogin = Boolean(settings.start_at_login);
 
   // Active widgets for Switch Widget submenu
-  const activeWidgets = Array.from(widgetRegistry.getAll().values());
+  const activeWidgets = widgetRegistry.getActiveWidgets();
 
   const handleToggleExpand = useCallback(async () => {
     const liveIsExpanded = islandStore.getState().state === "Expanded";
@@ -236,7 +236,18 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       label: t("contextMenu.switchWidget") || "Switch Widget",
       icon: "launcher" as const,
       hasSubmenu: true,
-      action: () => setShowSwitchSubmenu((prev) => !prev),
+      action: async () => {
+        const currentIndex = activeWidgets.findIndex((w) => w.id === activeWidgetId);
+        const nextIndex = (currentIndex + 1) % (activeWidgets.length || 1);
+        const nextWidget = activeWidgets[nextIndex];
+        if (nextWidget) {
+          await islandRuntime.handleEvent({ type: "WIDGET_SELECT", widgetId: nextWidget.id });
+          await islandRuntime.transitionTo("Expanded", "mouse");
+          onClose();
+        } else {
+          setShowSwitchSubmenu((prev) => !prev);
+        }
+      },
     },
     {
       id: "pin",
@@ -426,7 +437,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
                 }
                 onClick={async (e) => {
                   e.stopPropagation();
-                  setActiveWidget(w.id);
+                  await islandRuntime.handleEvent({ type: "WIDGET_SELECT", widgetId: w.id });
                   await islandRuntime.transitionTo("Expanded", "mouse");
                   onClose();
                 }}

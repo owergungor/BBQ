@@ -12,7 +12,6 @@ fn test_blur_and_transparency_settings_lifecycle() {
     let s = service.get_settings().expect("get_settings");
     assert_eq!(s.island_blur, 20);
     assert_eq!(s.island_transparency, 0);
-    assert!(!s.reduced_transparency);
 
     // Updates
     service
@@ -21,14 +20,10 @@ fn test_blur_and_transparency_settings_lifecycle() {
     service
         .update_setting("island_transparency", "25")
         .expect("update transparency");
-    service
-        .update_setting("reduced_transparency", "true")
-        .expect("update reduced transparency");
 
     let s2 = service.get_settings().expect("get_settings");
     assert_eq!(s2.island_blur, 34);
     assert_eq!(s2.island_transparency, 25);
-    assert!(s2.reduced_transparency);
 
     // Clamping & Bounds validation: blur is 0..=50, transparency is 0..=100
     assert!(service.update_setting("island_blur", "0").is_ok());

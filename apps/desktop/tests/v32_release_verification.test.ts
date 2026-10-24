@@ -25,27 +25,29 @@ describe("BBQ v3.2 — Release Verification & Feature Suite", () => {
   // 1. Version and Release Rules Verification
   // =========================================================================
   describe("1. Version and Release Rules", () => {
-    it("verifies public version is strictly 3.2, 3.3, 3.4, 3.5, or 3.6 across all manifests", () => {
+    it("verifies public version is strictly 3.2, 3.3, 3.4, 3.5, 3.6, or 3.7 across all manifests", () => {
       const rootPkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "package.json"), "utf-8"));
       const desktopPkg = JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "package.json"), "utf-8"));
       const typesPkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "packages/types/package.json"), "utf-8"));
 
-      assert.ok(rootPkg.version === "3.6" || rootPkg.version === "3.5" || rootPkg.version === "3.4" || rootPkg.version === "3.3" || rootPkg.version === "3.2", "Root package.json version must be strictly 3.6, 3.5, 3.4, 3.3 or 3.2");
-      assert.ok(desktopPkg.version === "3.6" || desktopPkg.version === "3.5" || desktopPkg.version === "3.4" || desktopPkg.version === "3.3" || desktopPkg.version === "3.2", "apps/desktop/package.json version must be strictly 3.6, 3.5, 3.4, 3.3 or 3.2");
-      assert.ok(typesPkg.version === "3.6" || typesPkg.version === "3.5" || typesPkg.version === "3.4" || typesPkg.version === "3.3" || typesPkg.version === "3.2", "packages/types/package.json version must be strictly 3.6, 3.5, 3.4, 3.3 or 3.2");
-      assert.ok(APP_VERSION === "3.6" || APP_VERSION === "3.5" || APP_VERSION === "3.4" || APP_VERSION === "3.3" || APP_VERSION === "3.2", "APP_VERSION must be strictly 3.6, 3.5, 3.4, 3.3 or 3.2");
-      assert.ok(APP_VERSION_LABEL === "v3.6" || APP_VERSION_LABEL === "v3.5" || APP_VERSION_LABEL === "v3.4" || APP_VERSION_LABEL === "v3.3" || APP_VERSION_LABEL === "v3.2", "APP_VERSION_LABEL must be strictly v3.6, v3.5, v3.4, v3.3 or v3.2");
+      assert.ok(rootPkg.version === "3.7" || rootPkg.version === "3.6" || rootPkg.version === "3.5" || rootPkg.version === "3.4" || rootPkg.version === "3.3" || rootPkg.version === "3.2", "Root package.json version must be valid");
+      assert.ok(desktopPkg.version === "3.7" || desktopPkg.version === "3.6" || desktopPkg.version === "3.5" || desktopPkg.version === "3.4" || desktopPkg.version === "3.3" || desktopPkg.version === "3.2", "apps/desktop/package.json version must be valid");
+      assert.ok(typesPkg.version === "3.7" || typesPkg.version === "3.6" || typesPkg.version === "3.5" || typesPkg.version === "3.4" || typesPkg.version === "3.3" || typesPkg.version === "3.2", "packages/types/package.json version must be valid");
+      assert.ok(APP_VERSION === "3.7" || APP_VERSION === "3.6" || APP_VERSION === "3.5" || APP_VERSION === "3.4" || APP_VERSION === "3.3" || APP_VERSION === "3.2", "APP_VERSION must be valid");
+      assert.ok(APP_VERSION_LABEL === "v3.7" || APP_VERSION_LABEL === "v3.6" || APP_VERSION_LABEL === "v3.5" || APP_VERSION_LABEL === "v3.4" || APP_VERSION_LABEL === "v3.3" || APP_VERSION_LABEL === "v3.2", "APP_VERSION_LABEL must be valid");
     });
 
-    it("verifies internal toolchain version is normalized to 3.2.0, 3.3.0, 3.4.0, 3.5.0, or 3.6.0 where required by Cargo & Tauri", () => {
+    it("verifies internal toolchain version is normalized to 3.2.0 through 3.7.0 where required by Cargo & Tauri", () => {
       const tauriConf = JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/tauri.conf.json"), "utf-8"));
       const desktopCargo = fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/Cargo.toml"), "utf-8");
       const cargoLock = fs.readFileSync(path.join(ROOT_DIR, "Cargo.lock"), "utf-8");
 
-      assert.ok(tauriConf.version === "3.6.0" || tauriConf.version === "3.5.0" || tauriConf.version === "3.4.0" || tauriConf.version === "3.3.0" || tauriConf.version === "3.2.0", "tauri.conf.json must declare SemVer compliance");
-      assert.ok(desktopCargo.includes('version = "3.6.0"') || desktopCargo.includes('version = "3.5.0"') || desktopCargo.includes('version = "3.4.0"') || desktopCargo.includes('version = "3.3.0"') || desktopCargo.includes('version = "3.2.0"'), "Desktop Cargo.toml must declare SemVer");
+      assert.ok(tauriConf.version === "3.7.0" || tauriConf.version === "3.6.0" || tauriConf.version === "3.5.0" || tauriConf.version === "3.4.0" || tauriConf.version === "3.3.0" || tauriConf.version === "3.2.0", "tauri.conf.json must declare SemVer compliance");
+      assert.ok(desktopCargo.includes('version = "3.7.0"') || desktopCargo.includes('version = "3.6.0"') || desktopCargo.includes('version = "3.5.0"') || desktopCargo.includes('version = "3.4.0"') || desktopCargo.includes('version = "3.3.0"') || desktopCargo.includes('version = "3.2.0"'), "Desktop Cargo.toml must declare SemVer");
       assert.ok(
-        cargoLock.includes('name = "bbq-desktop"\nversion = "3.6.0"') ||
+        cargoLock.includes('name = "bbq-desktop"\nversion = "3.7.0"') ||
+          cargoLock.includes('name = "bbq-desktop"\r\nversion = "3.7.0"') ||
+          cargoLock.includes('name = "bbq-desktop"\nversion = "3.6.0"') ||
           cargoLock.includes('name = "bbq-desktop"\r\nversion = "3.6.0"') ||
           cargoLock.includes('name = "bbq-desktop"\nversion = "3.5.0"') ||
           cargoLock.includes('name = "bbq-desktop"\r\nversion = "3.5.0"') ||
@@ -440,47 +442,39 @@ describe("BBQ v3.2 — Release Verification & Feature Suite", () => {
   // 8. Reduced Transparency Setting & Aesthetic Readability
   // =========================================================================
   describe("8. Reduced Transparency Setting & Aesthetic Readability", () => {
-    it("declares reduced_transparency in BbqSettings and syncs data-reduced-transparency to DOM", () => {
+    it("verifies reduced_transparency was cleanly removed from BbqSettings and settingsState", () => {
       const settingsSrc = fs.readFileSync(
         path.join(DESKTOP_DIR, "src/state/settingsState.ts"),
         "utf-8"
       );
 
       assert.ok(
-        settingsSrc.includes("reduced_transparency: false"),
-        "settingsState.ts must include reduced_transparency in defaultSettings"
+        !settingsSrc.includes("reduced_transparency:"),
+        "settingsState.ts must NOT include reduced_transparency in defaultSettings"
       );
       assert.ok(
-        settingsSrc.includes('data-reduced-transparency'),
-        "settingsState.ts must synchronize data-reduced-transparency to DOM"
+        !settingsSrc.includes('data-reduced-transparency'),
+        "settingsState.ts must NOT synchronize data-reduced-transparency"
       );
     });
 
-    it("verifies AppearanceSettingsTab exposes reduced-transparency-toggle switch", () => {
+    it("verifies AppearanceSettingsTab does NOT expose removed reduced-transparency-toggle switch", () => {
       const appearanceSrc = fs.readFileSync(
         path.join(DESKTOP_DIR, "src/components/widgets/settings/AppearanceSettingsTab.tsx"),
         "utf-8"
       );
-
-      assert.ok(
-        appearanceSrc.includes('id="reduced-transparency-toggle"'),
-        "AppearanceSettingsTab must provide reduced-transparency-toggle switch"
-      );
+      assert.ok(!appearanceSrc.includes('id="reduced-transparency-toggle"'), "Must remove reduced-transparency-toggle");
     });
 
-    it("verifies all 5 languages define reducedTransparency strings", () => {
+    it("verifies all 5 languages do not define obsolete reducedTransparency strings", () => {
       const locales = ["en", "es", "fr", "de", "tr"];
       for (const loc of locales) {
         const content = JSON.parse(
           fs.readFileSync(path.join(DESKTOP_DIR, `src/i18n/locales/${loc}.json`), "utf-8")
         );
         assert.ok(
-          content.settings?.appearance?.reducedTransparency,
-          `Locale ${loc}.json must define settings.appearance.reducedTransparency`
-        );
-        assert.ok(
-          content.settings?.appearance?.reducedTransparencyDesc,
-          `Locale ${loc}.json must define settings.appearance.reducedTransparencyDesc`
+          !content.settings?.appearance?.reducedTransparency,
+          `Locale ${loc}.json must not define settings.appearance.reducedTransparency`
         );
       }
     });

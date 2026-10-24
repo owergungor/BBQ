@@ -115,10 +115,8 @@ pub async fn sync_runtime_services_with_settings(
     let blur_changed = prev.map(|p| p.island_blur) != Some(current.island_blur);
     let transparency_changed =
         prev.map(|p| p.island_transparency) != Some(current.island_transparency);
-    let reduced_transparency_changed =
-        prev.map(|p| p.reduced_transparency) != Some(current.reduced_transparency);
 
-    if prev.is_none() || blur_changed || transparency_changed || reduced_transparency_changed {
+    if prev.is_none() || blur_changed || transparency_changed {
         if let Some(window) = app.get_webview_window("main") {
             apply_native_window_backdrop(&window, current);
         }
@@ -126,9 +124,7 @@ pub async fn sync_runtime_services_with_settings(
 }
 
 pub fn apply_native_window_backdrop(window: &tauri::WebviewWindow, settings: &BbqSettings) {
-    let should_enable_native_blur = !settings.reduced_transparency
-        && settings.island_transparency > 0
-        && settings.island_blur > 0;
+    let should_enable_native_blur = settings.island_transparency > 0 && settings.island_blur > 0;
 
     if should_enable_native_blur {
         #[cfg(target_os = "windows")]

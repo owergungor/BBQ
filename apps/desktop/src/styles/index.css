@@ -770,6 +770,7 @@ html, body {
   transition: width var(--bbq-duration-normal) var(--bbq-ease-spring),
               height var(--bbq-duration-normal) var(--bbq-ease-spring),
               border-radius var(--bbq-duration-normal) var(--bbq-ease-spring),
+              clip-path var(--bbq-duration-normal) var(--bbq-ease-spring),
               background-color var(--bbq-duration-fast) ease,
               box-shadow var(--bbq-duration-fast) ease,
               border-color var(--bbq-duration-fast) ease;
@@ -818,10 +819,13 @@ html, body {
 /* State Modifiers */
 .bbq-island-shell.state-idle {
   width: 100%;
+  min-width: 128px;
   max-width: var(--bbq-compact-width, 240px);
   height: 100%;
+  min-height: 32px;
   max-height: var(--bbq-compact-height, 38px);
   border-radius: var(--bbq-radius-compact, 20px);
+  clip-path: inset(0 round var(--bbq-radius-compact, 20px));
   background: var(--bbq-surface-glass-idle);
   background: color-mix(in srgb, var(--bbq-surface-glass-idle) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
@@ -833,10 +837,13 @@ html, body {
 
 .bbq-island-shell.state-hovering {
   width: 100%;
+  min-width: 168px;
   max-width: var(--bbq-peek-width, 280px);
   height: 100%;
+  min-height: 38px;
   max-height: var(--bbq-peek-height, 44px);
   border-radius: var(--bbq-radius-peek, 22px);
+  clip-path: inset(0 round var(--bbq-radius-peek, 22px));
   background: var(--bbq-surface-glass-idle);
   background: color-mix(in srgb, var(--bbq-surface-glass-idle) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
@@ -852,6 +859,7 @@ html, body {
   height: 100%;
   max-height: var(--bbq-expanded-height, 360px);
   border-radius: var(--bbq-radius-expanded, 24px);
+  clip-path: inset(0 round var(--bbq-radius-expanded, 24px));
   background: var(--bbq-surface-glass-expanded);
   background: color-mix(in srgb, var(--bbq-surface-glass-expanded) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(var(--bbq-glass-blur-expanded)) saturate(var(--bbq-glass-saturation-expanded));
@@ -913,20 +921,6 @@ html, body {
   }
 }
 
-[data-reduced-transparency="true"] .bbq-island-shell::before {
-  display: none;
-}
-[data-reduced-transparency="true"] .bbq-island-shell.state-idle,
-[data-reduced-transparency="true"] .bbq-island-shell.state-hovering {
-  background: var(--bbq-bg-idle) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-[data-reduced-transparency="true"] .bbq-island-shell.state-expanded {
-  background: var(--bbq-bg-expanded) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
 
 /* Drop Target Indicator */
 .bbq-drop-target-indicator {
@@ -1436,19 +1430,27 @@ html, body {
   will-change: transform;
 }
 
+.bbq-marquee-track {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.bbq-marquee-track.is-scrolling {
+  animation: bbq-marquee-scroll var(--bbq-marquee-duration, 8s) linear infinite;
+}
+
 .bbq-marquee-text.is-scrolling {
-  animation: bbq-marquee-scroll var(--bbq-marquee-duration, 6s) ease-in-out infinite;
+  will-change: transform;
 }
 
 @keyframes bbq-marquee-scroll {
-  0%, 15% {
+  0% {
     transform: translateX(0);
   }
-  45%, 65% {
-    transform: translateX(var(--bbq-marquee-distance, 0px));
-  }
-  90%, 100% {
-    transform: translateX(0);
+  100% {
+    transform: translateX(calc(-50% - 18px));
   }
 }
 
@@ -5691,4 +5693,15 @@ input[type="number"] {
 
 .bbq-island-shell.bbq-move-hud-active:active {
   cursor: grabbing !important;
+}
+
+/* Update indicator dot on tab button */
+.bbq-update-tab-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--bbq-accent, #0a84ff);
 }

@@ -63,7 +63,14 @@
     "lastChecked": "Son kontrol: {{time}}",
     "openModal": "Güncellemeyi Gör",
     "updateNow": "Şimdi Güncelle",
-    "cannotCancel": "Devam eden indirme iptal edilemez"
+    "cannotCancel": "Devam eden indirme iptal edilemez",
+    "statusAvailable": "Güncelleme Mevcut",
+    "statusChecking": "Kontrol ediliyor...",
+    "statusUpToDate": "Güncel",
+    "statusDownloading": "İndiriliyor...",
+    "statusInstalling": "Yükleniyor...",
+    "statusReady": "Yüklemeye Hazır",
+    "statusError": "Güncelleme Hatası"
   },
   "settings": {
     "title": "Ayarlar",
@@ -94,8 +101,6 @@
       "failsWcag": "WCAG AA Uyumsuz",
       "reducedMotion": "Azaltılmış Hareket",
       "reducedMotionDesc": "Erişilebilirlik için gereksiz ölçekleme ve kayma animasyonlarını kapatır.",
-      "reducedTransparency": "Azaltılmış Saydamlık",
-      "reducedTransparencyDesc": "Daha iyi okunabilirlik için arka plan opaklığını ve kontrastını artırır.",
       "startAtLogin": "Başlangıçta Çalıştır",
       "startAtLoginDesc": "Sistem açıldığında BBQ'yu otomatik olarak başlatır."
     },

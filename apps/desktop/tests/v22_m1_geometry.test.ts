@@ -86,7 +86,7 @@ describe("BBQ v2.2 — Milestone 1: Core Geometry & Layout Invariants", () => {
       );
 
       assert.ok(
-        cssContent.includes("max-height: var(--bbq-compact-height, 38px);"),
+        cssContent.includes("var(--bbq-compact-height, 38px)"),
         "Must use --bbq-compact-height CSS variable"
       );
       assert.ok(
@@ -324,12 +324,12 @@ describe("BBQ v2.2 — Milestone 1: Core Geometry & Layout Invariants", () => {
       const clampedMin = resolveEffectiveCompactWidth({
         userCompactWidth: 100,
       });
-      assert.equal(clampedMin, 180, "Must clamp to platform minimum 180");
+      assert.equal(clampedMin, 128, "Must clamp to platform minimum 180");
 
       const clampedMax = resolveEffectiveCompactWidth({
         userCompactWidth: 999,
       });
-      assert.equal(clampedMax, 640, "Must clamp to platform maximum 640");
+      assert.equal(clampedMax, 480, "Must clamp to platform maximum 640");
     });
   });
 

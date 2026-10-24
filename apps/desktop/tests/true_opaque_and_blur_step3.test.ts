@@ -99,17 +99,17 @@ describe("BBQ v3.6 — Step 3: True Opaque Transparency & Background Blur Contra
   // =========================================================================
   // 3. Reduced Transparency Accessibility Fallback
   // =========================================================================
-  describe("3. Reduced Transparency Accessibility Fallback", () => {
-    it("verifies reduced transparency forces solid opaque surface and disables blur", () => {
+  describe("3. System Reduced Transparency Accessibility Fallback", () => {
+    it("verifies system reduced transparency forces solid opaque surface and disables blur", () => {
       assert.ok(
-        cssContent.includes('[data-reduced-transparency="true"] .bbq-island-shell.state-idle') &&
+        cssContent.includes("@media (prefers-reduced-transparency: reduce)") &&
           cssContent.includes("background: var(--bbq-bg-idle) !important;"),
-        "Reduced transparency must force solid background"
+        "System reduced transparency must force solid background"
       );
       assert.ok(
-        cssContent.includes('[data-reduced-transparency="true"] .bbq-island-shell.state-idle') &&
+        cssContent.includes("@media (prefers-reduced-transparency: reduce)") &&
           cssContent.includes("backdrop-filter: none !important;"),
-        "Reduced transparency must disable backdrop blur"
+        "System reduced transparency must disable backdrop blur"
       );
     });
   });
@@ -162,10 +162,9 @@ describe("BBQ v3.6 — Step 3: True Opaque Transparency & Background Blur Contra
       );
       assert.ok(
         backendSettingsCmdContent.includes("should_enable_native_blur") &&
-          backendSettingsCmdContent.includes("!settings.reduced_transparency") &&
-          backendSettingsCmdContent.includes("settings.island_transparency > 0") &&
+                    backendSettingsCmdContent.includes("settings.island_transparency > 0") &&
           backendSettingsCmdContent.includes("settings.island_blur > 0"),
-        "Backdrop must only be active when translucent, blur > 0, and reduced transparency is false"
+        "Backdrop must only be active when translucent and blur > 0"
       );
       assert.ok(
         backendSettingsCmdContent.includes("window.set_effects("),

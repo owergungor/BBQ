@@ -107,27 +107,47 @@ pub async fn set_island_mode(
                         x: geo.x as f64,
                         y: geo.y as f64,
                     }));
-                } else if layout_state == bbq_core::IslandLayoutState::Expanded {
-                    if let Ok(pos) = window.outer_position() {
-                        let scale = window.scale_factor().unwrap_or(1.0);
-                        let cur_logical_x = pos.x as f64 / scale;
-                        let cur_logical_y = pos.y as f64 / scale;
-                        let max_x = (target_disp.work_area.width - geo.width) as f64;
-                        let max_y = (target_disp.work_area.height - geo.height) as f64;
-                        let clamped_x = cur_logical_x.clamp(
-                            target_disp.work_area.x as f64,
-                            target_disp.work_area.x as f64 + max_x.max(0.0),
-                        );
-                        let clamped_y = cur_logical_y.clamp(
-                            target_disp.work_area.y as f64,
-                            target_disp.work_area.y as f64 + max_y.max(0.0),
-                        );
-                        let _ =
-                            window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
-                                x: clamped_x,
-                                y: clamped_y,
-                            }));
-                    }
+                } else {
+                    let scale = window.scale_factor().unwrap_or(1.0);
+                    let (cur_logical_x, cur_logical_y) = if let Ok(pos) = window.outer_position() {
+                        (pos.x as f64 / scale, pos.y as f64 / scale)
+                    } else {
+                        (geo.x as f64, geo.y as f64)
+                    };
+
+                    let cur_w = window
+                        .inner_size()
+                        .map(|s| s.width as f64 / scale)
+                        .unwrap_or(geo.width as f64);
+
+                    let center_x = if let Ok(mut cx) = state.custom_center_x.lock() {
+                        if let Some(stored_cx) = *cx {
+                            stored_cx
+                        } else {
+                            let computed = cur_logical_x + (cur_w / 2.0);
+                            *cx = Some(computed);
+                            computed
+                        }
+                    } else {
+                        cur_logical_x + (cur_w / 2.0)
+                    };
+
+                    let new_x = center_x - (geo.width as f64 / 2.0);
+                    let max_x = (target_disp.work_area.width - geo.width) as f64;
+                    let max_y = (target_disp.work_area.height - geo.height) as f64;
+                    let clamped_x = new_x.clamp(
+                        target_disp.work_area.x as f64,
+                        target_disp.work_area.x as f64 + max_x.max(0.0),
+                    );
+                    let clamped_y = cur_logical_y.clamp(
+                        target_disp.work_area.y as f64,
+                        target_disp.work_area.y as f64 + max_y.max(0.0),
+                    );
+
+                    let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                        x: clamped_x,
+                        y: clamped_y,
+                    }));
                 }
             }
             let _ = state.window_service.apply_geometry(&geo).await;
@@ -141,11 +161,30 @@ pub async fn set_island_mode(
 
 #[tauri::command]
 pub async fn set_custom_drag_position(
+    app: AppHandle,
     state: State<'_, AppState>,
     is_custom: bool,
 ) -> Result<(), String> {
     if let Ok(mut c) = state.is_custom_positioned.lock() {
         *c = is_custom;
+    }
+    if is_custom {
+        if let Some(window) = app.get_webview_window("main") {
+            if let Ok(pos) = window.outer_position() {
+                let scale = window.scale_factor().unwrap_or(1.0);
+                let cur_x = pos.x as f64 / scale;
+                let cur_w = window
+                    .inner_size()
+                    .map(|s| s.width as f64 / scale)
+                    .unwrap_or(240.0);
+                let center_x = cur_x + (cur_w / 2.0);
+                if let Ok(mut cx) = state.custom_center_x.lock() {
+                    *cx = Some(center_x);
+                }
+            }
+        }
+    } else if let Ok(mut cx) = state.custom_center_x.lock() {
+        *cx = None;
     }
     Ok(())
 }
@@ -157,6 +196,9 @@ pub async fn reset_island_position(
 ) -> Result<(), String> {
     if let Ok(mut c) = state.is_custom_positioned.lock() {
         *c = false;
+    }
+    if let Ok(mut cx) = state.custom_center_x.lock() {
+        *cx = None;
     }
 
     use bbq_services::SettingsServiceTrait;
@@ -253,11 +295,6 @@ pub async fn apply_island_geometry(
     let clamped = bbq_core::clamp_geometry_to_display(&geometry, &display);
 
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
-            width: clamped.width as f64,
-            height: clamped.height as f64,
-        }));
-
         let is_custom = state
             .is_custom_positioned
             .lock()
@@ -265,17 +302,43 @@ pub async fn apply_island_geometry(
             .unwrap_or(false);
 
         if !is_custom {
+            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                width: clamped.width as f64,
+                height: clamped.height as f64,
+            }));
             let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
                 x: clamped.x as f64,
                 y: clamped.y as f64,
             }));
-        } else if let Ok(pos) = window.outer_position() {
+        } else {
             let scale = window.scale_factor().unwrap_or(1.0);
-            let cur_logical_x = pos.x as f64 / scale;
-            let cur_logical_y = pos.y as f64 / scale;
+            let (cur_logical_x, cur_logical_y) = if let Ok(pos) = window.outer_position() {
+                (pos.x as f64 / scale, pos.y as f64 / scale)
+            } else {
+                (clamped.x as f64, clamped.y as f64)
+            };
+
+            let cur_w = window
+                .inner_size()
+                .map(|s| s.width as f64 / scale)
+                .unwrap_or(clamped.width as f64);
+
+            let center_x = if let Ok(mut cx) = state.custom_center_x.lock() {
+                if let Some(stored_cx) = *cx {
+                    stored_cx
+                } else {
+                    let computed = cur_logical_x + (cur_w / 2.0);
+                    *cx = Some(computed);
+                    computed
+                }
+            } else {
+                cur_logical_x + (cur_w / 2.0)
+            };
+
+            let new_x = center_x - (clamped.width as f64 / 2.0);
             let max_x = (display.work_area.width - clamped.width) as f64;
             let max_y = (display.work_area.height - clamped.height) as f64;
-            let clamped_x = cur_logical_x.clamp(
+            let clamped_x = new_x.clamp(
                 display.work_area.x as f64,
                 display.work_area.x as f64 + max_x.max(0.0),
             );
@@ -283,6 +346,11 @@ pub async fn apply_island_geometry(
                 display.work_area.y as f64,
                 display.work_area.y as f64 + max_y.max(0.0),
             );
+
+            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                width: clamped.width as f64,
+                height: clamped.height as f64,
+            }));
             let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
                 x: clamped_x,
                 y: clamped_y,

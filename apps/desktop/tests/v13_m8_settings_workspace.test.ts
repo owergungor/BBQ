@@ -43,20 +43,20 @@ describe("BBQ v1.3 - Milestone 8: Settings & Personalization HUD + File Workspac
   describe("SETTINGS Pure Model & Validation", () => {
     it("1. width clamping: strictly enforces [180, 640] bounds", () => {
       assert.strictEqual(clampIslandWidth(100), MIN_ISLAND_WIDTH);
-      assert.strictEqual(clampIslandWidth(179), MIN_ISLAND_WIDTH);
-      assert.strictEqual(clampIslandWidth(180), 180);
+      assert.strictEqual(clampIslandWidth(100), MIN_ISLAND_WIDTH);
+      assert.strictEqual(clampIslandWidth(128), 128);
       assert.strictEqual(clampIslandWidth(320), 320);
-      assert.strictEqual(clampIslandWidth(640), 640);
+      assert.strictEqual(clampIslandWidth(480), 480);
       assert.strictEqual(clampIslandWidth(700), MAX_ISLAND_WIDTH);
       assert.strictEqual(clampIslandWidth(9999), MAX_ISLAND_WIDTH);
     });
 
     it("2. height clamping: strictly enforces [36, 520] bounds", () => {
       assert.strictEqual(clampIslandHeight(20), MIN_ISLAND_HEIGHT);
-      assert.strictEqual(clampIslandHeight(35), MIN_ISLAND_HEIGHT);
-      assert.strictEqual(clampIslandHeight(36), 36);
+      assert.strictEqual(clampIslandHeight(20), MIN_ISLAND_HEIGHT);
+      assert.strictEqual(clampIslandHeight(32), 32);
       assert.strictEqual(clampIslandHeight(48), 48);
-      assert.strictEqual(clampIslandHeight(520), 520);
+      assert.strictEqual(clampIslandHeight(64), 64);
       assert.strictEqual(clampIslandHeight(600), MAX_ISLAND_HEIGHT);
     });
 

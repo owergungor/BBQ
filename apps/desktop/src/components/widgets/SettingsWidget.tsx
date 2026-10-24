@@ -18,6 +18,7 @@ import {
 } from "./settings/index.ts";
 import { useSettingsTabAutoHeight } from "./settingsTabHeightStore.ts";
 import { useTranslation } from "../../i18n/index.ts";
+import { useUpdaterState } from "../../state/updaterState.ts";
 
 let targetSettingsTab: SettingsTab | null = null;
 const tabListeners = new Set<(tab: SettingsTab) => void>();
@@ -31,6 +32,7 @@ export const SettingsWidget: React.FC = () => {
   const { t } = useTranslation();
   const { settings, isLoading } = useSettingsState();
   const { conflictError } = useHotkeyState();
+  const updaterState = useUpdaterState();
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => targetSettingsTab || "appearance");
 
   useEffect(() => {
@@ -473,8 +475,11 @@ export const SettingsWidget: React.FC = () => {
               onKeyDown={(e) => handleTabKeyDown(e, idx)}
               className={`bbq-settings-tab-btn ${isSelected ? "active" : ""}`}
             >
-              <span className="bbq-settings-tab-icon" aria-hidden="true">
+              <span className="bbq-settings-tab-icon" aria-hidden="true" style={{ position: "relative" }}>
                 <Icon name={TAB_ICONS[tab.id]} size={15} />
+                {tab.id === "update" && (updaterState.status === "update_available" || updaterState.status === "success") && (
+                  <span className="bbq-update-tab-dot" aria-label={t("updater.updateAvailable") || "Update Available"} />
+                )}
               </span>
               <span className="bbq-tab-tooltip" role="tooltip" aria-hidden="true">
                 {tab.label}
@@ -509,7 +514,6 @@ export const SettingsWidget: React.FC = () => {
             accentColor={settings.accent_color || "blue"}
             customAccentColor={settings.custom_accent_color || null}
             reducedMotion={settings.reduced_motion}
-            reducedTransparency={settings.reduced_transparency ?? false}
             startAtLogin={settings.start_at_login}
             language={settings.language}
             onThemeChange={handleThemeChange}
