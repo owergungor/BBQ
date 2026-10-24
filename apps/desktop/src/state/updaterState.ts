@@ -35,6 +35,7 @@ export interface UpdaterDomainState {
   error: string | null;
   lastCheckedAt: number | null;
   isModalOpen: boolean;
+  isNotificationOpen: boolean;
 }
 
 export const initialUpdaterState: UpdaterDomainState = {
@@ -47,6 +48,7 @@ export const initialUpdaterState: UpdaterDomainState = {
   error: null,
   lastCheckedAt: null,
   isModalOpen: false,
+  isNotificationOpen: false,
 };
 
 export const updaterStore = createDomainStore<UpdaterDomainState>(initialUpdaterState);
@@ -204,6 +206,7 @@ export async function checkForUpdates(forceCheck = false): Promise<boolean> {
           releaseDate: simulatedAdapter.mockReleaseDate || new Date().toISOString(),
           lastCheckedAt: Date.now(),
           error: null,
+          isNotificationOpen: true,
         });
         return true;
       } else {
@@ -244,6 +247,7 @@ export async function checkForUpdates(forceCheck = false): Promise<boolean> {
           releaseDate: update.date || null,
           lastCheckedAt: Date.now(),
           error: null,
+          isNotificationOpen: true,
         });
         return true;
       } else {
@@ -459,6 +463,25 @@ export function closeUpdateModal(): boolean {
 }
 
 /**
+ * Opens the separate BBQ update notification window/dialog.
+ */
+export function openUpdateNotification(): void {
+  updaterStore.setState({ isNotificationOpen: true });
+}
+
+/**
+ * Closes the separate BBQ update notification window/dialog if no in-flight download/install is active.
+ */
+export function closeUpdateNotification(): boolean {
+  const current = updaterStore.getState();
+  if (current.status === "downloading" || current.status === "installing") {
+    return false;
+  }
+  updaterStore.setState({ isNotificationOpen: false });
+  return true;
+}
+
+/**
  * Resets updater state to idle.
  */
 export function resetUpdaterState(): void {
@@ -475,5 +498,6 @@ export function resetUpdaterState(): void {
     ...initialUpdaterState,
     currentVersion: APP_VERSION,
     isModalOpen: false,
+    isNotificationOpen: false,
   });
 }

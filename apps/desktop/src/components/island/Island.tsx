@@ -20,6 +20,10 @@ import {
   subscribeToOpenSettings,
   subscribeToWindowBlur,
   subscribeToShowIsland,
+  subscribeToSwitchWidget,
+  subscribeToResetPosition,
+  subscribeToReloadWidget,
+  subscribeToOpenAbout,
 } from "../../ipc/events.ts";
 import { setActiveWidget } from "../../island/islandState.ts";
 import { widgetRegistry } from "../../island/widgetRegistry.ts";
@@ -31,7 +35,9 @@ import { IslandContent } from "./IslandContent.tsx";
 import { ContextMenu } from "../common/ContextMenu.tsx";
 import { settingsTabHeightStore } from "../widgets/settingsTabHeightStore.ts";
 import { UpdateModal } from "../updater/UpdateModal.tsx";
-import { useUpdaterState, closeUpdateModal } from "../../state/updaterState.ts";
+import { UpdateNotificationDialog } from "../updater/UpdateNotificationDialog.tsx";
+import { useUpdaterState, closeUpdateModal, closeUpdateNotification } from "../../state/updaterState.ts";
+import { setTargetSettingsTab } from "../widgets/SettingsWidget.tsx";
 
 export const Island: React.FC = () => {
   const { state, mode, activeWidgetId, isDragOver } = useIslandState();
@@ -45,6 +51,7 @@ export const Island: React.FC = () => {
   const moveHud = useSettingsState((s) => s.settings.move_hud ?? false);
   const settingsTabHeight = settingsTabHeightStore.useStore((s) => s.height);
   const isUpdateModalOpen = useUpdaterState((s) => s.isModalOpen);
+  const isNotificationOpen = useUpdaterState((s) => s.isNotificationOpen);
 
   const activeWidgets = React.useMemo(() => {
     return getOrderedActiveWidgets(
@@ -123,6 +130,32 @@ export const Island: React.FC = () => {
           await islandRuntime.transitionTo("Expanded", "none");
         })
       );
+      registerCleanup(
+        await subscribeToSwitchWidget(async (payload) => {
+          setActiveWidget(payload.widget_id);
+          await islandRuntime.transitionTo("Expanded", "none");
+        })
+      );
+      registerCleanup(
+        await subscribeToResetPosition(async () => {
+          await bbqCommands.resetIslandPosition();
+        })
+      );
+      registerCleanup(
+        await subscribeToReloadWidget(async () => {
+          const cur = islandStore.getState().activeWidgetId;
+          if (cur) {
+            await islandRuntime.handleEvent({ type: "WIDGET_SELECT", widgetId: cur });
+          }
+        })
+      );
+      registerCleanup(
+        await subscribeToOpenAbout(async () => {
+          setActiveWidget("settings");
+          setTargetSettingsTab("about");
+          await islandRuntime.transitionTo("Expanded", "none");
+        })
+      );
     })();
 
     return () => {
@@ -170,7 +203,7 @@ export const Island: React.FC = () => {
       const target = e.target as HTMLElement | null;
       if (
         target?.closest?.(
-          ".bbq-dropdown-menu, .bbq-context-menu, [role='listbox'], #bbq-context-menu, #bbq-update-modal-backdrop, .bbq-update-modal-card, [role='dialog']"
+          ".bbq-dropdown-menu, .bbq-context-menu, [role='listbox'], #bbq-context-menu, #bbq-update-modal-backdrop, .bbq-update-modal-card, #bbq-update-notification-backdrop, #bbq-update-notification-dialog, .bbq-update-notification-dialog, [role='dialog']"
         )
       ) {
         return;
@@ -315,7 +348,7 @@ export const Island: React.FC = () => {
     if (
       target &&
       target.closest(
-        "button, input, select, textarea, a, [role='button'], [role='menuitem'], [role='tab'], [role='checkbox'], [contenteditable='true'], .bbq-interactive, .bbq-tab, .bbq-btn, .bbq-context-menu, #bbq-update-modal-backdrop, .bbq-update-modal-card, [role='dialog']"
+        "button, input, select, textarea, a, [role='button'], [role='menuitem'], [role='tab'], [role='checkbox'], [contenteditable='true'], .bbq-interactive, .bbq-tab, .bbq-btn, .bbq-context-menu, #bbq-update-modal-backdrop, .bbq-update-modal-card, #bbq-update-notification-backdrop, #bbq-update-notification-dialog, .bbq-update-notification-dialog, [role='dialog']"
       )
     ) {
       return;
@@ -529,6 +562,7 @@ export const Island: React.FC = () => {
         />
       )}
       {isUpdateModalOpen && <UpdateModal onClose={closeUpdateModal} />}
+      {isNotificationOpen && <UpdateNotificationDialog onClose={closeUpdateNotification} />}
     </div>
   );
 };

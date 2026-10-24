@@ -70,7 +70,11 @@
     "statusDownloading": "İndiriliyor...",
     "statusInstalling": "Yükleniyor...",
     "statusReady": "Yüklemeye Hazır",
-    "statusError": "Güncelleme Hatası"
+    "statusError": "Güncelleme Hatası",
+    "actionUpdate": "Güncelle",
+    "actionLater": "Sonra",
+    "notificationTitle": "BBQ Güncellemesi Mevcut",
+    "notificationMessage": "BBQ'nun yeni bir sürümü indirilip yüklenmeye hazır."
   },
   "settings": {
     "title": "Ayarlar",
@@ -128,7 +132,9 @@
       "moveHudAction": "Adayı Taşı (HUD)",
       "resetPosition": "Varsayılan Konuma Sıfırla",
       "resetPositionDesc": "Varsayılan üst-orta yerleşimi geri yükleyin ve özel koordinatları temizleyin.",
-      "positionResetSuccess": "Ada konumu varsayılana sıfırlandı"
+      "positionResetSuccess": "Ada konumu varsayılana sıfırlandı",
+      "blurEnabled": "Ada Bulanıklığı",
+      "blurEnabledDesc": "Yarı saydam ada yüzeyleri altındaki arka plan bulanıklığını etkinleştirin veya devre dışı bırakın."
     },
     "hotkey": {
       "title": "Genel Kısayol",

@@ -122,7 +122,7 @@ impl Default for DisplayCapabilities {
 }
 
 /// Minimum allowed Island width in logical pixels.
-pub const MIN_ISLAND_WIDTH: u32 = 180;
+pub const MIN_ISLAND_WIDTH: u32 = 64;
 /// Maximum allowed Island width in logical pixels.
 pub const MAX_ISLAND_WIDTH: u32 = 640;
 /// Minimum allowed Island height in logical pixels.
@@ -1736,7 +1736,7 @@ mod tests {
             Some(too_small),
             IslandAnchor::TopCenter,
         );
-        assert_eq!(small_geo.width, MIN_ISLAND_WIDTH); // 180
+        assert_eq!(small_geo.width, MIN_ISLAND_WIDTH); // 64
         assert_eq!(small_geo.height, MIN_ISLAND_HEIGHT); // 36
 
         // Above maximum

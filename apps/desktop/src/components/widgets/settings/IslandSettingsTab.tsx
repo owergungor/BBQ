@@ -10,6 +10,7 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
   draftHeight,
   draftTransparency,
   draftBlur = 20,
+  blurEnabled = true,
   islandPosition,
   alwaysOnTop,
   autoExpandOnEvent,
@@ -42,19 +43,19 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
         id="island-width-slider"
         label={t("settings.island.compactWidth") || "Compact Width"}
         value={draftWidth}
-        min={128}
+        min={64}
         max={480}
         step={50}
         compact={true}
         valueDisplay={`${draftWidth}px`}
         onChange={(val) => {
           let nextVal: number;
-          if (val <= 128) {
-            nextVal = 128;
+          if (val <= 64) {
+            nextVal = 64;
           } else if (val >= 480) {
             nextVal = 480;
           } else {
-            nextVal = Math.max(128, Math.min(480, Math.round(val / 50) * 50));
+            nextVal = Math.max(64, Math.min(480, Math.round(val / 50) * 50));
           }
           onDraftWidthChange(nextVal);
           if (typeof document !== "undefined") {
@@ -184,38 +185,57 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
         }}
       />
 
-      <Slider
-        id="island-blur-slider"
-        label={t("settings.island.blur") || "Island Blur"}
-        value={draftBlur}
-        min={0}
-        max={40}
-        step={2}
-        compact={true}
-        valueDisplay={`${draftBlur}px`}
-        onChange={(val) => {
-          const nextVal = Math.max(0, Math.min(40, Math.round(val)));
-          onDraftBlurChange?.(nextVal);
-          if (typeof document !== "undefined") {
-            document.documentElement.style.setProperty("--bbq-island-blur", `${nextVal}px`);
-            document.documentElement.style.setProperty("--bbq-glass-blur-idle", `${nextVal}px`);
-            document.documentElement.style.setProperty(
-              "--bbq-glass-blur-expanded",
-              `${Math.round(nextVal * 1.33)}px`
-            );
-            document.documentElement.style.setProperty("--bbq-glass-blur", `${nextVal}px`);
-            if (nextVal === 0) {
-              document.documentElement.setAttribute("data-blur-zero", "true");
-            } else {
-              document.documentElement.removeAttribute("data-blur-zero");
-            }
-          }
-        }}
-        onCommit={(val) => {
-          const clamped = Math.max(0, Math.min(40, Math.round(val)));
-          onCommitBlur?.(clamped);
-        }}
+      <Switch
+        id="island-blur-enabled-toggle"
+        checked={blurEnabled}
+        onChange={(checked) => onToggle("island_blur_enabled", checked)}
+        label={t("settings.island.blurEnabled") || "Island Blur"}
+        description={
+          t("settings.island.blurEnabledDesc") ||
+          "Enable or disable backdrop blur beneath translucent island surfaces."
+        }
       />
+
+      <div
+        style={{
+          opacity: blurEnabled ? 1 : 0.45,
+          pointerEvents: blurEnabled ? "auto" : "none",
+          transition: "opacity var(--bbq-duration-fast, 150ms) ease",
+        }}
+      >
+        <Slider
+          id="island-blur-slider"
+          label={t("settings.island.blur") || "Island Blur"}
+          value={draftBlur}
+          min={0}
+          max={40}
+          step={2}
+          compact={true}
+          valueDisplay={`${draftBlur}px`}
+          onChange={(val) => {
+            const nextVal = Math.max(0, Math.min(40, Math.round(val)));
+            onDraftBlurChange?.(nextVal);
+            if (typeof document !== "undefined") {
+              document.documentElement.style.setProperty("--bbq-island-blur", `${nextVal}px`);
+              document.documentElement.style.setProperty("--bbq-glass-blur-idle", `${nextVal}px`);
+              document.documentElement.style.setProperty(
+                "--bbq-glass-blur-expanded",
+                `${Math.round(nextVal * 1.33)}px`
+              );
+              document.documentElement.style.setProperty("--bbq-glass-blur", `${nextVal}px`);
+              if (nextVal === 0) {
+                document.documentElement.setAttribute("data-blur-zero", "true");
+              } else {
+                document.documentElement.removeAttribute("data-blur-zero");
+              }
+            }
+          }}
+          onCommit={(val) => {
+            const clamped = Math.max(0, Math.min(40, Math.round(val)));
+            onCommitBlur?.(clamped);
+          }}
+        />
+      </div>
 
       <Switch
         id="always-on-top-toggle"

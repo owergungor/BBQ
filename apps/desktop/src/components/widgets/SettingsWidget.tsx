@@ -530,6 +530,7 @@ export const SettingsWidget: React.FC = () => {
             draftHeight={draftHeight}
             draftTransparency={draftTransparency}
             draftBlur={draftBlur}
+            blurEnabled={settings.island_blur_enabled ?? true}
             islandPosition={settings.island_position || "top-center"}
             alwaysOnTop={settings.always_on_top ?? true}
             autoExpandOnEvent={settings.auto_expand_on_event}

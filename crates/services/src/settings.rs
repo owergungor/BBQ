@@ -218,6 +218,9 @@ impl SettingsServiceTrait for SettingsService {
                 settings.island_blur = num.min(50);
             }
         }
+        if let Some(ble) = get_val("island_blur_enabled") {
+            settings.island_blur_enabled = ble == "true";
+        }
         if let Some(aot) = get_val("always_on_top") {
             settings.always_on_top = aot == "true";
         }
@@ -394,6 +397,14 @@ impl SettingsServiceTrait for SettingsService {
         self.repo
             .set("island_blur", &settings.island_blur.to_string())?;
         self.repo.set(
+            "island_blur_enabled",
+            if settings.island_blur_enabled {
+                "true"
+            } else {
+                "false"
+            },
+        )?;
+        self.repo.set(
             "always_on_top",
             if settings.always_on_top {
                 "true"
@@ -494,6 +505,7 @@ mod tests {
         assert_eq!(loaded.theme, ThemePreference::Dark);
         assert_eq!(loaded.language, "tr");
         assert_eq!(loaded.island_blur, 24);
+        assert!(loaded.island_blur_enabled);
         // Unset keys still resolve to defaults
         assert!(loaded.always_on_top);
         assert_eq!(loaded.global_hotkey, BbqSettings::default().global_hotkey);

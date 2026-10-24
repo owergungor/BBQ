@@ -577,7 +577,8 @@ describe("BBQ v2.4 — Phase 1: Launcher, Context Menu & UI Polish Regression Te
     it("clamps island dimensions safely via domain models", () => {
       assert.equal(clampIslandWidth(null), 240);
       assert.equal(clampIslandWidth(NaN), 240);
-      assert.equal(clampIslandWidth(100), 128);
+      assert.equal(clampIslandWidth(50), 64);
+      assert.equal(clampIslandWidth(64), 64);
       assert.equal(clampIslandWidth(800), 480);
 
       assert.equal(clampIslandHeight(null), 38);

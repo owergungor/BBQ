@@ -70,7 +70,11 @@
     "statusDownloading": "Wird heruntergeladen...",
     "statusInstalling": "Wird installiert...",
     "statusReady": "Bereit zur Installation",
-    "statusError": "Update-Fehler"
+    "statusError": "Update-Fehler",
+    "actionUpdate": "Aktualisieren",
+    "actionLater": "Später",
+    "notificationTitle": "BBQ-Update verfügbar",
+    "notificationMessage": "Eine neue Version von BBQ steht zum Download und zur Installation bereit."
   },
   "settings": {
     "title": "Einstellungen",
@@ -128,7 +132,9 @@
       "moveHudAction": "Insel verschieben (HUD)",
       "resetPosition": "Auf Bildschirm-Standard zurücksetzen",
       "resetPositionDesc": "Standardmäßige obere Zentrierung wiederherstellen und benutzerdefinierte Koordinaten löschen.",
-      "positionResetSuccess": "Inselposition auf Standard zurückgesetzt"
+      "positionResetSuccess": "Inselposition auf Standard zurückgesetzt",
+      "blurEnabled": "Island-Unschärfe",
+      "blurEnabledDesc": "Aktivieren oder deaktivieren Sie die Hintergrundunschärfe unter durchscheinenden Island-Oberflächen."
     },
     "hotkey": {
       "title": "Globales Tastenkürzel",

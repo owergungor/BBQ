@@ -1,7 +1,7 @@
 use crate::error::{BbqError, BbqResult};
 use serde::{Deserialize, Serialize};
 
-pub const MIN_ISLAND_WIDTH: u32 = 128;
+pub const MIN_ISLAND_WIDTH: u32 = 64;
 pub const MAX_ISLAND_WIDTH: u32 = 480;
 pub const MIN_ISLAND_HEIGHT: u32 = 32;
 pub const MAX_ISLAND_HEIGHT: u32 = 520;
@@ -66,6 +66,10 @@ fn default_island_blur() -> u32 {
     20
 }
 
+fn default_island_blur_enabled() -> bool {
+    true
+}
+
 fn default_always_on_top() -> bool {
     true
 }
@@ -110,6 +114,8 @@ pub struct BbqSettings {
     pub island_transparency: u32,
     #[serde(default = "default_island_blur")]
     pub island_blur: u32,
+    #[serde(default = "default_island_blur_enabled")]
+    pub island_blur_enabled: bool,
     #[serde(default = "default_always_on_top")]
     pub always_on_top: bool,
     #[serde(default = "default_move_hud")]
@@ -159,6 +165,7 @@ impl Default for BbqSettings {
             island_position: "top-center".to_string(),
             island_transparency: 0,
             island_blur: 20,
+            island_blur_enabled: true,
             always_on_top: true,
             move_hud: false,
             language: "en".to_string(),
@@ -331,7 +338,8 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
         | "timer_sound_enabled"
         | "reminder_sound_enabled"
         | "first_run_completed"
-        | "onboarding_completed" => {
+        | "onboarding_completed"
+        | "island_blur_enabled" => {
             if value != "true" && value != "false" {
                 return Err(BbqError::Validation(format!(
                     "Boolean setting '{}' must be 'true' or 'false', got '{}'",
@@ -518,8 +526,14 @@ mod tests {
 
     #[test]
     fn test_validation_bounds_rejection() {
+        let valid_min_width = BbqSettings {
+            island_width: 64, // MIN_ISLAND_WIDTH (64)
+            ..Default::default()
+        };
+        assert!(valid_min_width.validate().is_ok());
+
         let invalid = BbqSettings {
-            island_width: 100, // Below MIN_ISLAND_WIDTH (180)
+            island_width: 50, // Below MIN_ISLAND_WIDTH (64)
             ..Default::default()
         };
         assert!(invalid.validate().is_err());
@@ -545,7 +559,8 @@ mod tests {
         assert!(validate_setting_entry("theme", "invalid_theme").is_err());
 
         assert!(validate_setting_entry("island_width", "250").is_ok());
-        assert!(validate_setting_entry("island_width", "100").is_err());
+        assert!(validate_setting_entry("island_width", "64").is_ok());
+        assert!(validate_setting_entry("island_width", "50").is_err());
         assert!(validate_setting_entry("island_width", "not_a_number").is_err());
 
         assert!(validate_setting_entry("reduced_motion", "true").is_ok());
@@ -609,11 +624,17 @@ mod tests {
 
         // Blur validation (0..=50)
         assert_eq!(settings.island_blur, 20);
+        assert!(settings.island_blur_enabled);
         assert!(validate_setting_entry("island_blur", "0").is_ok());
         assert!(validate_setting_entry("island_blur", "20").is_ok());
         assert!(validate_setting_entry("island_blur", "50").is_ok());
         assert!(validate_setting_entry("island_blur", "51").is_err());
         assert!(validate_setting_entry("island_blur", "-1").is_err());
+
+        // Blur enabled switch validation
+        assert!(validate_setting_entry("island_blur_enabled", "true").is_ok());
+        assert!(validate_setting_entry("island_blur_enabled", "false").is_ok());
+        assert!(validate_setting_entry("island_blur_enabled", "invalid").is_err());
 
         // Always on top validation
         assert!(validate_setting_entry("always_on_top", "true").is_ok());

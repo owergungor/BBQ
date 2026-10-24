@@ -361,7 +361,7 @@ export function resolveArtworkUrl(raw: string | null | undefined): string | null
     // Normalize Windows backslashes to forward slashes for Tauri asset protocol
     cleanPath = cleanPath.replace(/\\/g, "/");
     try {
-      if (typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+      if (true) {
         return convertFileSrc(cleanPath);
       }
     } catch {

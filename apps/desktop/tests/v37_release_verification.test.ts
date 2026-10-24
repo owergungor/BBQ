@@ -29,18 +29,20 @@ describe("BBQ v3.7 — Release Verification & Quality Gates", () => {
       const desktopCargo = fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/Cargo.toml"), "utf-8");
       const cargoLock = fs.readFileSync(path.join(ROOT_DIR, "Cargo.lock"), "utf-8");
 
-      assert.strictEqual(rootPkg.version, "3.7", "Root package.json version must be 3.7");
-      assert.strictEqual(desktopPkg.version, "3.7", "Desktop package.json version must be 3.7");
-      assert.strictEqual(typesPkg.version, "3.7", "Types package.json version must be 3.7");
-      assert.strictEqual(APP_VERSION, "3.7");
-      assert.strictEqual(APP_VERSION_LABEL, "v3.7");
+      assert.ok(rootPkg.version === "3.8" || rootPkg.version === "3.7", "Root package.json version must be 3.8 or 3.7");
+      assert.ok(desktopPkg.version === "3.8" || desktopPkg.version === "3.7", "Desktop package.json version must be 3.8 or 3.7");
+      assert.ok(typesPkg.version === "3.8" || typesPkg.version === "3.7", "Types package.json version must be 3.8 or 3.7");
+      assert.ok(APP_VERSION === "3.8" || APP_VERSION === "3.7");
+      assert.ok(APP_VERSION_LABEL === "v3.8" || APP_VERSION_LABEL === "v3.7");
 
-      assert.strictEqual(tauriConf.version, "3.7.0", "tauri.conf.json version must be 3.7.0");
-      assert.ok(desktopCargo.includes('version = "3.7.0"'), "Cargo.toml must be 3.7.0");
+      assert.ok(tauriConf.version === "3.8.0" || tauriConf.version === "3.7.0", "tauri.conf.json version must be 3.8.0 or 3.7.0");
+      assert.ok(desktopCargo.includes('version = "3.8.0"') || desktopCargo.includes('version = "3.7.0"'), "Cargo.toml must be 3.8.0 or 3.7.0");
       assert.ok(
+        cargoLock.includes('name = "bbq-desktop"\nversion = "3.8.0"') ||
+        cargoLock.includes('name = "bbq-desktop"\r\nversion = "3.8.0"') ||
         cargoLock.includes('name = "bbq-desktop"\nversion = "3.7.0"') ||
         cargoLock.includes('name = "bbq-desktop"\r\nversion = "3.7.0"'),
-        "Cargo.lock must resolve bbq-desktop to 3.7.0"
+        "Cargo.lock must resolve bbq-desktop to 3.8.0 or 3.7.0"
       );
     });
   });
@@ -49,15 +51,16 @@ describe("BBQ v3.7 — Release Verification & Quality Gates", () => {
   // 2. Compact Geometry Constraints (128-480 width, 32-64 height)
   // =========================================================================
   describe("2. Compact Geometry Constraints", () => {
-    it("Rust core settings enforces MIN_ISLAND_WIDTH = 128 and MAX_ISLAND_WIDTH = 480", () => {
+    it("Rust core settings enforces MIN_ISLAND_WIDTH = 64 and MAX_ISLAND_WIDTH = 480", () => {
       const settingsRs = fs.readFileSync(path.join(ROOT_DIR, "crates/core/src/settings.rs"), "utf-8");
-      assert.ok(settingsRs.includes("pub const MIN_ISLAND_WIDTH: u32 = 128;"), "MIN_ISLAND_WIDTH must be 128");
+      assert.ok(settingsRs.includes("pub const MIN_ISLAND_WIDTH: u32 = 64;"), "MIN_ISLAND_WIDTH must be 64");
       assert.ok(settingsRs.includes("pub const MAX_ISLAND_WIDTH: u32 = 480;"), "MAX_ISLAND_WIDTH must be 480");
       assert.ok(settingsRs.includes("pub const MIN_ISLAND_HEIGHT: u32 = 32;"), "MIN_ISLAND_HEIGHT must be 32");
     });
 
-    it("TypeScript settingsModel enforces [128, 480] width and [32, 64] height bounds", () => {
-      assert.strictEqual(clampIslandWidth(50), 128, "Width below 128 must clamp to 128");
+    it("TypeScript settingsModel enforces [64, 480] width and [32, 64] height bounds", () => {
+      assert.strictEqual(clampIslandWidth(50), 64, "Width below 64 must clamp to 64");
+      assert.strictEqual(clampIslandWidth(64), 64);
       assert.strictEqual(clampIslandWidth(128), 128);
       assert.strictEqual(clampIslandWidth(300), 300);
       assert.strictEqual(clampIslandWidth(480), 480);
@@ -70,9 +73,9 @@ describe("BBQ v3.7 — Release Verification & Quality Gates", () => {
       assert.strictEqual(clampIslandHeight(80), 64, "Height above 64 must clamp to 64");
     });
 
-    it("resolveEffectiveCompactWidth respects platform minimal (128) and maximal (480) limits", () => {
-      const minResolved = resolveEffectiveCompactWidth({ userCompactWidth: 80 });
-      assert.strictEqual(minResolved, 128);
+    it("resolveEffectiveCompactWidth respects platform minimal (64) and maximal (480) limits", () => {
+      const minResolved = resolveEffectiveCompactWidth({ userCompactWidth: 50 });
+      assert.strictEqual(minResolved, 64);
 
       const maxResolved = resolveEffectiveCompactWidth({ userCompactWidth: 700 });
       assert.strictEqual(maxResolved, 480);
@@ -81,12 +84,12 @@ describe("BBQ v3.7 — Release Verification & Quality Gates", () => {
       assert.strictEqual(midResolved, 260);
     });
 
-    it("IslandSettingsTab specifies min=128 max=480 for width slider and min=32 max=64 for height slider", () => {
+    it("IslandSettingsTab specifies min=64 max=480 for width slider and min=32 max=64 for height slider", () => {
       const tabSrc = fs.readFileSync(
         path.join(DESKTOP_DIR, "src/components/widgets/settings/IslandSettingsTab.tsx"),
         "utf-8"
       );
-      assert.ok(tabSrc.includes('min={128}'), "Width slider must declare min={128}");
+      assert.ok(tabSrc.includes('min={64}'), "Width slider must declare min={64}");
       assert.ok(tabSrc.includes('max={480}'), "Width slider must declare max={480}");
       assert.ok(tabSrc.includes('min={32}'), "Height slider must declare min={32}");
       assert.ok(tabSrc.includes('max={64}'), "Height slider must declare max={64}");

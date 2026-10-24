@@ -1159,7 +1159,8 @@ mod tests {
         let root_pkg = std::fs::read_to_string(root.join("package.json"))
             .expect("Should read root package.json");
         assert!(
-            root_pkg.contains("\"version\": \"3.7\"")
+            root_pkg.contains("\"version\": \"3.8\"")
+                || root_pkg.contains("\"version\": \"3.7\"")
                 || root_pkg.contains("\"version\": \"3.6\"")
                 || root_pkg.contains("\"version\": \"3.5\"")
                 || root_pkg.contains("\"version\": \"3.4\"")
@@ -1174,7 +1175,7 @@ mod tests {
         let desktop_pkg = std::fs::read_to_string(root.join("apps/desktop/package.json"))
             .expect("Should read apps/desktop/package.json");
         assert!(
-            desktop_pkg.contains("\"version\": \"3.7\"")
+            desktop_pkg.contains("\"version\": \"3.8\"") || desktop_pkg.contains("\"version\": \"3.7\"")
                 || desktop_pkg.contains("\"version\": \"3.6\"")
                 || desktop_pkg.contains("\"version\": \"3.5\"")
                 || desktop_pkg.contains("\"version\": \"3.4\"")
@@ -1189,7 +1190,7 @@ mod tests {
         let types_pkg = std::fs::read_to_string(root.join("packages/types/package.json"))
             .expect("Should read packages/types/package.json");
         assert!(
-            types_pkg.contains("\"version\": \"3.7\"")
+            types_pkg.contains("\"version\": \"3.8\"") || types_pkg.contains("\"version\": \"3.7\"")
                 || types_pkg.contains("\"version\": \"3.6\"")
                 || types_pkg.contains("\"version\": \"3.5\"")
                 || types_pkg.contains("\"version\": \"3.4\"")
@@ -1205,7 +1206,7 @@ mod tests {
             std::fs::read_to_string(root.join("apps/desktop/src-tauri/tauri.conf.json"))
                 .expect("Should read tauri.conf.json");
         assert!(
-            tauri_conf.contains("\"version\": \"3.7.0\"")
+            tauri_conf.contains("\"version\": \"3.8.0\"") || tauri_conf.contains("\"version\": \"3.7.0\"")
                 || tauri_conf.contains("\"version\": \"3.6.0\"")
                 || tauri_conf.contains("\"version\": \"3.5.0\"")
                 || tauri_conf.contains("\"version\": \"3.4.0\"")
@@ -1213,7 +1214,7 @@ mod tests {
                 || tauri_conf.contains("\"version\": \"3.2.0\"")
                 || tauri_conf.contains("\"version\": \"3.1.0\"")
                 || tauri_conf.contains("\"version\": \"3.0.0\"")
-                || tauri_conf.contains("\"version\": \"3.7\"")
+                || tauri_conf.contains("\"version\": \"3.8\"") || tauri_conf.contains("\"version\": \"3.7\"")
                 || tauri_conf.contains("\"version\": \"3.6\"")
                 || tauri_conf.contains("\"version\": \"3.5\"")
                 || tauri_conf.contains("\"version\": \"3.4\"")

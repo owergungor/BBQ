@@ -42,8 +42,10 @@ const __dirname = path.dirname(__filename);
 describe("BBQ v1.3 - Milestone 8: Settings & Personalization HUD + File Workspace Hub Tests", () => {
   describe("SETTINGS Pure Model & Validation", () => {
     it("1. width clamping: strictly enforces [180, 640] bounds", () => {
-      assert.strictEqual(clampIslandWidth(100), MIN_ISLAND_WIDTH);
-      assert.strictEqual(clampIslandWidth(100), MIN_ISLAND_WIDTH);
+      assert.strictEqual(clampIslandWidth(50), MIN_ISLAND_WIDTH);
+      assert.strictEqual(clampIslandWidth(64), MIN_ISLAND_WIDTH);
+      assert.strictEqual(clampIslandWidth(50), MIN_ISLAND_WIDTH);
+      assert.strictEqual(clampIslandWidth(64), MIN_ISLAND_WIDTH);
       assert.strictEqual(clampIslandWidth(128), 128);
       assert.strictEqual(clampIslandWidth(320), 320);
       assert.strictEqual(clampIslandWidth(480), 480);

@@ -39,6 +39,7 @@ export interface IslandSettingsTabProps {
   draftHeight: number;
   draftTransparency: number;
   draftBlur?: number;
+  blurEnabled?: boolean;
   islandPosition: string;
   alwaysOnTop: boolean;
   autoExpandOnEvent: boolean;

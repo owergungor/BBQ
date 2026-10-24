@@ -22,7 +22,7 @@ describe("BBQ v3.6 — Step 3: True Opaque Transparency & Background Blur Contra
   );
   const backendLibPath = path.join(DESKTOP_DIR, "src-tauri/src/lib.rs");
 
-  const cssContent = fs.readFileSync(cssPath, "utf-8");
+  const cssContent = fs.readFileSync(cssPath, "utf-8").replace(/\r\n/g, "\n");
   const settingsStateContent = fs.readFileSync(settingsStatePath, "utf-8");
   const islandShellContent = fs.readFileSync(islandShellPath, "utf-8");
   const islandSettingsTabContent = fs.readFileSync(islandSettingsTabPath, "utf-8");

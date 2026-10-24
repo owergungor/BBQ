@@ -766,6 +766,8 @@ html, body {
   cursor: pointer;
   user-select: none;
   overflow: hidden;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
   transform-origin: center top;
   transition: width var(--bbq-duration-normal) var(--bbq-ease-spring),
               height var(--bbq-duration-normal) var(--bbq-ease-spring),
@@ -819,13 +821,16 @@ html, body {
 /* State Modifiers */
 .bbq-island-shell.state-idle {
   width: 100%;
-  min-width: 128px;
+  min-width: 64px;
   max-width: var(--bbq-compact-width, 240px);
   height: 100%;
   min-height: 32px;
   max-height: var(--bbq-compact-height, 38px);
   border-radius: var(--bbq-radius-compact, 20px);
   clip-path: inset(0 round var(--bbq-radius-compact, 20px));
+  -webkit-clip-path: inset(0 round var(--bbq-radius-compact, 20px));
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
   background: var(--bbq-surface-glass-idle);
   background: color-mix(in srgb, var(--bbq-surface-glass-idle) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
@@ -844,6 +849,9 @@ html, body {
   max-height: var(--bbq-peek-height, 44px);
   border-radius: var(--bbq-radius-peek, 22px);
   clip-path: inset(0 round var(--bbq-radius-peek, 22px));
+  -webkit-clip-path: inset(0 round var(--bbq-radius-peek, 22px));
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
   background: var(--bbq-surface-glass-idle);
   background: color-mix(in srgb, var(--bbq-surface-glass-idle) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(var(--bbq-glass-blur-idle)) saturate(var(--bbq-glass-saturation));
@@ -860,6 +868,9 @@ html, body {
   max-height: var(--bbq-expanded-height, 360px);
   border-radius: var(--bbq-radius-expanded, 24px);
   clip-path: inset(0 round var(--bbq-radius-expanded, 24px));
+  -webkit-clip-path: inset(0 round var(--bbq-radius-expanded, 24px));
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
   background: var(--bbq-surface-glass-expanded);
   background: color-mix(in srgb, var(--bbq-surface-glass-expanded) calc(var(--bbq-island-opacity, 1) * 100%), transparent);
   backdrop-filter: blur(var(--bbq-glass-blur-expanded)) saturate(var(--bbq-glass-saturation-expanded));

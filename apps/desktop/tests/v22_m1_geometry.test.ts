@@ -322,9 +322,9 @@ describe("BBQ v2.2 — Milestone 1: Core Geometry & Layout Invariants", () => {
 
       // 4. Clamping to platform boundaries [180, 640]
       const clampedMin = resolveEffectiveCompactWidth({
-        userCompactWidth: 100,
+        userCompactWidth: 50,
       });
-      assert.equal(clampedMin, 128, "Must clamp to platform minimum 180");
+      assert.equal(clampedMin, 64, "Must clamp to platform minimum 64");
 
       const clampedMax = resolveEffectiveCompactWidth({
         userCompactWidth: 999,

@@ -112,7 +112,8 @@ pub async fn sync_runtime_services_with_settings(
     }
 
     // 4. Native Island Backdrop Blur & Transparency synchronization
-    let blur_changed = prev.map(|p| p.island_blur) != Some(current.island_blur);
+    let blur_changed = prev.map(|p| p.island_blur) != Some(current.island_blur)
+        || prev.map(|p| p.island_blur_enabled) != Some(current.island_blur_enabled);
     let transparency_changed =
         prev.map(|p| p.island_transparency) != Some(current.island_transparency);
 
@@ -121,10 +122,22 @@ pub async fn sync_runtime_services_with_settings(
             apply_native_window_backdrop(&window, current);
         }
     }
+
+    // 5. System Tray menu runtime synchronization (locale, toggles)
+    let tray_changed = prev.map(|p| p.language.as_str()) != Some(&current.language)
+        || prev.map(|p| p.always_on_top) != Some(current.always_on_top)
+        || prev.map(|p| p.start_at_login) != Some(current.start_at_login)
+        || prev.map(|p| p.move_hud) != Some(current.move_hud);
+
+    if prev.is_none() || tray_changed {
+        let _ = crate::tray::update_tray_menu_internal(app, current);
+    }
 }
 
 pub fn apply_native_window_backdrop(window: &tauri::WebviewWindow, settings: &BbqSettings) {
-    let should_enable_native_blur = settings.island_transparency > 0 && settings.island_blur > 0;
+    let should_enable_native_blur = settings.island_blur_enabled
+        && settings.island_transparency > 0
+        && settings.island_blur > 0;
 
     if should_enable_native_blur {
         #[cfg(target_os = "windows")]

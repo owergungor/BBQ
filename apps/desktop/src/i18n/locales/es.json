@@ -70,7 +70,11 @@
     "statusDownloading": "Descargando...",
     "statusInstalling": "Instalando...",
     "statusReady": "Listo para instalar",
-    "statusError": "Error de actualización"
+    "statusError": "Error de actualización",
+    "actionUpdate": "Actualizar",
+    "actionLater": "Más tarde",
+    "notificationTitle": "Actualización de BBQ disponible",
+    "notificationMessage": "Una nueva versión de BBQ está lista para descargar e instalar."
   },
   "settings": {
     "title": "Ajustes",
@@ -128,7 +132,9 @@
       "moveHudAction": "Mover isla (HUD)",
       "resetPosition": "Restablecer a posición predeterminada",
       "resetPositionDesc": "Restaurar colocación superior central predeterminada y borrar coordenadas personalizadas.",
-      "positionResetSuccess": "Posición de la isla restablecida por defecto"
+      "positionResetSuccess": "Posición de la isla restablecida por defecto",
+      "blurEnabled": "Desenfoque de Isla",
+      "blurEnabledDesc": "Habilite o deshabilite el desenfoque de fondo debajo de las superficies translúcidas de la isla."
     },
     "hotkey": {
       "title": "Atajo global",

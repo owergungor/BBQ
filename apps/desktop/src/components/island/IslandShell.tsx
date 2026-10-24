@@ -69,8 +69,8 @@ export const IslandShell: React.FC<IslandShellProps> = ({
     });
     dynamicStyle = {
       ...dynamicStyle,
-      minWidth: "128px",
-      maxWidth: `${Math.min(480, Math.max(128, resolvedW))}px`,
+      minWidth: "64px",
+      maxWidth: `${Math.min(480, Math.max(64, resolvedW))}px`,
       minHeight: "32px",
       maxHeight: "var(--bbq-compact-height, 38px)",
     };

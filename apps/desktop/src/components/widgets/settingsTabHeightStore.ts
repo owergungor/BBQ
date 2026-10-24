@@ -49,8 +49,24 @@ export function useSettingsTabAutoHeight(activeTab: string, language?: string) {
       if (child) {
         ro.observe(child);
       }
+
+      let mo: MutationObserver | null = null;
+      if (typeof MutationObserver !== "undefined") {
+        mo = new MutationObserver(() => {
+          measureAndSet();
+          const newChild = el.firstElementChild;
+          if (newChild && newChild !== child) {
+            ro.observe(newChild);
+          }
+        });
+        mo.observe(el, { childList: true, subtree: true, characterData: true });
+      }
+
       return () => {
         ro.disconnect();
+        if (mo) {
+          mo.disconnect();
+        }
       };
     }
   }, [activeTab, language]);

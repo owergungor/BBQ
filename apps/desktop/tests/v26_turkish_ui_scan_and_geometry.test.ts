@@ -121,7 +121,8 @@ describe("BBQ v2.6 — UI Polish, Geometry, Theme Dropdowns & English Invariants
   // =========================================================================
   describe("3. Compact Width Symmetrical Centering Invariant", () => {
     it("resolves compact width within platform constraints [180, 640]", () => {
-      assert.strictEqual(resolveEffectiveCompactWidth({ userCompactWidth: 100 }), 128);
+      assert.strictEqual(resolveEffectiveCompactWidth({ userCompactWidth: 50 }), 64);
+      assert.strictEqual(resolveEffectiveCompactWidth({ userCompactWidth: 64 }), 64);
       assert.strictEqual(resolveEffectiveCompactWidth({ userCompactWidth: 300 }), 300);
       assert.strictEqual(resolveEffectiveCompactWidth({ userCompactWidth: 800 }), 480);
     });

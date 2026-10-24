@@ -258,3 +258,60 @@ export async function subscribeToDatabaseRecovered(
     return () => {};
   }
 }
+
+
+export interface SwitchWidgetPayload {
+  widget_id: string;
+}
+
+export async function subscribeToSwitchWidget(
+  callback: (payload: SwitchWidgetPayload) => void
+): Promise<UnlistenFn> {
+  try {
+    return await listen<SwitchWidgetPayload>("bbq://switch_widget", (event) => {
+      callback(event.payload);
+    });
+  } catch {
+    return () => {};
+  }
+}
+
+export async function subscribeToResetPosition(
+  callback: () => void
+): Promise<UnlistenFn> {
+  try {
+    return await listen<void>("bbq://reset_position", () => {
+      callback();
+    });
+  } catch {
+    return () => {};
+  }
+}
+
+export interface ReloadWidgetPayload {
+  widget_id?: string;
+}
+
+export async function subscribeToReloadWidget(
+  callback: (payload: ReloadWidgetPayload) => void
+): Promise<UnlistenFn> {
+  try {
+    return await listen<ReloadWidgetPayload>("bbq://reload_widget", (event) => {
+      callback(event.payload);
+    });
+  } catch {
+    return () => {};
+  }
+}
+
+export async function subscribeToOpenAbout(
+  callback: () => void
+): Promise<UnlistenFn> {
+  try {
+    return await listen<void>("bbq://open_about", () => {
+      callback();
+    });
+  } catch {
+    return () => {};
+  }
+}

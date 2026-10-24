@@ -7,7 +7,7 @@ export interface CompactResolutionInput {
   userCompactWidth: number;
   /** Active widget's sizing contract if available */
   widgetSizing?: WidgetSizingContract;
-  /** Platform minimal boundary in logical pixels (default: 128) */
+  /** Platform minimal boundary in logical pixels (default: 64) */
   platformMinWidth?: number;
   /** Platform maximal boundary in logical pixels (default: 480) */
   platformMaxWidth?: number;
@@ -18,10 +18,10 @@ export interface CompactResolutionInput {
  * 1. Content minimum width (ensures content is not clipped, buttons accessible, no overflow)
  * 2. User configured compact width
  * 3. Widget preferred width (from widget sizing contract compact constraints)
- * 4. Platform/window limits [128, 480]
+ * 4. Platform/window limits [64, 480]
  */
 export function resolveEffectiveCompactWidth(input: CompactResolutionInput): number {
-  const platformMin = input.platformMinWidth ?? 128;
+  const platformMin = input.platformMinWidth ?? 64;
   const platformMax = input.platformMaxWidth ?? 480;
 
   const widgetCompact = input.widgetSizing?.compact;

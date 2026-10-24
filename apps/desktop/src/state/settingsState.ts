@@ -115,6 +115,7 @@ export const defaultSettings: BbqSettings = {
   island_position: "top-center",
   island_transparency: 0,
   island_blur: 20,
+  island_blur_enabled: true,
   always_on_top: true,
   move_hud: false,
   language: "en",
@@ -281,8 +282,10 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
           document.documentElement.removeAttribute?.("data-opaque");
         }
       }
-      if (typeof settings.island_blur === "number") {
-        const blur = Math.min(50, Math.max(0, settings.island_blur));
+      const blurEnabled = settings.island_blur_enabled ?? true;
+      if (typeof settings.island_blur === "number" || !blurEnabled) {
+        const rawBlur = typeof settings.island_blur === "number" ? settings.island_blur : 20;
+        const blur = blurEnabled ? Math.min(50, Math.max(0, rawBlur)) : 0;
         document.documentElement.style.setProperty(
           "--bbq-island-blur",
           `${blur}px`
@@ -300,6 +303,8 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
           `${blur}px`
         );
         if (blur === 0) {
+          document.documentElement.setAttribute("data-blur-zero", "true");
+        } else if (!blurEnabled) {
           document.documentElement.setAttribute("data-blur-zero", "true");
         } else {
           document.documentElement.removeAttribute?.("data-blur-zero");
@@ -530,6 +535,9 @@ export function coerceSettingValue(key: keyof BbqSettings, value: string): unkno
       const parsed = Number(value);
       return Number.isFinite(parsed) ? Math.min(80, Math.max(0, Math.round(parsed))) : 0;
     }
+
+    case "island_blur_enabled":
+      return value === "true";
 
     case "island_blur": {
       const parsed = Number(value);

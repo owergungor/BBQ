@@ -17,7 +17,7 @@ export const ACTIVE_HUD_WIDGET_IDS: readonly string[] = [
   "settings",
 ];
 
-export const MIN_ISLAND_WIDTH = 128;
+export const MIN_ISLAND_WIDTH = 64;
 export const MAX_ISLAND_WIDTH = 480;
 export const DEFAULT_ISLAND_WIDTH = 240;
 
@@ -64,7 +64,7 @@ export function clampDimension(
 }
 
 /**
- * Validates and clamps island width to [128, 480].
+ * Validates and clamps island width to [64, 480].
  */
 export function clampIslandWidth(val: number | null | undefined): number {
   return clampDimension(val, MIN_ISLAND_WIDTH, MAX_ISLAND_WIDTH, DEFAULT_ISLAND_WIDTH);

@@ -280,6 +280,7 @@ export interface BbqSettings {
   island_position?: IslandPosition;
   island_transparency?: number;
   island_blur?: number;
+  island_blur_enabled?: boolean;
   always_on_top?: boolean;
   move_hud?: boolean;
   language?: SupportedLanguage;

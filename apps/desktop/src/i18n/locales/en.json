@@ -70,7 +70,11 @@
     "statusDownloading": "Downloading...",
     "statusInstalling": "Installing...",
     "statusReady": "Ready to Install",
-    "statusError": "Update Error"
+    "statusError": "Update Error",
+    "actionUpdate": "Update",
+    "actionLater": "Later",
+    "notificationTitle": "BBQ Update Available",
+    "notificationMessage": "A new version of BBQ is ready to download and install."
   },
   "settings": {
     "title": "Settings",
@@ -128,7 +132,9 @@
       "moveHudAction": "Move Island (HUD)",
       "resetPosition": "Reset to Screen Default",
       "resetPositionDesc": "Restore default top-center position and clear custom coordinates.",
-      "positionResetSuccess": "Island position reset to default"
+      "positionResetSuccess": "Island position reset to default",
+      "blurEnabled": "Island Blur",
+      "blurEnabledDesc": "Enable or disable backdrop blur beneath translucent island surfaces."
     },
     "hotkey": {
       "title": "Global Hotkey",

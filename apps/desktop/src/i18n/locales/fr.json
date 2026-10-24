@@ -70,7 +70,11 @@
     "statusDownloading": "Téléchargement...",
     "statusInstalling": "Installation...",
     "statusReady": "Prêt à installer",
-    "statusError": "Erreur de mise à jour"
+    "statusError": "Erreur de mise à jour",
+    "actionUpdate": "Mettre à jour",
+    "actionLater": "Plus tard",
+    "notificationTitle": "Mise à jour BBQ disponible",
+    "notificationMessage": "Une nouvelle version de BBQ est prête à être téléchargée et installée."
   },
   "settings": {
     "title": "Paramètres",
@@ -128,7 +132,9 @@
       "moveHudAction": "Déplacer l'îlot (HUD)",
       "resetPosition": "Restaurer la position par défaut",
       "resetPositionDesc": "Restaurer le placement supérieur central par défaut et effacer les coordonnées personnalisées.",
-      "positionResetSuccess": "Position de l'îlot réinitialisée par défaut"
+      "positionResetSuccess": "Position de l'îlot réinitialisée par défaut",
+      "blurEnabled": "Flou de l'Îlot",
+      "blurEnabledDesc": "Activez ou désactivez le flou d'arrière-plan sous les surfaces translucides de l'îlot."
     },
     "hotkey": {
       "title": "Raccourci global",
