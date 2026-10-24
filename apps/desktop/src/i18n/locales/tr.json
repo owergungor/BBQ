@@ -56,7 +56,14 @@
     "releaseNotes": "Sürüm Notları",
     "errorChecking": "Güncelleme denetlenemedi: {{error}}",
     "errorDownloading": "Güncelleme indirilemedi: {{error}}",
-    "offlineNotice": "Çevrimdışı görünüyorsunuz. Lütfen internet bağlantınızı kontrol edin."
+    "offlineNotice": "Çevrimdışı görünüyorsunuz. Lütfen internet bağlantınızı kontrol edin.",
+    "modalTitle": "BBQ'yu Güncelle",
+    "currentVersion": "Mevcut",
+    "newVersion": "Yeni",
+    "lastChecked": "Son kontrol: {{time}}",
+    "openModal": "Güncellemeyi Gör",
+    "updateNow": "Şimdi Güncelle",
+    "cannotCancel": "Devam eden indirme iptal edilemez"
   },
   "settings": {
     "title": "Ayarlar",

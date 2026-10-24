@@ -312,6 +312,8 @@ pub fn run() {
             // Setup main window and DragDrop listener
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_shadow(false);
+                let initial_settings = state.settings_service.get_settings().unwrap_or_default();
+                commands::settings::apply_native_window_backdrop(&window, &initial_settings);
                 let drop_svc_window = state.drop_service.clone();
                 let app_handle_window_drop = handle.clone();
                 window.on_window_event(move |event| match event {

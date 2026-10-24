@@ -258,7 +258,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
 
     it("transitions idle -> checking -> update_available when new version is available", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.6",
+        mockAvailableVersion: "3.7",
         mockReleaseNotes: "New features and bug fixes",
         mockReleaseDate: "2026-10-15T00:00:00Z",
       });
@@ -266,19 +266,19 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       await checkForUpdates();
       const state = updaterStore.getState();
       assert.strictEqual(state.status, "update_available");
-      assert.strictEqual(state.availableVersion, "3.6");
+      assert.strictEqual(state.availableVersion, "3.7");
       assert.strictEqual(state.releaseNotes, "New features and bug fixes");
     });
 
     it("supports download, progress reporting, and completion", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.5",
+        mockAvailableVersion: "3.7",
         downloadDurationMs: 40,
       });
 
       updaterStore.setState({
         status: "update_available",
-        availableVersion: "3.5",
+        availableVersion: "3.7",
       });
 
       await downloadAndInstallUpdate();
@@ -861,8 +861,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       const desktopCargo = fs.readFileSync(desktopCargoPath, "utf-8");
       const cargoLock = fs.readFileSync(cargoLockPath, "utf-8");
 
-      const EXPECTED_VERSION = "3.5";
-      const CARGO_INTERNAL_VERSION = "3.5.0";
+      const EXPECTED_VERSION = "3.6";
+      const CARGO_INTERNAL_VERSION = "3.6.0";
 
       // 1. Root, desktop, and types package.json
       assert.strictEqual(
@@ -948,8 +948,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       );
       assert.strictEqual(
         Array.from(uniqueVersions)[0],
-        "3.5",
-        `Canonical public version must be two-component 3.5, found: ${Array.from(uniqueVersions)[0]}`
+        "3.6",
+        `Canonical public version must be two-component 3.6, found: ${Array.from(uniqueVersions)[0]}`
       );
     });
 

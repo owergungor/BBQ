@@ -1180,7 +1180,7 @@ impl PlatformMedia for WindowsMedia {
         #[cfg(windows)]
         {
             let res = tokio::time::timeout(
-                std::time::Duration::from_millis(350),
+                std::time::Duration::from_millis(1500),
                 tokio::task::spawn_blocking(|| {
                     if let Ok(op) = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
                     {
@@ -1217,7 +1217,7 @@ impl PlatformMedia for WindowsMedia {
                     );
                 }
                 Err(_) => {
-                    tracing::warn!("SMTC session retrieval timed out after 350ms");
+                    tracing::warn!("SMTC session retrieval timed out after 1500ms");
                 }
             }
         }

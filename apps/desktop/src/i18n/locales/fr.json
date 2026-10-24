@@ -56,7 +56,14 @@
     "releaseNotes": "Notes de version",
     "errorChecking": "Impossible de vérifier les mises à jour : {{error}}",
     "errorDownloading": "Échec du téléchargement de la mise à jour : {{error}}",
-    "offlineNotice": "Vous semblez hors ligne. Veuillez vérifier votre connexion internet."
+    "offlineNotice": "Vous semblez hors ligne. Veuillez vérifier votre connexion internet.",
+    "modalTitle": "Mettre à jour BBQ",
+    "currentVersion": "Actuelle",
+    "newVersion": "Nouvelle",
+    "lastChecked": "Dernière vérification : {{time}}",
+    "openModal": "Voir la mise à jour",
+    "updateNow": "Mettre à jour maintenant",
+    "cannotCancel": "Le téléchargement en cours ne peut pas être annulé"
   },
   "settings": {
     "title": "Paramètres",

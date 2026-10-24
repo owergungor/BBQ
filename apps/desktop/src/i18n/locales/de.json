@@ -56,7 +56,14 @@
     "releaseNotes": "Versionshinweise",
     "errorChecking": "Update-Prüfung fehlgeschlagen: {{error}}",
     "errorDownloading": "Download fehlgeschlagen: {{error}}",
-    "offlineNotice": "Keine Internetverbindung erkannt. Bitte überprüfe dein Netzwerk."
+    "offlineNotice": "Keine Internetverbindung erkannt. Bitte überprüfe dein Netzwerk.",
+    "modalTitle": "BBQ aktualisieren",
+    "currentVersion": "Aktuell",
+    "newVersion": "Neu",
+    "lastChecked": "Zuletzt geprüft: {{time}}",
+    "openModal": "Update ansehen",
+    "updateNow": "Jetzt aktualisieren",
+    "cannotCancel": "Laufender Download kann nicht abgebrochen werden"
   },
   "settings": {
     "title": "Einstellungen",

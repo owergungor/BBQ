@@ -487,7 +487,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
                   if (updaterState.status === "update_available" || updaterState.status === "success") {
                     setShowAboutModal(false);
                     onClose();
-                    setTargetSettingsTab("about");
+                    setTargetSettingsTab("update");
                     setActiveWidget("settings");
                     await islandRuntime.transitionTo("Expanded", "mouse");
                   } else {

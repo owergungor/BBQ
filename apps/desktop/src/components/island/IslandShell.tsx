@@ -15,6 +15,7 @@ interface IslandShellProps {
   isDragOver?: boolean;
   sizing?: WidgetSizingContract;
   contentWidth?: number;
+  expandedHeight?: number;
   style?: React.CSSProperties;
   children: React.ReactNode;
   onMouseEnter?: () => void;
@@ -36,6 +37,7 @@ export const IslandShell: React.FC<IslandShellProps> = ({
   isDragOver,
   sizing,
   contentWidth,
+  expandedHeight,
   style,
   children,
   onMouseEnter,
@@ -82,7 +84,9 @@ export const IslandShell: React.FC<IslandShellProps> = ({
       maxHeight: "var(--bbq-peek-height, 44px)",
     };
   } else if (state === "Expanded") {
-    const expHeight = sizing ? `${sizing.expanded.preferredHeight}px` : "var(--bbq-expanded-height, 360px)";
+    const expHeight = expandedHeight
+      ? `${expandedHeight}px`
+      : (sizing ? `${sizing.expanded.preferredHeight}px` : "var(--bbq-expanded-height, 360px)");
     const expWidth = sizing ? `${sizing.expanded.preferredWidth}px` : "var(--bbq-expanded-width, 520px)";
     dynamicStyle = {
       ...dynamicStyle,

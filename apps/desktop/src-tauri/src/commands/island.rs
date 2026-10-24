@@ -257,10 +257,37 @@ pub async fn apply_island_geometry(
             width: clamped.width as f64,
             height: clamped.height as f64,
         }));
-        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
-            x: clamped.x as f64,
-            y: clamped.y as f64,
-        }));
+
+        let is_custom = state
+            .is_custom_positioned
+            .lock()
+            .map(|c| *c)
+            .unwrap_or(false);
+
+        if !is_custom {
+            let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                x: clamped.x as f64,
+                y: clamped.y as f64,
+            }));
+        } else if let Ok(pos) = window.outer_position() {
+            let scale = window.scale_factor().unwrap_or(1.0);
+            let cur_logical_x = pos.x as f64 / scale;
+            let cur_logical_y = pos.y as f64 / scale;
+            let max_x = (display.work_area.width - clamped.width) as f64;
+            let max_y = (display.work_area.height - clamped.height) as f64;
+            let clamped_x = cur_logical_x.clamp(
+                display.work_area.x as f64,
+                display.work_area.x as f64 + max_x.max(0.0),
+            );
+            let clamped_y = cur_logical_y.clamp(
+                display.work_area.y as f64,
+                display.work_area.y as f64 + max_y.max(0.0),
+            );
+            let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                x: clamped_x,
+                y: clamped_y,
+            }));
+        }
     }
     state
         .window_service

@@ -418,6 +418,8 @@ export const MediaWidget: React.FC = () => {
             <button
               type="button"
               className="bbq-media-ctrl-btn secondary"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={handlePrevious}
               disabled={!meta.canGoPrevious && meta.isStopped}
               aria-label={t("widgets.media.previous") || "Previous track"}
@@ -429,6 +431,8 @@ export const MediaWidget: React.FC = () => {
             <button
               type="button"
               className="bbq-media-ctrl-btn primary"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={handleTogglePlayPause}
               disabled={!meta || (meta.isStopped && !meta.canPlay && !meta.canPause)}
               aria-label={meta.isPlaying ? t("widgets.media.pause") || "Pause" : t("widgets.media.play") || "Play"}
@@ -440,6 +444,8 @@ export const MediaWidget: React.FC = () => {
             <button
               type="button"
               className="bbq-media-ctrl-btn secondary"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={handleNext}
               disabled={!meta.canGoNext && meta.isStopped}
               aria-label={t("widgets.media.next") || "Next track"}
@@ -454,6 +460,8 @@ export const MediaWidget: React.FC = () => {
                 type="button"
                 id="media-volume-toggle-btn"
                 className="bbq-media-ctrl-btn secondary bbq-media-volume-btn"
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={handleToggleMuted}
                 disabled={!canControlVolume}
                 aria-disabled={!canControlVolume}

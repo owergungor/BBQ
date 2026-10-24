@@ -38,10 +38,21 @@ pub fn wire_service_events(handle: &AppHandle, state: &AppState) {
 
         // 1. Forward media events to frontend via MediaService
         let app_media = app_handle.clone();
+        let media_clone_events = media_clone.clone();
         let _ = media_clone
             .subscribe_events(Arc::new(move |event| match event {
                 bbq_core::MediaEvent::SessionChanged(session) => {
                     let _ = app_media.emit("bbq://media_changed", session);
+                }
+                bbq_core::MediaEvent::MetadataChanged { .. } => {
+                    let media_svc = media_clone_events.clone();
+                    let app = app_media.clone();
+                    tauri::async_runtime::spawn(async move {
+                        use bbq_services::MediaServiceTrait;
+                        if let Ok(current) = media_svc.current_session().await {
+                            let _ = app.emit("bbq://media_changed", current);
+                        }
+                    });
                 }
                 bbq_core::MediaEvent::PlaybackChanged { state, .. } => {
                     let _ = app_media.emit("bbq://media_playback_state", state);

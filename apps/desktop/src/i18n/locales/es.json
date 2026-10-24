@@ -56,7 +56,14 @@
     "releaseNotes": "Notas de la versión",
     "errorChecking": "Error al buscar actualizaciones: {{error}}",
     "errorDownloading": "Error al descargar la actualización: {{error}}",
-    "offlineNotice": "Parece que no tienes conexión. Verifica tu conexión a internet."
+    "offlineNotice": "Parece que no tienes conexión. Verifica tu conexión a internet.",
+    "modalTitle": "Actualizar BBQ",
+    "currentVersion": "Actual",
+    "newVersion": "Nueva",
+    "lastChecked": "Última comprobación: {{time}}",
+    "openModal": "Ver actualización",
+    "updateNow": "Actualizar ahora",
+    "cannotCancel": "La descarga en curso no se puede cancelar"
   },
   "settings": {
     "title": "Ajustes",

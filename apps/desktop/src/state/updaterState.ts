@@ -34,6 +34,7 @@ export interface UpdaterDomainState {
   progress: UpdateProgress | null;
   error: string | null;
   lastCheckedAt: number | null;
+  isModalOpen: boolean;
 }
 
 export const initialUpdaterState: UpdaterDomainState = {
@@ -45,6 +46,7 @@ export const initialUpdaterState: UpdaterDomainState = {
   progress: null,
   error: null,
   lastCheckedAt: null,
+  isModalOpen: false,
 };
 
 export const updaterStore = createDomainStore<UpdaterDomainState>(initialUpdaterState);
@@ -438,6 +440,25 @@ export async function restartApp(): Promise<void> {
 }
 
 /**
+ * Opens the custom BBQ update modal.
+ */
+export function openUpdateModal(): void {
+  updaterStore.setState({ isModalOpen: true });
+}
+
+/**
+ * Closes the custom BBQ update modal if no in-flight download/install is active.
+ */
+export function closeUpdateModal(): boolean {
+  const current = updaterStore.getState();
+  if (current.status === "downloading" || current.status === "installing") {
+    return false;
+  }
+  updaterStore.setState({ isModalOpen: false });
+  return true;
+}
+
+/**
  * Resets updater state to idle.
  */
 export function resetUpdaterState(): void {
@@ -453,5 +474,6 @@ export function resetUpdaterState(): void {
   updaterStore.setState({
     ...initialUpdaterState,
     currentVersion: APP_VERSION,
+    isModalOpen: false,
   });
 }

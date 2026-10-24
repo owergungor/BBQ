@@ -255,11 +255,11 @@ export function bootstrapWidgets(): void {
         minWidth: 500,
         preferredWidth: 540,
         maxWidth: 620,
-        minHeight: 360,
-        preferredHeight: 400,
+        minHeight: 200,
+        preferredHeight: 360,
         maxHeight: 480,
       },
-      contentPolicy: "fixed",
+      contentPolicy: "boundedExpansion",
     },
   });
 }

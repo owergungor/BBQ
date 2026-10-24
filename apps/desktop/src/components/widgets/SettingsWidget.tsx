@@ -16,6 +16,7 @@ import {
   type SettingsTab, AppearanceSettingsTab, IslandSettingsTab, HotkeySettingsTab,
   PrivacySettingsTab, NotificationsSettingsTab, WidgetsSettingsTab, UpdateSettingsTab, AboutSettingsTab,
 } from "./settings/index.ts";
+import { useSettingsTabAutoHeight } from "./settingsTabHeightStore.ts";
 import { useTranslation } from "../../i18n/index.ts";
 
 let targetSettingsTab: SettingsTab | null = null;
@@ -378,6 +379,8 @@ export const SettingsWidget: React.FC = () => {
     { id: "about", label: t("settings.tabs.about") || "About" }, // { id: "about", label: "About" }
   ];
 
+  const contentRef = useSettingsTabAutoHeight(activeTab, settings.language);
+
   const handleTabKeyDown = (e: React.KeyboardEvent, index: number) => {
     let nextIndex = index;
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
@@ -483,6 +486,7 @@ export const SettingsWidget: React.FC = () => {
 
       {/* Tab Panels */}
       <div
+        ref={contentRef}
         id={`settings-panel-${activeTab}`}
         role="tabpanel"
         aria-labelledby={`settings-tab-${activeTab}`}

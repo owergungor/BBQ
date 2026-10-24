@@ -12,6 +12,7 @@ import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon } from "../common/Icon.tsx";
 import { formatTimeDisplay, formatStopwatchDisplay } from "../widgets/TimerWidget.tsx";
 import { resolveArtworkUrl } from "../widgets/mediaModel.ts";
+import { MarqueeTitle } from "../common/MarqueeTitle.tsx";
 import { useTranslation } from "../../i18n/index.ts";
 
 export function useBatteryDisplay(): string {
@@ -141,14 +142,10 @@ export const CompactMediaIndicator: React.FC = () => {
         )}
       </div>
 
-      <div
-        className="bbq-media-info"
-        title={`${trackText} — ${artistText}`}
-      >
+      <div className="bbq-media-info">
         <span className="bbq-media-title">
-          {trackText}
+          <MarqueeTitle text={trackText} title={`${trackText} — ${artistText}`} />
         </span>
-        <span className="bbq-media-separator">—</span>
         <span className="bbq-media-artist">
           {artistText}
         </span>
@@ -159,6 +156,8 @@ export const CompactMediaIndicator: React.FC = () => {
           <button
             type="button"
             className="bbq-media-ctrl-btn"
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={handlePrevious}
             title={prevTrackLabel}
             aria-label={prevTrackLabel}
@@ -170,6 +169,8 @@ export const CompactMediaIndicator: React.FC = () => {
           <button
             type="button"
             className="bbq-media-ctrl-btn bbq-media-ctrl-primary"
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={handleTogglePlayPause}
             title={toggleLabel}
             aria-label={toggleLabel}
@@ -181,6 +182,8 @@ export const CompactMediaIndicator: React.FC = () => {
           <button
             type="button"
             className="bbq-media-ctrl-btn"
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={handleNext}
             title={nextTrackLabel}
             aria-label={nextTrackLabel}

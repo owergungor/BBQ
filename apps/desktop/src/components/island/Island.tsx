@@ -29,6 +29,9 @@ import { handleHudKeyboardNavigation } from "../../island/keyboardNavigation.ts"
 import { IslandShell } from "./IslandShell.tsx";
 import { IslandContent } from "./IslandContent.tsx";
 import { ContextMenu } from "../common/ContextMenu.tsx";
+import { settingsTabHeightStore } from "../widgets/settingsTabHeightStore.ts";
+import { UpdateModal } from "../updater/UpdateModal.tsx";
+import { useUpdaterState, closeUpdateModal } from "../../state/updaterState.ts";
 
 export const Island: React.FC = () => {
   const { state, mode, activeWidgetId, isDragOver } = useIslandState();
@@ -40,6 +43,8 @@ export const Island: React.FC = () => {
   const compactIndicatorOrder = useSettingsState((s) => s.settings.compact_indicator_order);
   const islandPosition = useSettingsState((s) => s.settings.island_position || "top-center");
   const moveHud = useSettingsState((s) => s.settings.move_hud ?? false);
+  const settingsTabHeight = settingsTabHeightStore.useStore((s) => s.height);
+  const isUpdateModalOpen = useUpdaterState((s) => s.isModalOpen);
 
   const activeWidgets = React.useMemo(() => {
     return getOrderedActiveWidgets(
@@ -157,7 +162,7 @@ export const Island: React.FC = () => {
 
   // Click outside detection: collapses when expanded and user clicks transparent margin
   useEffect(() => {
-    if (state !== "Expanded") return;
+    if (state !== "Expanded" || isUpdateModalOpen) return;
 
     const handleDocumentClick = (e: MouseEvent) => {
       const shell = document.getElementById("bbq-island-shell");
@@ -165,7 +170,7 @@ export const Island: React.FC = () => {
       const target = e.target as HTMLElement | null;
       if (
         target?.closest?.(
-          ".bbq-dropdown-menu, .bbq-context-menu, [role='listbox'], #bbq-context-menu"
+          ".bbq-dropdown-menu, .bbq-context-menu, [role='listbox'], #bbq-context-menu, #bbq-update-modal-backdrop, .bbq-update-modal-card, [role='dialog']"
         )
       ) {
         return;
@@ -179,7 +184,7 @@ export const Island: React.FC = () => {
 
     document.addEventListener("mousedown", handleDocumentClick);
     return () => document.removeEventListener("mousedown", handleDocumentClick);
-  }, [state]);
+  }, [state, isUpdateModalOpen]);
 
   const isPlacementDraggingRef = useRef(false);
   const justDisarmedMoveHudRef = useRef(false);
@@ -305,12 +310,12 @@ export const Island: React.FC = () => {
     // Only if Move HUD is enabled
     if (!moveHud) return;
 
-    // Guard: ignore clicks on interactive elements (buttons, inputs, tabs, dropdowns)
+    // Guard: ignore clicks on interactive elements (buttons, inputs, tabs, dropdowns, modal dialogs)
     const target = e.target as HTMLElement | null;
     if (
       target &&
       target.closest(
-        "button, input, select, textarea, a, [role='button'], [role='menuitem'], [role='tab'], [role='checkbox'], [contenteditable='true'], .bbq-interactive, .bbq-tab, .bbq-btn, .bbq-context-menu"
+        "button, input, select, textarea, a, [role='button'], [role='menuitem'], [role='tab'], [role='checkbox'], [contenteditable='true'], .bbq-interactive, .bbq-tab, .bbq-btn, .bbq-context-menu, #bbq-update-modal-backdrop, .bbq-update-modal-card, [role='dialog']"
       )
     ) {
       return;
@@ -400,9 +405,10 @@ export const Island: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (moveHud || justDisarmedMoveHudRef.current) {
+    const currentSettings = settingsStore.getState().settings;
+    if (currentSettings.move_hud || justDisarmedMoveHudRef.current) {
       await bbqCommands.resetIslandPosition();
-      if (moveHud) {
+      if (currentSettings.move_hud) {
         await updateSetting("move_hud", "false");
       }
       return;
@@ -412,7 +418,6 @@ export const Island: React.FC = () => {
 
     const liveState = islandStore.getState().state;
     if (liveState !== "Expanded") {
-      const currentSettings = settingsStore.getState().settings;
       const targetW = Math.max(currentSettings.island_width, 380);
       const targetH = Math.max(currentSettings.island_height, 44) + 340;
       await bbqCommands.resizeIsland("hovering", {
@@ -460,6 +465,28 @@ export const Island: React.FC = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [state, activeWidgetId, activeWidgets, handleSelectWidget]);
 
+  // Dynamic height synchronization when expanded
+  useEffect(() => {
+    if (state !== "Expanded") return;
+    const currentSettings = settingsStore.getState().settings;
+    const targetW = sizing?.expanded.preferredWidth || 540;
+    const targetH =
+      activeWidgetId === "settings"
+        ? Math.max(isUpdateModalOpen ? 300 : 200, settingsTabHeight)
+        : sizing?.expanded.preferredHeight || 360;
+    bbqCommands
+      .resizeIsland("expanded", {
+        compactWidth: currentSettings.island_width,
+        compactHeight: currentSettings.island_height,
+        preferredWidth: targetW,
+        preferredHeight: targetH,
+        expandedWidth: targetW,
+        expandedHeight: targetH,
+        contract: sizing,
+      })
+      .catch(() => {});
+  }, [state, activeWidgetId, settingsTabHeight, sizing, isUpdateModalOpen]);
+
   return (
     <div
       id="bbq-island-container"
@@ -474,6 +501,7 @@ export const Island: React.FC = () => {
         hasMedia={hasMedia}
         isDragOver={isDragOver}
         sizing={sizing}
+        expandedHeight={activeWidgetId === "settings" ? settingsTabHeight : undefined}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onClick={handleToggle}
@@ -500,6 +528,7 @@ export const Island: React.FC = () => {
           onClose={handleContextMenuClose}
         />
       )}
+      {isUpdateModalOpen && <UpdateModal onClose={closeUpdateModal} />}
     </div>
   );
 };

@@ -1,8 +1,6 @@
 import React from "react";
 import { Icon } from "../../common/Icon.tsx";
 import { APP_VERSION } from "../../../version.ts";
-import { setTargetSettingsTab } from "../SettingsWidget.tsx";
-import { useUpdaterState } from "../../../state/updaterState.ts";
 import { useTranslation } from "../../../i18n/index.ts";
 import { formatCapabilityStatus } from "../settingsModel.ts";
 import type { AboutSettingsTabProps } from "./settingsTypes.ts";
@@ -13,7 +11,6 @@ export const AboutSettingsTab: React.FC<AboutSettingsTabProps> = ({
   onReplayTour,
 }) => {
   const { t } = useTranslation();
-  const updater = useUpdaterState();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
@@ -42,43 +39,6 @@ export const AboutSettingsTab: React.FC<AboutSettingsTabProps> = ({
             {t("settings.about.tagline")}
           </p>
         </div>
-      </div>
-
-      {/* Updater Shortcut */}
-      <div
-        id="settings-updater-section"
-        style={{
-          padding: "10px 12px",
-          background: "var(--bbq-surface-elevated)",
-          borderRadius: "8px",
-          border: "1px solid var(--bbq-border)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "10px",
-        }}
-      >
-        <div>
-          <span style={{ fontWeight: 600, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}>
-            {t("updater.title")}
-          </span>
-          <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
-            {updater.status === "up_to_date"
-              ? t("updater.upToDate", { version: APP_VERSION })
-              : updater.status === "update_available" && updater.availableVersion
-              ? t("updater.updateAvailable", { version: updater.availableVersion })
-              : t("updater.description")}
-          </span>
-        </div>
-        <button
-          type="button"
-          id="settings-check-updates-btn"
-          className="bbq-btn-secondary"
-          style={{ fontSize: "11px", padding: "4px 10px", cursor: "pointer" }}
-          onClick={() => setTargetSettingsTab("update")}
-        >
-          {t("settings.tabs.update") || "Update"}
-        </button>
       </div>
 
       {/* Technical Specifications */}
@@ -148,34 +108,45 @@ export const AboutSettingsTab: React.FC<AboutSettingsTabProps> = ({
             flex: 1,
             padding: "8px 14px",
             borderRadius: "6px",
-            border: "1px solid var(--bbq-border)",
             background: "var(--bbq-surface)",
+            border: "1px solid var(--bbq-border)",
             color: "var(--bbq-text)",
-            fontSize: "12px",
-            fontWeight: 600,
             cursor: "pointer",
+            fontSize: "12px",
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
           }}
-          aria-label={t("settings.about.copyDiagnostics")}
         >
-          {t("settings.about.copyDiagnostics")}
+          <Icon name="copy" size={14} />
+          <span>{t("settings.about.copyDiagnostics")}</span>
         </button>
+
         <button
           type="button"
+          id="bbq-replay-tour-btn"
           onClick={onReplayTour}
+          aria-label={t("settings.about.replayTour") || "Replay Welcome Tour"}
           style={{
             flex: 1,
             padding: "8px 14px",
             borderRadius: "6px",
-            border: "1px solid var(--bbq-accent)",
-            background: "rgba(59, 130, 246, 0.1)",
-            color: "var(--bbq-accent)",
-            fontSize: "12px",
-            fontWeight: 600,
+            background: "var(--bbq-surface)",
+            border: "1px solid var(--bbq-border)",
+            color: "var(--bbq-text)",
             cursor: "pointer",
+            fontSize: "12px",
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
           }}
-          aria-label={t("settings.about.replayTour") || "Replay Welcome Tour"}
         >
-          {t("settings.about.replayTour") || "Replay Welcome Tour"}
+          <Icon name="sparkles" size={14} />
+          <span>{t("settings.about.replayTour")}</span>
         </button>
       </div>
     </div>
