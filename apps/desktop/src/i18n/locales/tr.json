@@ -134,7 +134,19 @@
       "resetPositionDesc": "Varsayılan üst-orta yerleşimi geri yükleyin ve özel koordinatları temizleyin.",
       "positionResetSuccess": "Ada konumu varsayılana sıfırlandı",
       "blurEnabled": "Ada Bulanıklığı",
-      "blurEnabledDesc": "Yarı saydam ada yüzeyleri altındaki arka plan bulanıklığını etkinleştirin veya devre dışı bırakın."
+      "blurEnabledDesc": "Yarı saydam ada yüzeyleri altındaki arka plan bulanıklığını etkinleştirin veya devre dışı bırakın.",
+      "mode": "Ada Modu",
+      "modeDesc": "Standart ada, kenar çentiği veya dairesel nokta modu arasında seçim yapın.",
+      "modeIsland": "Standart Ada",
+      "modeNotch": "Apple Çentiği",
+      "modeDot": "Nokta",
+      "verticalPos": "Dikey Konum",
+      "verticalPosDesc": "Adanın ekrandaki dikey yerleşimi.",
+      "posTop": "Üst",
+      "posCenter": "Orta",
+      "posBottom": "Alt",
+      "dotSize": "Nokta Boyutu",
+      "dotSizeDesc": "Nokta modundaki dairesel adanın çapı."
     },
     "hotkey": {
       "title": "Genel Kısayol",
@@ -220,7 +232,10 @@
       "tourActivated": "Hoş geldiniz turu etkinleştirildi",
       "islandPositionReset": "Ada konumu varsayılana sıfırlandı",
       "moveHudEnabled": "Taşıma HUD'ı etkinleştirildi",
-      "moveHudDisabled": "Taşıma HUD'ı kapatıldı"
+      "moveHudDisabled": "Taşıma HUD'ı kapatıldı",
+      "dotSize": "Nokta boyutu güncellendi",
+      "islandMode": "Ada modu güncellendi",
+      "verticalPosition": "Dikey konum güncellendi"
     },
     "resetModal": {
       "title": "Tercihler Sıfırlansın mı?",
@@ -431,7 +446,8 @@
     "launchAtLogin": "Açılışta Başlat",
     "about": "BBQ Hakkında",
     "quit": "BBQ'dan Çık",
-    "resetPosition": "Ada Konumunu Sıfırla"
+    "resetPosition": "Ada Konumunu Sıfırla",
+    "toggleExpand": "HUD'ı Genişlet / Daralt"
   },
   "onboarding": {
     "welcomeTitle": "BBQ'ya Hoş Geldiniz",

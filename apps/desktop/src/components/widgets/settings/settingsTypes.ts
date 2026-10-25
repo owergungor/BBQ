@@ -1,4 +1,10 @@
-import type { ThemePreference, AccentColor, PlatformCapabilities } from "@bbq/types";
+import type {
+  ThemePreference,
+  AccentColor,
+  PlatformCapabilities,
+  IslandStyleMode,
+  IslandVerticalPosition,
+} from "@bbq/types";
 import type { WidgetDefinition } from "../../../island/widgetRegistry.ts";
 
 export type SettingsTab =
@@ -41,16 +47,21 @@ export interface IslandSettingsTabProps {
   draftBlur?: number;
   blurEnabled?: boolean;
   islandPosition: string;
+  islandMode?: IslandStyleMode;
+  islandVerticalPosition?: IslandVerticalPosition;
+  draftDotSize?: number;
   alwaysOnTop: boolean;
   autoExpandOnEvent: boolean;
   onDraftWidthChange: (val: number) => void;
   onDraftHeightChange: (val: number) => void;
   onDraftTransparencyChange: (val: number) => void;
   onDraftBlurChange?: (val: number) => void;
+  onDraftDotSizeChange?: (val: number) => void;
   onCommitWidth: () => Promise<void>;
   onCommitHeight: () => Promise<void>;
   onCommitTransparency: (val: number) => Promise<void>;
   onCommitBlur?: (val: number) => Promise<void>;
+  onCommitDotSize?: (val: number) => Promise<void>;
   onToggle: (key: string, value: any) => Promise<void>;
   onResetPosition?: () => Promise<void>;
   onTriggerMoveHud?: () => Promise<void>;

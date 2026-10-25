@@ -119,6 +119,9 @@ export const defaultSettings: BbqSettings = {
   always_on_top: true,
   move_hud: false,
   language: "en",
+  island_mode: "island",
+  island_vertical_position: "top",
+  dot_size: 38,
 };
 
 export function isEffectiveLight(theme: BbqSettings["theme"]): boolean {
@@ -281,6 +284,15 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
         } else {
           document.documentElement.removeAttribute?.("data-opaque");
         }
+      }
+      if (settings.island_mode) {
+        document.documentElement.setAttribute("data-island-mode", settings.island_mode);
+      }
+      if (settings.island_vertical_position) {
+        document.documentElement.setAttribute("data-vertical-pos", settings.island_vertical_position);
+      }
+      if (typeof settings.dot_size === "number") {
+        document.documentElement.style.setProperty("--bbq-dot-size", `${settings.dot_size}px`);
       }
       const blurEnabled = settings.island_blur_enabled ?? true;
       if (typeof settings.island_blur === "number" || !blurEnabled) {

@@ -454,7 +454,67 @@ export const CompactIslandPill: React.FC<CompactIslandPillProps> = ({ state, act
   );
   const disabledWidgets = useSettingsState((s) => s.settings.disabled_widgets);
   const persistedOrder = useSettingsState((s) => s.settings.compact_indicator_order);
+  const islandMode = useSettingsState((s) => s.settings.island_mode);
   const isEnabled = (id: string) => !disabledWidgets.includes(id);
+
+  // Dot mode compact circular rendering
+  if (islandMode === "dot" && state === "Idle") {
+    let iconName: any = null;
+    if (userLockedWidget && activeWidgetId && isEnabled(activeWidgetId)) {
+      switch (activeWidgetId) {
+        case "drop": iconName = "drop"; break;
+        case "files": iconName = "files"; break;
+        case "clipboard": iconName = "clipboard"; break;
+        case "media": iconName = "music"; break;
+        case "system": iconName = "activity"; break;
+        case "launcher": iconName = "search"; break;
+        case "timer": iconName = "timer"; break;
+        case "reminder": iconName = "bell"; break;
+        case "settings": iconName = "settings"; break;
+      }
+    } else if (isDraggingOver) {
+      iconName = "drop";
+    } else {
+      const effectiveOrder = resolveEffectiveIndicatorOrder(persistedOrder, disabledWidgets);
+      for (const widgetId of effectiveOrder) {
+        if (widgetId === "drop" && isDraggingOver) { iconName = "drop"; break; }
+        if (widgetId === "media" && hasMedia) { iconName = "music"; break; }
+        if (widgetId === "timer" && isTimerRunning) { iconName = "timer"; break; }
+        if (widgetId === "reminder" && scheduledReminderCount > 0) { iconName = "bell"; break; }
+        if (widgetId === "files" && fileCount > 0) { iconName = "files"; break; }
+        if (widgetId === "clipboard" && clipboardEnabled && clipboardCount > 0) { iconName = "clipboard"; break; }
+      }
+    }
+
+    return (
+      <div
+        className="bbq-island-content bbq-dot-content"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
+        }}
+      >
+        {iconName ? (
+          <Icon name={iconName} size={15} />
+        ) : (
+          <span
+            className="bbq-status-dot"
+            style={{
+              width: "8px",
+              height: "8px",
+              borderRadius: "50%",
+              background: "var(--bbq-accent, #0a84ff)",
+              boxShadow: "0 0 6px var(--bbq-accent, #0a84ff)",
+            }}
+          />
+        )}
+      </div>
+    );
+  }
 
   // Highest priority: active drag over operation
   if (state === "DraggingOver" || isDraggingOver) {

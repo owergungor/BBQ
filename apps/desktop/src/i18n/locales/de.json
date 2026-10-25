@@ -134,7 +134,19 @@
       "resetPositionDesc": "Standardmäßige obere Zentrierung wiederherstellen und benutzerdefinierte Koordinaten löschen.",
       "positionResetSuccess": "Inselposition auf Standard zurückgesetzt",
       "blurEnabled": "Island-Unschärfe",
-      "blurEnabledDesc": "Aktivieren oder deaktivieren Sie die Hintergrundunschärfe unter durchscheinenden Island-Oberflächen."
+      "blurEnabledDesc": "Aktivieren oder deaktivieren Sie die Hintergrundunschärfe unter durchscheinenden Island-Oberflächen.",
+      "mode": "Island-Modus",
+      "modeDesc": "Wählen Sie zwischen Standard-Pill, Edge-Notch oder kreisförmigem Dot.",
+      "modeIsland": "Island (Standard)",
+      "modeNotch": "Apple Notch",
+      "modeDot": "Dot",
+      "verticalPos": "Vertikale Position",
+      "verticalPosDesc": "Physische vertikale Bildschirmausrichtung des Islands.",
+      "posTop": "Oben",
+      "posCenter": "Mitte",
+      "posBottom": "Unten",
+      "dotSize": "Punktgröße",
+      "dotSizeDesc": "Durchmesser des kreisförmigen Islands im Dot-Modus."
     },
     "hotkey": {
       "title": "Globales Tastenkürzel",
@@ -220,7 +232,10 @@
       "tourActivated": "Willkommenstour aktiviert",
       "islandPositionReset": "Inselposition auf Standard zurückgesetzt",
       "moveHudEnabled": "Verschiebe-HUD aktiviert",
-      "moveHudDisabled": "Verschiebe-HUD deaktiviert"
+      "moveHudDisabled": "Verschiebe-HUD deaktiviert",
+      "dotSize": "Punktgröße aktualisiert",
+      "islandMode": "Island-Modus aktualisiert",
+      "verticalPosition": "Vertikale Position aktualisiert"
     },
     "resetModal": {
       "title": "Einstellungen zurücksetzen?",
@@ -431,7 +446,8 @@
     "launchAtLogin": "Beim Login starten",
     "about": "Über BBQ",
     "quit": "BBQ beenden",
-    "resetPosition": "Inselposition zurücksetzen"
+    "resetPosition": "Inselposition zurücksetzen",
+    "toggleExpand": "HUD erweitern / einklappen"
   },
   "onboarding": {
     "welcomeTitle": "Willkommen bei BBQ",

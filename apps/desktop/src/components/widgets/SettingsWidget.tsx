@@ -8,7 +8,7 @@ import type { ThemePreference, AccentColor, PlatformCapabilities } from "@bbq/ty
 import { bbqCommands } from "../../ipc/commands.ts";
 import { Icon, type IconName } from "../common/Icon.tsx";
 import {
-  clampIslandWidth, clampIslandHeight, clampClipboardCapacity, clampClipboardRetention,
+  clampIslandWidth, clampIslandHeight, clampDotSize, clampClipboardCapacity, clampClipboardRetention,
   validateHexColor, validateHotkeyInput, sanitizeIndicatorOrder, isHotkeySupported,
   isClipboardLiveSupported, generateSanitizedDiagnostics,
 } from "./settingsModel.ts";
@@ -62,6 +62,7 @@ export const SettingsWidget: React.FC = () => {
   // Local draft states for sliders and text inputs to prevent IPC write storms
   const [draftWidth, setDraftWidth] = useState(settings.island_width);
   const [draftHeight, setDraftHeight] = useState(settings.island_height);
+  const [draftDotSize, setDraftDotSize] = useState(settings.dot_size ?? 38);
   const [draftTransparency, setDraftTransparency] = useState(settings.island_transparency ?? 0);
   const [draftBlur, setDraftBlur] = useState(settings.island_blur ?? 20);
   const [draftClipboardMax, setDraftClipboardMax] = useState(settings.clipboard_max_entries);
@@ -71,14 +72,11 @@ export const SettingsWidget: React.FC = () => {
   const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
 
   useEffect(() => {
-    setDraftWidth(settings.island_width);
-    setDraftHeight(settings.island_height);
-    setDraftTransparency(settings.island_transparency ?? 0);
-    setDraftBlur(settings.island_blur ?? 20);
-    setDraftClipboardMax(settings.clipboard_max_entries);
-    setDraftRetention(settings.clipboard_retention_days);
+    setDraftWidth(settings.island_width); setDraftHeight(settings.island_height); setDraftDotSize(settings.dot_size ?? 38);
+    setDraftTransparency(settings.island_transparency ?? 0); setDraftBlur(settings.island_blur ?? 20);
+    setDraftClipboardMax(settings.clipboard_max_entries); setDraftRetention(settings.clipboard_retention_days);
     setDraftHotkey(settings.global_hotkey);
-  }, [settings.island_width, settings.island_height, settings.island_transparency, settings.island_blur, settings.clipboard_max_entries, settings.clipboard_retention_days, settings.global_hotkey]);
+  }, [settings.island_width, settings.island_height, settings.dot_size, settings.island_transparency, settings.island_blur, settings.clipboard_max_entries, settings.clipboard_retention_days, settings.global_hotkey]);
 
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -190,6 +188,15 @@ export const SettingsWidget: React.FC = () => {
     if (clamped !== settings.island_height) {
       await updateSettingsBatch({ island_height: clamped });
       showStatus(t("settings.status.islandHeight") || "Island height updated");
+    }
+  };
+
+  const commitDotSize = async (val?: number) => {
+    const target = val !== undefined ? val : draftDotSize;
+    const clamped = clampDotSize(target);
+    if (clamped !== settings.dot_size) {
+      await updateSettingsBatch({ dot_size: clamped });
+      showStatus(t("settings.status.dotSize") || "Dot size updated");
     }
   };
 
@@ -526,25 +533,21 @@ export const SettingsWidget: React.FC = () => {
 
         {activeTab === "island" && (
           <IslandSettingsTab
-            draftWidth={draftWidth}
-            draftHeight={draftHeight}
-            draftTransparency={draftTransparency}
-            draftBlur={draftBlur}
+            draftWidth={draftWidth} draftHeight={draftHeight} draftDotSize={draftDotSize}
+            draftTransparency={draftTransparency} draftBlur={draftBlur}
             blurEnabled={settings.island_blur_enabled ?? true}
             islandPosition={settings.island_position || "top-center"}
+            islandMode={settings.island_mode || "island"}
+            islandVerticalPosition={settings.island_vertical_position || "top"}
             alwaysOnTop={settings.always_on_top ?? true}
             autoExpandOnEvent={settings.auto_expand_on_event}
-            onDraftWidthChange={setDraftWidth}
-            onDraftHeightChange={setDraftHeight}
-            onDraftTransparencyChange={setDraftTransparency}
-            onDraftBlurChange={setDraftBlur}
-            onCommitWidth={commitWidth}
-            onCommitHeight={commitHeight}
-            onCommitTransparency={commitTransparency}
-            onCommitBlur={commitBlur}
-            onToggle={handleToggle}
-            onResetPosition={handleResetIslandPosition}
-            onTriggerMoveHud={handleTriggerMoveHud}
+            onDraftWidthChange={setDraftWidth} onDraftHeightChange={setDraftHeight}
+            onDraftTransparencyChange={setDraftTransparency} onDraftBlurChange={setDraftBlur}
+            onDraftDotSizeChange={setDraftDotSize}
+            onCommitWidth={commitWidth} onCommitHeight={commitHeight}
+            onCommitTransparency={commitTransparency} onCommitBlur={commitBlur}
+            onCommitDotSize={commitDotSize} onToggle={handleToggle}
+            onResetPosition={handleResetIslandPosition} onTriggerMoveHud={handleTriggerMoveHud}
           />
         )}
 

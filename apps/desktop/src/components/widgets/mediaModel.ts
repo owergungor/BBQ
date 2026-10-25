@@ -240,7 +240,9 @@ export async function extractAmbientColor(
   return new Promise<AmbientPalette>((resolve) => {
     try {
       const img = new Image();
-      img.crossOrigin = "Anonymous";
+      if (!imageUrl.startsWith("data:")) {
+        img.crossOrigin = "Anonymous";
+      }
 
       const cleanup = () => {
         img.onload = null;

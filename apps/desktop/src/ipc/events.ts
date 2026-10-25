@@ -315,3 +315,15 @@ export async function subscribeToOpenAbout(
     return () => {};
   }
 }
+
+export async function subscribeToToggleExpand(
+  callback: () => void
+): Promise<UnlistenFn> {
+  try {
+    return await listen<void>("bbq://toggle_expand", () => {
+      callback();
+    });
+  } catch {
+    return () => {};
+  }
+}

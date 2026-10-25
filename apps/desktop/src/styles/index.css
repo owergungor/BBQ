@@ -933,6 +933,138 @@ html, body {
 }
 
 
+/* =========================================================================
+   BBQ v4.0: Island Modes (Apple Notch, Dot Mode) & Vertical Positioning
+   ========================================================================= */
+
+/* Apple Notch Mode */
+.bbq-island-shell.mode-notch.state-idle,
+.bbq-island-shell.mode-notch.state-hovering,
+[data-island-mode="notch"] .bbq-island-shell.state-idle,
+[data-island-mode="notch"] .bbq-island-shell.state-hovering {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+  clip-path: inset(0 round 0 0 18px 18px);
+  -webkit-clip-path: inset(0 round 0 0 18px 18px);
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  transform-origin: center top;
+}
+
+.bbq-island-shell.mode-notch.state-expanded,
+[data-island-mode="notch"] .bbq-island-shell.state-expanded {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  clip-path: inset(0 round 0 0 24px 24px);
+  -webkit-clip-path: inset(0 round 0 0 24px 24px);
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  transform-origin: center top;
+}
+
+/* Apple Notch at Bottom Position */
+.bbq-island-shell.mode-notch.vpos-bottom.state-idle,
+.bbq-island-shell.mode-notch.vpos-bottom.state-hovering,
+[data-island-mode="notch"][data-vertical-pos="bottom"] .bbq-island-shell.state-idle,
+[data-island-mode="notch"][data-vertical-pos="bottom"] .bbq-island-shell.state-hovering {
+  border-bottom: none;
+  border-top: 1px solid var(--bbq-border);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  clip-path: inset(0 round 18px 18px 0 0);
+  -webkit-clip-path: inset(0 round 18px 18px 0 0);
+  transform-origin: center bottom;
+}
+
+.bbq-island-shell.mode-notch.vpos-bottom.state-expanded,
+[data-island-mode="notch"][data-vertical-pos="bottom"] .bbq-island-shell.state-expanded {
+  border-bottom: none;
+  border-top: 1px solid var(--bbq-border-inner);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  clip-path: inset(0 round 24px 24px 0 0);
+  -webkit-clip-path: inset(0 round 24px 24px 0 0);
+  transform-origin: center bottom;
+}
+
+/* Dot Mode */
+.bbq-island-shell.mode-dot.state-idle,
+[data-island-mode="dot"] .bbq-island-shell.state-idle {
+  aspect-ratio: 1 / 1;
+  width: var(--bbq-dot-size, 38px) !important;
+  height: var(--bbq-dot-size, 38px) !important;
+  min-width: var(--bbq-dot-size, 38px) !important;
+  max-width: var(--bbq-dot-size, 38px) !important;
+  min-height: var(--bbq-dot-size, 38px) !important;
+  max-height: var(--bbq-dot-size, 38px) !important;
+  border-radius: 50% !important;
+  clip-path: circle(50% at 50% 50%) !important;
+  -webkit-clip-path: circle(50% at 50% 50%) !important;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  overflow: hidden;
+  padding: 0 !important;
+  box-shadow: none;
+}
+
+.bbq-island-shell.mode-dot.state-hovering,
+[data-island-mode="dot"] .bbq-island-shell.state-hovering {
+  aspect-ratio: 1 / 1;
+  width: calc(var(--bbq-dot-size, 38px) + 6px) !important;
+  height: calc(var(--bbq-dot-size, 38px) + 6px) !important;
+  min-width: calc(var(--bbq-dot-size, 38px) + 6px) !important;
+  max-width: calc(var(--bbq-dot-size, 38px) + 6px) !important;
+  min-height: calc(var(--bbq-dot-size, 38px) + 6px) !important;
+  max-height: calc(var(--bbq-dot-size, 38px) + 6px) !important;
+  border-radius: 50% !important;
+  clip-path: circle(50% at 50% 50%) !important;
+  -webkit-clip-path: circle(50% at 50% 50%) !important;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  overflow: hidden;
+  padding: 0 !important;
+  box-shadow: none;
+}
+
+.bbq-island-shell.mode-dot.state-expanded,
+[data-island-mode="dot"] .bbq-island-shell.state-expanded {
+  aspect-ratio: auto;
+  width: 100%;
+  max-width: var(--bbq-expanded-width, 520px);
+  height: 100%;
+  max-height: var(--bbq-expanded-height, 360px);
+  border-radius: var(--bbq-radius-expanded, 24px) !important;
+  clip-path: inset(0 round var(--bbq-radius-expanded, 24px)) !important;
+  -webkit-clip-path: inset(0 round var(--bbq-radius-expanded, 24px)) !important;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+}
+
+/* Vertical Position Transform Origins */
+.bbq-island-shell.vpos-center,
+[data-vertical-pos="center"] .bbq-island-shell {
+  transform-origin: center center;
+}
+.bbq-island-shell.vpos-bottom,
+[data-vertical-pos="bottom"] .bbq-island-shell {
+  transform-origin: center bottom;
+}
+.bbq-island-shell.vpos-top,
+[data-vertical-pos="top"] .bbq-island-shell {
+  transform-origin: center top;
+}
+
+
 /* Drop Target Indicator */
 .bbq-drop-target-indicator {
   position: absolute;
@@ -5588,7 +5720,8 @@ input[type="number"] {
 }
 
 :root[data-blur-zero="true"] .bbq-island-shell,
-[data-blur-zero="true"] .bbq-island-shell {
+[data-blur-zero="true"] .bbq-island-shell,
+[data-blur-zero="true"] .bbq-island-shell * {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }

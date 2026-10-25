@@ -6,6 +6,10 @@ pub const MAX_ISLAND_WIDTH: u32 = 480;
 pub const MIN_ISLAND_HEIGHT: u32 = 32;
 pub const MAX_ISLAND_HEIGHT: u32 = 520;
 
+pub const MIN_DOT_SIZE: u32 = 32;
+pub const MAX_DOT_SIZE: u32 = 64;
+pub const DEFAULT_DOT_SIZE: u32 = 38;
+
 pub const MIN_CLIPBOARD_MAX_ENTRIES: usize = 10;
 pub const MAX_CLIPBOARD_MAX_ENTRIES: usize = 100;
 pub const MIN_CLIPBOARD_RETENTION_DAYS: u32 = 1;
@@ -82,6 +86,18 @@ fn default_language() -> String {
     "en".to_string()
 }
 
+fn default_island_mode() -> String {
+    "island".to_string()
+}
+
+fn default_island_vertical_position() -> String {
+    "top".to_string()
+}
+
+fn default_dot_size() -> u32 {
+    DEFAULT_DOT_SIZE
+}
+
 /// Strongly typed, persistent user preferences for BBQ
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BbqSettings {
@@ -122,6 +138,12 @@ pub struct BbqSettings {
     pub move_hud: bool,
     #[serde(default = "default_language")]
     pub language: String,
+    #[serde(default = "default_island_mode")]
+    pub island_mode: String,
+    #[serde(default = "default_island_vertical_position")]
+    pub island_vertical_position: String,
+    #[serde(default = "default_dot_size")]
+    pub dot_size: u32,
 }
 
 pub fn is_valid_hex_color(s: &str) -> bool {
@@ -169,6 +191,9 @@ impl Default for BbqSettings {
             always_on_top: true,
             move_hud: false,
             language: "en".to_string(),
+            island_mode: "island".to_string(),
+            island_vertical_position: "top".to_string(),
+            dot_size: DEFAULT_DOT_SIZE,
         }
     }
 }
@@ -260,14 +285,44 @@ impl BbqSettings {
 
         let pos_lower = self.island_position.trim().to_lowercase();
         match pos_lower.as_str() {
-            "top-center" | "top-left" | "top-right" | "bottom-left" | "bottom-center"
-            | "bottom-right" => {}
+            "top-center" | "top-left" | "top-right" | "center" | "center-center"
+            | "center-left" | "center-right" | "bottom-left" | "bottom-center" | "bottom-right" => {
+            }
             _ => {
                 return Err(BbqError::Validation(format!(
-                    "Invalid island_position '{}'. Must be one of: top-center, top-left, top-right, bottom-left, bottom-center, bottom-right",
+                    "Invalid island_position '{}'. Must be one of: top-center, top-left, top-right, center, center-left, center-right, bottom-left, bottom-center, bottom-right",
                     self.island_position
                 )));
             }
+        }
+
+        let mode_lower = self.island_mode.trim().to_lowercase();
+        match mode_lower.as_str() {
+            "island" | "notch" | "dot" => {}
+            _ => {
+                return Err(BbqError::Validation(format!(
+                    "Invalid island_mode '{}'. Must be one of: island, notch, dot",
+                    self.island_mode
+                )));
+            }
+        }
+
+        let vert_lower = self.island_vertical_position.trim().to_lowercase();
+        match vert_lower.as_str() {
+            "top" | "center" | "bottom" => {}
+            _ => {
+                return Err(BbqError::Validation(format!(
+                    "Invalid island_vertical_position '{}'. Must be one of: top, center, bottom",
+                    self.island_vertical_position
+                )));
+            }
+        }
+
+        if !(MIN_DOT_SIZE..=MAX_DOT_SIZE).contains(&self.dot_size) {
+            return Err(BbqError::Validation(format!(
+                "dot_size {} out of bounds [32, 64]",
+                self.dot_size
+            )));
         }
 
         if self.island_transparency > 100 {
@@ -431,7 +486,8 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
         "island_position" => {
             let lower = value.trim().to_lowercase();
             match lower.as_str() {
-                "top-center" | "top-left" | "top-right" | "bottom-left" | "bottom-center"
+                "top-center" | "top-left" | "top-right" | "center" | "center-center"
+                | "center-left" | "center-right" | "bottom-left" | "bottom-center"
                 | "bottom-right" => {}
                 _ => {
                     return Err(BbqError::Validation(format!(
@@ -439,6 +495,41 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
                         value
                     )));
                 }
+            }
+        }
+        "island_mode" => {
+            let lower = value.trim().to_lowercase();
+            match lower.as_str() {
+                "island" | "notch" | "dot" => {}
+                _ => {
+                    return Err(BbqError::Validation(format!(
+                        "Invalid island_mode '{}'. Must be one of: island, notch, dot",
+                        value
+                    )));
+                }
+            }
+        }
+        "island_vertical_position" => {
+            let lower = value.trim().to_lowercase();
+            match lower.as_str() {
+                "top" | "center" | "bottom" => {}
+                _ => {
+                    return Err(BbqError::Validation(format!(
+                        "Invalid island_vertical_position '{}'. Must be one of: top, center, bottom",
+                        value
+                    )));
+                }
+            }
+        }
+        "dot_size" => {
+            let size: u32 = value.parse().map_err(|_| {
+                BbqError::Validation(format!("Invalid integer for dot_size: '{}'", value))
+            })?;
+            if !(MIN_DOT_SIZE..=MAX_DOT_SIZE).contains(&size) {
+                return Err(BbqError::Validation(format!(
+                    "dot_size {} out of bounds [{}, {}]",
+                    size, MIN_DOT_SIZE, MAX_DOT_SIZE
+                )));
             }
         }
         "island_transparency" => {
@@ -606,13 +697,17 @@ mod tests {
             "top-center",
             "top-left",
             "top-right",
+            "center",
+            "center-center",
+            "center-left",
+            "center-right",
             "bottom-left",
             "bottom-center",
             "bottom-right",
         ] {
             assert!(validate_setting_entry("island_position", pos).is_ok());
         }
-        assert!(validate_setting_entry("island_position", "middle-center").is_err());
+        assert!(validate_setting_entry("island_position", "invalid-position").is_err());
         assert!(validate_setting_entry("island_position", "").is_err());
 
         // Transparency validation (0..=100)
@@ -650,5 +745,27 @@ mod tests {
         // Obsolete auto-update keys are accepted safely for backward compatibility
         assert!(validate_setting_entry("auto_update_schedule", "startup").is_ok());
         assert!(validate_setting_entry("last_update_check_at", "1728000000").is_ok());
+
+        // BBQ v4.0: island_mode, island_vertical_position, dot_size
+        assert_eq!(settings.island_mode, "island");
+        assert_eq!(settings.island_vertical_position, "top");
+        assert_eq!(settings.dot_size, 38);
+
+        assert!(validate_setting_entry("island_mode", "island").is_ok());
+        assert!(validate_setting_entry("island_mode", "notch").is_ok());
+        assert!(validate_setting_entry("island_mode", "dot").is_ok());
+        assert!(validate_setting_entry("island_mode", "pill").is_err());
+
+        assert!(validate_setting_entry("island_vertical_position", "top").is_ok());
+        assert!(validate_setting_entry("island_vertical_position", "center").is_ok());
+        assert!(validate_setting_entry("island_vertical_position", "bottom").is_ok());
+        assert!(validate_setting_entry("island_vertical_position", "middle").is_err());
+
+        assert!(validate_setting_entry("dot_size", "38").is_ok());
+        assert!(validate_setting_entry("dot_size", "32").is_ok());
+        assert!(validate_setting_entry("dot_size", "64").is_ok());
+        assert!(validate_setting_entry("dot_size", "31").is_err());
+        assert!(validate_setting_entry("dot_size", "65").is_err());
+        assert!(validate_setting_entry("dot_size", "not_a_number").is_err());
     }
 }

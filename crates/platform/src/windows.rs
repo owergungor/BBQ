@@ -3193,6 +3193,8 @@ mod tests {
             read_vol
         );
 
+        let current_muted_before_toggle = after_vol.muted.unwrap_or(false);
+
         // Toggle mute and verify readback
         sys.toggle_muted()
             .await
@@ -3201,7 +3203,7 @@ mod tests {
             .current_state()
             .await
             .expect("current_state after toggle_muted");
-        assert_eq!(after_toggle.muted, Some(!orig_muted));
+        assert_eq!(after_toggle.muted, Some(!current_muted_before_toggle));
 
         // Restore exact initial volume and mute state
         sys.set_volume(orig_vol)

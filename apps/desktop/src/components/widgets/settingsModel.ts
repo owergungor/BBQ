@@ -26,6 +26,10 @@ export const MAX_ISLAND_HEIGHT = 64;
 export const MAX_ISLAND_EXPANDED_HEIGHT = 520;
 export const DEFAULT_ISLAND_HEIGHT = 38;
 
+export const MIN_DOT_SIZE = 32;
+export const MAX_DOT_SIZE = 64;
+export const DEFAULT_DOT_SIZE = 38;
+
 export const MIN_CLIPBOARD_CAPACITY = 10;
 export const MAX_CLIPBOARD_CAPACITY = 100;
 export const DEFAULT_CLIPBOARD_CAPACITY = 100;
@@ -75,6 +79,13 @@ export function clampIslandWidth(val: number | null | undefined): number {
  */
 export function clampIslandHeight(val: number | null | undefined): number {
   return clampDimension(val, MIN_ISLAND_HEIGHT, MAX_ISLAND_HEIGHT, DEFAULT_ISLAND_HEIGHT);
+}
+
+/**
+ * Validates and clamps dot size to [32, 64].
+ */
+export function clampDotSize(val: number | null | undefined): number {
+  return clampDimension(val, MIN_DOT_SIZE, MAX_DOT_SIZE, DEFAULT_DOT_SIZE);
 }
 
 /**

@@ -9,6 +9,7 @@ use tauri::{
 #[derive(Debug, Clone, Copy)]
 pub struct TrayLocaleStrings {
     pub show: &'static str,
+    pub toggle_expand: &'static str,
     pub switch_widget: &'static str,
     pub widget_system: &'static str,
     pub widget_media: &'static str,
@@ -31,6 +32,7 @@ pub fn get_tray_strings(lang: &str) -> TrayLocaleStrings {
     match lang.to_lowercase().as_str() {
         "tr" => TrayLocaleStrings {
             show: "BBQ'yu Göster",
+            toggle_expand: "HUD'ı Genişlet / Daralt",
             switch_widget: "Widget Değiştir",
             widget_system: "Sistem",
             widget_media: "Medya",
@@ -50,6 +52,7 @@ pub fn get_tray_strings(lang: &str) -> TrayLocaleStrings {
         },
         "de" => TrayLocaleStrings {
             show: "BBQ anzeigen",
+            toggle_expand: "HUD erweitern / einklappen",
             switch_widget: "Widget wechseln",
             widget_system: "System",
             widget_media: "Medien",
@@ -69,6 +72,7 @@ pub fn get_tray_strings(lang: &str) -> TrayLocaleStrings {
         },
         "es" => TrayLocaleStrings {
             show: "Mostrar BBQ",
+            toggle_expand: "Expandir / Contraer HUD",
             switch_widget: "Cambiar Widget",
             widget_system: "Sistema",
             widget_media: "Medios",
@@ -88,6 +92,7 @@ pub fn get_tray_strings(lang: &str) -> TrayLocaleStrings {
         },
         "fr" => TrayLocaleStrings {
             show: "Afficher BBQ",
+            toggle_expand: "Développer / Réduire le HUD",
             switch_widget: "Changer de Widget",
             widget_system: "Système",
             widget_media: "Médias",
@@ -107,6 +112,7 @@ pub fn get_tray_strings(lang: &str) -> TrayLocaleStrings {
         },
         _ => TrayLocaleStrings {
             show: "Show BBQ",
+            toggle_expand: "Expand / Collapse HUD",
             switch_widget: "Switch Widget",
             widget_system: "System",
             widget_media: "Media",
@@ -134,6 +140,8 @@ pub fn build_tray_menu(
     let loc = get_tray_strings(&settings.language);
 
     let show_item = MenuItemBuilder::with_id("show", loc.show).build(app)?;
+    let toggle_expand_item =
+        MenuItemBuilder::with_id("toggle_expand", loc.toggle_expand).build(app)?;
 
     let switch_submenu = SubmenuBuilder::with_id(app, "switch_menu", loc.switch_widget)
         .item(&MenuItemBuilder::with_id("switch_system", loc.widget_system).build(app)?)
@@ -167,6 +175,7 @@ pub fn build_tray_menu(
 
     let menu = MenuBuilder::new(app)
         .item(&show_item)
+        .item(&toggle_expand_item)
         .item(&switch_submenu)
         .separator()
         .item(&always_on_top_item)
@@ -228,6 +237,14 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                         let _ = window.set_focus();
                     }
                     let _ = app.emit("bbq://show_island", ());
+                }
+                "toggle_expand" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                    let _ = app.emit("bbq://toggle_expand", ());
                 }
                 id if id.starts_with("switch_") => {
                     let widget_id = id.trim_start_matches("switch_");

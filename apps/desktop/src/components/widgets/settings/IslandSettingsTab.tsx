@@ -12,21 +12,38 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
   draftBlur = 20,
   blurEnabled = true,
   islandPosition,
+  islandMode = "island",
+  islandVerticalPosition = "top",
+  draftDotSize = 38,
   alwaysOnTop,
   autoExpandOnEvent,
   onDraftWidthChange,
   onDraftHeightChange,
   onDraftTransparencyChange,
   onDraftBlurChange,
+  onDraftDotSizeChange,
   onCommitWidth,
   onCommitHeight,
   onCommitTransparency,
   onCommitBlur,
+  onCommitDotSize,
   onToggle,
   onResetPosition,
   onTriggerMoveHud,
 }) => {
   const { t } = useTranslation();
+
+  const modeOptions = [
+    { value: "island", label: t("settings.island.modeIsland") || "Island (Pill)" },
+    { value: "notch", label: t("settings.island.modeNotch") || "Apple Notch" },
+    { value: "dot", label: t("settings.island.modeDot") || "Dot" },
+  ];
+
+  const verticalOptions = [
+    { value: "top", label: t("settings.island.posTop") || "Top" },
+    { value: "center", label: t("settings.island.posCenter") || "Center" },
+    { value: "bottom", label: t("settings.island.posBottom") || "Bottom" },
+  ];
 
   const positionOptions = [
     { value: "top-center", label: t("settings.island.posTopCenter") || "Top Center" },
@@ -39,6 +56,71 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <label
+            htmlFor="island-mode-select"
+            style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}
+          >
+            {t("settings.island.mode") || "Island Mode"}
+          </label>
+          <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
+            {t("settings.island.modeDesc") || "Select between standard island pill, edge notch, or circular dot."}
+          </span>
+        </div>
+        <ThemeSelect
+          id="island-mode-select"
+          className="bbq-select"
+          value={islandMode || "island"}
+          options={modeOptions}
+          onChange={(val) => onToggle("island_mode", val)}
+        />
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <label
+            htmlFor="island-vertical-pos-select"
+            style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}
+          >
+            {t("settings.island.verticalPos") || "Vertical Position"}
+          </label>
+          <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
+            {t("settings.island.verticalPosDesc") || "Physical vertical screen placement of the island."}
+          </span>
+        </div>
+        <ThemeSelect
+          id="island-vertical-pos-select"
+          className="bbq-select"
+          value={islandVerticalPosition || "top"}
+          options={verticalOptions}
+          onChange={(val) => onToggle("island_vertical_position", val)}
+        />
+      </div>
+
+      {islandMode === "dot" && (
+        <Slider
+          id="dot-size-slider"
+          label={t("settings.island.dotSize") || "Dot Size"}
+          value={draftDotSize}
+          min={32}
+          max={64}
+          step={2}
+          compact={true}
+          valueDisplay={`${draftDotSize}px`}
+          onChange={(val) => {
+            const nextVal = Math.max(32, Math.min(64, Math.round(val)));
+            onDraftDotSizeChange?.(nextVal);
+            if (typeof document !== "undefined") {
+              document.documentElement.style.setProperty("--bbq-dot-size", `${nextVal}px`);
+            }
+          }}
+          onCommit={(val) => {
+            const nextVal = Math.max(32, Math.min(64, Math.round(val)));
+            onCommitDotSize?.(nextVal);
+          }}
+        />
+      )}
       <Slider
         id="island-width-slider"
         label={t("settings.island.compactWidth") || "Compact Width"}
@@ -198,6 +280,7 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
 
       <div
         style={{
+          display: "none",
           opacity: blurEnabled ? 1 : 0.45,
           pointerEvents: blurEnabled ? "auto" : "none",
           transition: "opacity var(--bbq-duration-fast, 150ms) ease",

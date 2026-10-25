@@ -306,6 +306,9 @@ pub enum IslandAnchor {
     TopCenter,
     TopLeft,
     TopRight,
+    Center,
+    CenterLeft,
+    CenterRight,
     BottomLeft,
     BottomCenter,
     BottomRight,
@@ -321,6 +324,11 @@ impl IslandAnchor {
             "top-center" | "topcenter" => Self::TopCenter,
             "top-left" | "topleft" => Self::TopLeft,
             "top-right" | "topright" => Self::TopRight,
+            "center" | "center-center" | "centercenter" | "middle" | "middle-center" => {
+                Self::Center
+            }
+            "center-left" | "centerleft" | "middle-left" => Self::CenterLeft,
+            "center-right" | "centerright" | "middle-right" => Self::CenterRight,
             "bottom-left" | "bottomleft" => Self::BottomLeft,
             "bottom-center" | "bottomcenter" => Self::BottomCenter,
             "bottom-right" | "bottomright" => Self::BottomRight,
@@ -333,6 +341,9 @@ impl IslandAnchor {
             Self::TopCenter => "top-center",
             Self::TopLeft => "top-left",
             Self::TopRight => "top-right",
+            Self::Center => "center",
+            Self::CenterLeft => "center-left",
+            Self::CenterRight => "center-right",
             Self::BottomLeft => "bottom-left",
             Self::BottomCenter => "bottom-center",
             Self::BottomRight => "bottom-right",
@@ -562,6 +573,33 @@ pub fn calculate_island_geometry(
             let x = display.work_area.x + (display.work_area.width as i32 - bounded_w as i32) - 8
                 + x_hover_offset;
             let y = display.work_area.y + display.safe_top_margin() - y_hover_offset;
+            (x, y)
+        }
+        IslandAnchor::Center => {
+            let screen_center_x = display.bounds.x + (display.bounds.width as i32) / 2;
+            let offset_x = screen_center_x - (bounded_w as i32) / 2;
+            let y = display.work_area.y + (display.work_area.height as i32 - bounded_h as i32) / 2;
+            (offset_x, y)
+        }
+        IslandAnchor::CenterLeft => {
+            let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
+                (bounded_w as i32 - idle_w as i32) / 2
+            } else {
+                0
+            };
+            let x = display.work_area.x + 8 - x_hover_offset;
+            let y = display.work_area.y + (display.work_area.height as i32 - bounded_h as i32) / 2;
+            (x, y)
+        }
+        IslandAnchor::CenterRight => {
+            let x_hover_offset = if layout_state == IslandLayoutState::Hovering {
+                (bounded_w as i32 - idle_w as i32) / 2
+            } else {
+                0
+            };
+            let x = display.work_area.x + (display.work_area.width as i32 - bounded_w as i32) - 8
+                + x_hover_offset;
+            let y = display.work_area.y + (display.work_area.height as i32 - bounded_h as i32) / 2;
             (x, y)
         }
         IslandAnchor::BottomLeft => {

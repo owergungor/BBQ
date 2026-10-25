@@ -62,9 +62,13 @@ pub async fn sync_runtime_services_with_settings(
     let target_display_changed =
         prev.and_then(|p| p.target_display_id.as_deref()) != current.target_display_id.as_deref();
     let dims_changed = prev.map(|p| p.island_width) != Some(current.island_width)
-        || prev.map(|p| p.island_height) != Some(current.island_height);
-    let position_changed =
-        prev.map(|p| p.island_position.as_str()) != Some(current.island_position.as_str());
+        || prev.map(|p| p.island_height) != Some(current.island_height)
+        || prev.map(|p| p.dot_size) != Some(current.dot_size)
+        || prev.map(|p| p.island_mode.as_str()) != Some(current.island_mode.as_str());
+    let position_changed = prev.map(|p| p.island_position.as_str())
+        != Some(current.island_position.as_str())
+        || prev.map(|p| p.island_vertical_position.as_str())
+            != Some(current.island_vertical_position.as_str());
 
     if target_display_changed || dims_changed || position_changed {
         if let Ok(mut last) = state.last_geometry.lock() {
@@ -80,19 +84,47 @@ pub async fn sync_runtime_services_with_settings(
                 IslandMode::Expanded | IslandMode::Interacting | IslandMode::Expanding => {
                     (bbq_core::IslandLayoutState::Expanded, None)
                 }
-                _ => (
-                    bbq_core::IslandLayoutState::Hovering,
-                    Some(bbq_core::WidgetDimensions {
-                        preferred_width: Some(current.island_width),
-                        preferred_height: Some(current.island_height),
-                        compact_width: Some(current.island_width),
-                        compact_height: Some(current.island_height),
-                        ..Default::default()
-                    }),
-                ),
+                _ => {
+                    let (w, h) = if current.island_mode == "dot" {
+                        (current.dot_size, current.dot_size)
+                    } else {
+                        (current.island_width, current.island_height)
+                    };
+                    (
+                        bbq_core::IslandLayoutState::Hovering,
+                        Some(bbq_core::WidgetDimensions {
+                            preferred_width: Some(w),
+                            preferred_height: Some(h),
+                            compact_width: Some(w),
+                            compact_height: Some(h),
+                            ..Default::default()
+                        }),
+                    )
+                }
             };
 
             let anchor = bbq_core::IslandAnchor::from_str_name(&current.island_position);
+            let anchor = match current.island_vertical_position.as_str() {
+                "center" => match anchor {
+                    bbq_core::IslandAnchor::TopLeft
+                    | bbq_core::IslandAnchor::BottomLeft
+                    | bbq_core::IslandAnchor::CenterLeft => bbq_core::IslandAnchor::CenterLeft,
+                    bbq_core::IslandAnchor::TopRight
+                    | bbq_core::IslandAnchor::BottomRight
+                    | bbq_core::IslandAnchor::CenterRight => bbq_core::IslandAnchor::CenterRight,
+                    _ => bbq_core::IslandAnchor::Center,
+                },
+                "bottom" => match anchor {
+                    bbq_core::IslandAnchor::TopLeft
+                    | bbq_core::IslandAnchor::BottomLeft
+                    | bbq_core::IslandAnchor::CenterLeft => bbq_core::IslandAnchor::BottomLeft,
+                    bbq_core::IslandAnchor::TopRight
+                    | bbq_core::IslandAnchor::BottomRight
+                    | bbq_core::IslandAnchor::CenterRight => bbq_core::IslandAnchor::BottomRight,
+                    _ => bbq_core::IslandAnchor::BottomCenter,
+                },
+                _ => anchor,
+            };
             let geo = bbq_core::calculate_island_geometry(&display, layout_state, dims, anchor);
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {

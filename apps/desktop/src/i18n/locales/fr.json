@@ -134,7 +134,19 @@
       "resetPositionDesc": "Restaurer le placement supérieur central par défaut et effacer les coordonnées personnalisées.",
       "positionResetSuccess": "Position de l'îlot réinitialisée par défaut",
       "blurEnabled": "Flou de l'Îlot",
-      "blurEnabledDesc": "Activez ou désactivez le flou d'arrière-plan sous les surfaces translucides de l'îlot."
+      "blurEnabledDesc": "Activez ou désactivez le flou d'arrière-plan sous les surfaces translucides de l'îlot.",
+      "mode": "Mode d'îlot",
+      "modeDesc": "Choisissez entre pilule standard, encoche ou point circulaire.",
+      "modeIsland": "Îlot (Standard)",
+      "modeNotch": "Encoche Apple",
+      "modeDot": "Point",
+      "verticalPos": "Position verticale",
+      "verticalPosDesc": "Emplacement vertical physique de l'îlot sur l'écran.",
+      "posTop": "Haut",
+      "posCenter": "Centre",
+      "posBottom": "Bas",
+      "dotSize": "Taille du point",
+      "dotSizeDesc": "Diamètre de l'îlot circulaire en mode Point."
     },
     "hotkey": {
       "title": "Raccourci global",
@@ -220,7 +232,10 @@
       "tourActivated": "Visite de bienvenue activée",
       "islandPositionReset": "Position de l'îlot réinitialisée par défaut",
       "moveHudEnabled": "HUD de déplacement activé",
-      "moveHudDisabled": "HUD de déplacement désactivé"
+      "moveHudDisabled": "HUD de déplacement désactivé",
+      "dotSize": "Taille du point mise à jour",
+      "islandMode": "Mode d'îlot mis à jour",
+      "verticalPosition": "Position verticale mise à jour"
     },
     "resetModal": {
       "title": "Réinitialiser les préférences ?",
@@ -431,7 +446,8 @@
     "launchAtLogin": "Lancer au démarrage",
     "about": "À propos de BBQ",
     "quit": "Quitter BBQ",
-    "resetPosition": "Réinitialiser la position de l'îlot"
+    "resetPosition": "Réinitialiser la position de l'îlot",
+    "toggleExpand": "Développer / Réduire le HUD"
   },
   "onboarding": {
     "welcomeTitle": "Bienvenue sur BBQ",

@@ -201,11 +201,37 @@ impl SettingsServiceTrait for SettingsService {
         if let Some(pos) = get_val("island_position") {
             let trimmed = pos.trim().to_lowercase();
             match trimmed.as_str() {
-                "top-center" | "top-left" | "top-right" | "bottom-left" | "bottom-center"
+                "top-center" | "top-left" | "top-right" | "center" | "center-center"
+                | "center-left" | "center-right" | "bottom-left" | "bottom-center"
                 | "bottom-right" => {
                     settings.island_position = trimmed;
                 }
                 _ => {}
+            }
+        }
+        if let Some(im) = get_val("island_mode") {
+            let trimmed = im.trim().to_lowercase();
+            match trimmed.as_str() {
+                "island" | "notch" | "dot" => {
+                    settings.island_mode = trimmed;
+                }
+                _ => {}
+            }
+        }
+        if let Some(ivp) = get_val("island_vertical_position") {
+            let trimmed = ivp.trim().to_lowercase();
+            match trimmed.as_str() {
+                "top" | "center" | "bottom" => {
+                    settings.island_vertical_position = trimmed;
+                }
+                _ => {}
+            }
+        }
+        if let Some(ds) = get_val("dot_size") {
+            if let Ok(num) = ds.parse::<u32>() {
+                if (32..=64).contains(&num) {
+                    settings.dot_size = num;
+                }
             }
         }
         if let Some(tr) = get_val("island_transparency") {
@@ -415,6 +441,12 @@ impl SettingsServiceTrait for SettingsService {
         self.repo
             .set("move_hud", if settings.move_hud { "true" } else { "false" })?;
         self.repo.set("language", &settings.language)?;
+        self.repo.set("island_mode", &settings.island_mode)?;
+        self.repo.set(
+            "island_vertical_position",
+            &settings.island_vertical_position,
+        )?;
+        self.repo.set("dot_size", &settings.dot_size.to_string())?;
 
         self.notify_change(settings);
         Ok(())

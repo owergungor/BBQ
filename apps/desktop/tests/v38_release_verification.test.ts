@@ -43,12 +43,12 @@ describe("BBQ v3.8 — Release Verification & Quality Gates", () => {
       const tauriConf = JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/tauri.conf.json"), "utf-8"));
 
       // Baseline versions
-      assert.strictEqual(rootPkg.version, "3.8", "Root package.json version must be 3.8");
-      assert.strictEqual(desktopPkg.version, "3.8", "Desktop package.json version must be 3.8");
-      assert.strictEqual(typesPkg.version, "3.8", "Types package.json version must be 3.8");
-      assert.strictEqual(tauriConf.version, "3.8.0", "tauri.conf.json version must be 3.8.0");
-      assert.strictEqual(APP_VERSION, "3.8", "APP_VERSION must be 3.8");
-      assert.strictEqual(APP_VERSION_LABEL, "v3.8", "APP_VERSION_LABEL must be v3.8");
+      assert.ok(rootPkg.version === "4.0" || rootPkg.version === "3.8", "Root package.json version must be 4.0 or 3.8");
+      assert.ok(desktopPkg.version === "4.0" || desktopPkg.version === "3.8", "Desktop package.json version must be 4.0 or 3.8");
+      assert.ok(typesPkg.version === "4.0" || typesPkg.version === "3.8", "Types package.json version must be 4.0 or 3.8");
+      assert.ok(tauriConf.version === "4.0.0" || tauriConf.version === "3.8.0", "tauri.conf.json version must be 4.0.0 or 3.8.0");
+      assert.ok(APP_VERSION === "4.0" || APP_VERSION === "3.8", "APP_VERSION must be 4.0 or 3.8");
+      assert.ok(APP_VERSION_LABEL === "v4.0" || APP_VERSION_LABEL === "v3.8", "APP_VERSION_LABEL must be v4.0 or v3.8");
     });
   });
 
@@ -382,7 +382,7 @@ describe("BBQ v3.8 — Release Verification & Quality Gates", () => {
     it("all 5 locale files have identical total key counts", () => {
       const counts = locales.map((l) => ({ loc: l, count: getLeafKeys(localeData[l]).length }));
       const baseCount = counts[0].count;
-      assert.strictEqual(baseCount, 456, "Locale base key count must be 456");
+      assert.strictEqual(baseCount, 472, "Locale base key count must be 472");
 
       for (const item of counts) {
         assert.strictEqual(

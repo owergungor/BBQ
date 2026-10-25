@@ -12,6 +12,39 @@ pub fn get_island_state(state: State<'_, AppState>) -> Result<IslandMode, String
         .map_err(|e| e.to_string())
 }
 
+pub fn resolve_anchor(settings: &bbq_core::BbqSettings) -> bbq_core::IslandAnchor {
+    let raw_anchor = bbq_core::IslandAnchor::from_str_name(&settings.island_position);
+    match settings.island_vertical_position.as_str() {
+        "center" => match raw_anchor {
+            bbq_core::IslandAnchor::TopLeft
+            | bbq_core::IslandAnchor::BottomLeft
+            | bbq_core::IslandAnchor::CenterLeft => bbq_core::IslandAnchor::CenterLeft,
+            bbq_core::IslandAnchor::TopRight
+            | bbq_core::IslandAnchor::BottomRight
+            | bbq_core::IslandAnchor::CenterRight => bbq_core::IslandAnchor::CenterRight,
+            _ => bbq_core::IslandAnchor::Center,
+        },
+        "bottom" => match raw_anchor {
+            bbq_core::IslandAnchor::TopLeft
+            | bbq_core::IslandAnchor::BottomLeft
+            | bbq_core::IslandAnchor::CenterLeft => bbq_core::IslandAnchor::BottomLeft,
+            bbq_core::IslandAnchor::TopRight
+            | bbq_core::IslandAnchor::BottomRight
+            | bbq_core::IslandAnchor::CenterRight => bbq_core::IslandAnchor::BottomRight,
+            _ => bbq_core::IslandAnchor::BottomCenter,
+        },
+        _ => match raw_anchor {
+            bbq_core::IslandAnchor::BottomLeft | bbq_core::IslandAnchor::CenterLeft => {
+                bbq_core::IslandAnchor::TopLeft
+            }
+            bbq_core::IslandAnchor::BottomRight | bbq_core::IslandAnchor::CenterRight => {
+                bbq_core::IslandAnchor::TopRight
+            }
+            _ => raw_anchor,
+        },
+    }
+}
+
 #[tauri::command]
 pub async fn set_island_mode(
     app: AppHandle,
@@ -40,7 +73,7 @@ pub async fn set_island_mode(
         .get_target_display(settings.target_display_id.as_deref())
         .await
     {
-        // For compact envelope (Idle or Hovering), calculate Hovering geometry (280x44)
+        // For compact envelope (Idle or Hovering), calculate Hovering geometry
         // so the OS window maintains a stable envelope and does not oscillate or re-position during hover.
         // For Expanded, calculate 560x420 expanded geometry to envelope all widgets without bottom clipping.
         let (calc_state, dims) = match layout_state {
@@ -54,19 +87,26 @@ pub async fn set_island_mode(
                     ..Default::default()
                 }),
             ),
-            _ => (
-                bbq_core::IslandLayoutState::Hovering,
-                Some(bbq_core::WidgetDimensions {
-                    preferred_width: Some(settings.island_width),
-                    preferred_height: Some(settings.island_height),
-                    compact_width: Some(settings.island_width),
-                    compact_height: Some(settings.island_height),
-                    ..Default::default()
-                }),
-            ),
+            _ => {
+                let (w, h) = if settings.island_mode == "dot" {
+                    (settings.dot_size, settings.dot_size)
+                } else {
+                    (settings.island_width, settings.island_height)
+                };
+                (
+                    bbq_core::IslandLayoutState::Hovering,
+                    Some(bbq_core::WidgetDimensions {
+                        preferred_width: Some(w),
+                        preferred_height: Some(h),
+                        compact_width: Some(w),
+                        compact_height: Some(h),
+                        ..Default::default()
+                    }),
+                )
+            }
         };
 
-        let anchor = bbq_core::IslandAnchor::from_str_name(&settings.island_position);
+        let anchor = resolve_anchor(&settings);
         let geo = bbq_core::calculate_island_geometry(&target_disp, calc_state, dims, anchor);
 
         let should_apply = if let Ok(mut last) = state.last_geometry.lock() {
@@ -225,19 +265,26 @@ pub async fn reset_island_position(
                 ..Default::default()
             }),
         ),
-        _ => (
-            bbq_core::IslandLayoutState::Hovering,
-            Some(bbq_core::WidgetDimensions {
-                preferred_width: Some(settings.island_width),
-                preferred_height: Some(settings.island_height),
-                compact_width: Some(settings.island_width),
-                compact_height: Some(settings.island_height),
-                ..Default::default()
-            }),
-        ),
+        _ => {
+            let (w, h) = if settings.island_mode == "dot" {
+                (settings.dot_size, settings.dot_size)
+            } else {
+                (settings.island_width, settings.island_height)
+            };
+            (
+                bbq_core::IslandLayoutState::Hovering,
+                Some(bbq_core::WidgetDimensions {
+                    preferred_width: Some(w),
+                    preferred_height: Some(h),
+                    compact_width: Some(w),
+                    compact_height: Some(h),
+                    ..Default::default()
+                }),
+            )
+        }
     };
 
-    let anchor = bbq_core::IslandAnchor::from_str_name(&settings.island_position);
+    let anchor = resolve_anchor(&settings);
     let geo = bbq_core::calculate_island_geometry(&display, calc_state, dims, anchor);
 
     if let Some(window) = app.get_webview_window("main") {

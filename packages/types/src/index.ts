@@ -38,6 +38,9 @@ export type IslandAnchor =
   | 'topCenter'
   | 'topLeft'
   | 'topRight'
+  | 'center'
+  | 'centerLeft'
+  | 'centerRight'
   | 'bottomLeft'
   | 'bottomCenter'
   | 'bottomRight'
@@ -47,9 +50,16 @@ export type IslandPosition =
   | 'top-center'
   | 'top-left'
   | 'top-right'
+  | 'center'
+  | 'center-left'
+  | 'center-right'
   | 'bottom-left'
   | 'bottom-center'
   | 'bottom-right';
+
+export type IslandStyleMode = 'island' | 'notch' | 'dot';
+
+export type IslandVerticalPosition = 'top' | 'center' | 'bottom';
 
 export type AutoUpdateSchedule =
   | 'startup'
@@ -284,6 +294,9 @@ export interface BbqSettings {
   always_on_top?: boolean;
   move_hud?: boolean;
   language?: SupportedLanguage;
+  island_mode?: IslandStyleMode;
+  island_vertical_position?: IslandVerticalPosition;
+  dot_size?: number;
   /** @deprecated Obsolete legacy setting retained only for backwards compatibility with older stored configs */
   auto_update_schedule?: AutoUpdateSchedule;
   /** @deprecated Obsolete legacy setting retained only for backwards compatibility with older stored configs */

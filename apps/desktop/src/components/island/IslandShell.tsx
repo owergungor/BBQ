@@ -54,7 +54,12 @@ export const IslandShell: React.FC<IslandShellProps> = ({
   const { t } = useTranslation();
   const userCompactWidth = useSettingsState((s) => s.settings.island_width);
   const islandPosition = useSettingsState((s) => s.settings.island_position || "top-center");
+  const islandMode = useSettingsState((s) => s.settings.island_mode || "island");
+  const islandVerticalPosition = useSettingsState((s) => s.settings.island_vertical_position || "top");
+  const dotSize = useSettingsState((s) => s.settings.dot_size || 38);
   const modeClass = `mode-${mode.toLowerCase()}`;
+  const styleModeClass = `mode-${islandMode}`;
+  const vposClass = `vpos-${islandVerticalPosition}`;
   const stateClass = `state-${state.toLowerCase()}`;
   const mediaClass = hasMedia ? "has-media" : "";
   const dragClass = isDragOver ? "drag-over" : "";
@@ -62,29 +67,69 @@ export const IslandShell: React.FC<IslandShellProps> = ({
 
   let dynamicStyle: React.CSSProperties = { ...style };
   if (state === "Idle") {
-    const resolvedW = resolveEffectiveCompactWidth({
-      contentMinWidth: contentWidth,
-      userCompactWidth,
-      widgetSizing: sizing,
-    });
-    dynamicStyle = {
-      ...dynamicStyle,
-      minWidth: "64px",
-      maxWidth: `${Math.min(480, Math.max(64, resolvedW))}px`,
-      minHeight: "32px",
-      maxHeight: "var(--bbq-compact-height, 38px)",
-    };
+    if (islandMode === "dot") {
+      dynamicStyle = {
+        ...dynamicStyle,
+        width: `${dotSize}px`,
+        minWidth: `${dotSize}px`,
+        maxWidth: `${dotSize}px`,
+        height: `${dotSize}px`,
+        minHeight: `${dotSize}px`,
+        maxHeight: `${dotSize}px`,
+        aspectRatio: "1 / 1",
+        borderRadius: "50%",
+      };
+    } else if (islandMode === "notch") {
+      const resolvedW = resolveEffectiveCompactWidth({
+        contentMinWidth: contentWidth,
+        userCompactWidth,
+        widgetSizing: sizing,
+      });
+      dynamicStyle = {
+        ...dynamicStyle,
+        minWidth: "160px",
+        maxWidth: `${Math.min(480, Math.max(160, resolvedW))}px`,
+        minHeight: "34px",
+        maxHeight: "var(--bbq-compact-height, 38px)",
+      };
+    } else {
+      const resolvedW = resolveEffectiveCompactWidth({
+        contentMinWidth: contentWidth,
+        userCompactWidth,
+        widgetSizing: sizing,
+      });
+      dynamicStyle = {
+        ...dynamicStyle,
+        minWidth: "64px",
+        maxWidth: `${Math.min(480, Math.max(64, resolvedW))}px`,
+        minHeight: "32px",
+        maxHeight: "var(--bbq-compact-height, 38px)",
+      };
+    }
   } else if (state === "Hovering") {
-    const resolvedW = resolveEffectiveCompactWidth({
-      contentMinWidth: contentWidth,
-      userCompactWidth,
-      widgetSizing: sizing,
-    });
-    dynamicStyle = {
-      ...dynamicStyle,
-      maxWidth: `${resolvedW + 40}px`,
-      maxHeight: "var(--bbq-peek-height, 44px)",
-    };
+    if (islandMode === "dot") {
+      const hoverDot = dotSize + 6;
+      dynamicStyle = {
+        ...dynamicStyle,
+        width: `${hoverDot}px`,
+        maxWidth: `${hoverDot}px`,
+        height: `${hoverDot}px`,
+        maxHeight: `${hoverDot}px`,
+        aspectRatio: "1 / 1",
+        borderRadius: "50%",
+      };
+    } else {
+      const resolvedW = resolveEffectiveCompactWidth({
+        contentMinWidth: contentWidth,
+        userCompactWidth,
+        widgetSizing: sizing,
+      });
+      dynamicStyle = {
+        ...dynamicStyle,
+        maxWidth: `${resolvedW + 40}px`,
+        maxHeight: "var(--bbq-peek-height, 44px)",
+      };
+    }
   } else if (state === "Expanded") {
     const expHeight = expandedHeight
       ? `${expandedHeight}px`
@@ -106,8 +151,10 @@ export const IslandShell: React.FC<IslandShellProps> = ({
       aria-label={t("shell.ariaLabel") || "BBQ Productivity Island"}
       tabIndex={0}
       data-anchor={islandPosition}
+      data-island-mode={islandMode}
+      data-vertical-pos={islandVerticalPosition}
       data-move-hud={moveHud ? "true" : undefined}
-      className={`bbq-island-shell ${modeClass} ${stateClass} ${mediaClass} ${dragClass} ${moveClass}`.trim()}
+      className={`bbq-island-shell ${modeClass} ${styleModeClass} ${vposClass} ${stateClass} ${mediaClass} ${dragClass} ${moveClass}`.trim()}
       style={dynamicStyle}
       onPointerDown={onPointerDown}
       onMouseEnter={onMouseEnter}

@@ -134,7 +134,19 @@
       "resetPositionDesc": "Restaurar colocación superior central predeterminada y borrar coordenadas personalizadas.",
       "positionResetSuccess": "Posición de la isla restablecida por defecto",
       "blurEnabled": "Desenfoque de Isla",
-      "blurEnabledDesc": "Habilite o deshabilite el desenfoque de fondo debajo de las superficies translúcidas de la isla."
+      "blurEnabledDesc": "Habilite o deshabilite el desenfoque de fondo debajo de las superficies translúcidas de la isla.",
+      "mode": "Modo de Isla",
+      "modeDesc": "Seleccione entre píldora estándar, notch de borde o punto circular.",
+      "modeIsland": "Isla (Estándar)",
+      "modeNotch": "Notch de Apple",
+      "modeDot": "Punto",
+      "verticalPos": "Posición Vertical",
+      "verticalPosDesc": "Ubicación vertical física de la isla en la pantalla.",
+      "posTop": "Superior",
+      "posCenter": "Centro",
+      "posBottom": "Inferior",
+      "dotSize": "Tamaño del punto",
+      "dotSizeDesc": "Diámetro de la isla circular en modo Punto."
     },
     "hotkey": {
       "title": "Atajo global",
@@ -220,7 +232,10 @@
       "tourActivated": "Guía de bienvenida activada",
       "islandPositionReset": "Posición de la isla restablecida a predeterminada",
       "moveHudEnabled": "HUD de movimiento activado",
-      "moveHudDisabled": "HUD de movimiento desactivado"
+      "moveHudDisabled": "HUD de movimiento desactivado",
+      "dotSize": "Tamaño del punto actualizado",
+      "islandMode": "Modo de isla actualizado",
+      "verticalPosition": "Posición vertical actualizada"
     },
     "resetModal": {
       "title": "¿Restablecer preferencias?",
@@ -431,7 +446,8 @@
     "launchAtLogin": "Iniciar al inicio de sesión",
     "about": "Acerca de BBQ",
     "quit": "Salir de BBQ",
-    "resetPosition": "Restablecer posición de la isla"
+    "resetPosition": "Restablecer posición de la isla",
+    "toggleExpand": "Expandir / Contraer HUD"
   },
   "onboarding": {
     "welcomeTitle": "Te damos la bienvenida a BBQ",

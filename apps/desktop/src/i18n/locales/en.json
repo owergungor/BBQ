@@ -134,7 +134,19 @@
       "resetPositionDesc": "Restore default top-center position and clear custom coordinates.",
       "positionResetSuccess": "Island position reset to default",
       "blurEnabled": "Island Blur",
-      "blurEnabledDesc": "Enable or disable backdrop blur beneath translucent island surfaces."
+      "blurEnabledDesc": "Enable or disable backdrop blur beneath translucent island surfaces.",
+      "mode": "Island Mode",
+      "modeDesc": "Select between standard island pill, edge notch, or circular dot.",
+      "modeIsland": "Island (Pill)",
+      "modeNotch": "Apple Notch",
+      "modeDot": "Dot",
+      "verticalPos": "Vertical Position",
+      "verticalPosDesc": "Physical vertical screen placement of the island.",
+      "posTop": "Top",
+      "posCenter": "Center",
+      "posBottom": "Bottom",
+      "dotSize": "Dot Size",
+      "dotSizeDesc": "Diameter of the circular island in Dot mode."
     },
     "hotkey": {
       "title": "Global Hotkey",
@@ -220,7 +232,10 @@
       "tourActivated": "Welcome tour activated",
       "islandPositionReset": "Island position reset to default",
       "moveHudEnabled": "Move HUD enabled",
-      "moveHudDisabled": "Move HUD disabled"
+      "moveHudDisabled": "Move HUD disabled",
+      "dotSize": "Dot size updated",
+      "islandMode": "Island mode updated",
+      "verticalPosition": "Vertical position updated"
     },
     "resetModal": {
       "title": "Reset Preferences?",
@@ -431,7 +446,8 @@
     "launchAtLogin": "Launch at Login",
     "about": "About BBQ",
     "quit": "Quit BBQ",
-    "resetPosition": "Reset Island Position"
+    "resetPosition": "Reset Island Position",
+    "toggleExpand": "Expand / Collapse HUD"
   },
   "onboarding": {
     "welcomeTitle": "Welcome to BBQ",

@@ -258,7 +258,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
 
     it("transitions idle -> checking -> update_available when new version is available", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.9",
+        mockAvailableVersion: "4.1",
         mockReleaseNotes: "New features and bug fixes",
         mockReleaseDate: "2026-10-15T00:00:00Z",
       });
@@ -266,19 +266,19 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       await checkForUpdates();
       const state = updaterStore.getState();
       assert.strictEqual(state.status, "update_available");
-      assert.strictEqual(state.availableVersion, "3.9");
+      assert.strictEqual(state.availableVersion, "4.1");
       assert.strictEqual(state.releaseNotes, "New features and bug fixes");
     });
 
     it("supports download, progress reporting, and completion", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "3.9",
+        mockAvailableVersion: "4.1",
         downloadDurationMs: 40,
       });
 
       updaterStore.setState({
         status: "update_available",
-        availableVersion: "3.9",
+        availableVersion: "4.1",
       });
 
       await downloadAndInstallUpdate();
@@ -846,6 +846,9 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
   // 8. Release Version Consistency & Release Workflow Integrity
   // =========================================================================
   describe("8. Release Version Consistency & Release Workflow Integrity", () => {
+    const EXPECTED_VERSION = "4.0";
+    const CARGO_INTERNAL_VERSION = "4.0.0";
+
     it("verifies shipped application version is consistently 3.1 across all manifests and sources", () => {
       const rootPkgPath = path.join(ROOT_DIR, "package.json");
       const desktopPkgPath = path.join(DESKTOP_DIR, "package.json");
@@ -860,9 +863,6 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, "utf-8"));
       const desktopCargo = fs.readFileSync(desktopCargoPath, "utf-8");
       const cargoLock = fs.readFileSync(cargoLockPath, "utf-8");
-
-      const EXPECTED_VERSION = "3.8";
-      const CARGO_INTERNAL_VERSION = "3.8.0";
 
       // 1. Root, desktop, and types package.json
       assert.strictEqual(
@@ -948,8 +948,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       );
       assert.strictEqual(
         Array.from(uniqueVersions)[0],
-        "3.8",
-        `Canonical public version must be two-component 3.8, found: ${Array.from(uniqueVersions)[0]}`
+        EXPECTED_VERSION,
+        `Canonical public version must be two-component ${EXPECTED_VERSION}, found: ${Array.from(uniqueVersions)[0]}`
       );
     });
 

@@ -364,7 +364,7 @@ pub fn run() {
                 let initial_target_display_id = initial_settings.target_display_id.clone();
                 let initial_island_width = initial_settings.island_width;
                 let initial_island_height = initial_settings.island_height;
-                let initial_island_position = initial_settings.island_position.clone();
+                let initial_settings_clone = initial_settings.clone();
                 let handle_geo = handle.clone();
                 tauri::async_runtime::spawn(async move {
                     use bbq_services::DisplayServiceTrait;
@@ -377,17 +377,24 @@ pub fn run() {
                             bbq_core::IslandLayoutState::Expanded => {
                                 (bbq_core::IslandLayoutState::Expanded, None)
                             }
-                            _ => (
-                                bbq_core::IslandLayoutState::Hovering,
-                                Some(bbq_core::WidgetDimensions {
-                                    preferred_width: Some(initial_island_width),
-                                    preferred_height: Some(initial_island_height),
-                                    ..Default::default()
-                                }),
-                            ),
+                            _ => {
+                                let (w, h) = if initial_settings_clone.island_mode == "dot" {
+                                    (initial_settings_clone.dot_size, initial_settings_clone.dot_size)
+                                } else {
+                                    (initial_island_width, initial_island_height)
+                                };
+                                (
+                                    bbq_core::IslandLayoutState::Hovering,
+                                    Some(bbq_core::WidgetDimensions {
+                                        preferred_width: Some(w),
+                                        preferred_height: Some(h),
+                                        ..Default::default()
+                                    }),
+                                )
+                            }
                         };
                         let anchor =
-                            bbq_core::IslandAnchor::from_str_name(&initial_island_position);
+                            crate::commands::island::resolve_anchor(&initial_settings_clone);
                         let geo = bbq_core::calculate_island_geometry(
                             &target_display,
                             calc_state,

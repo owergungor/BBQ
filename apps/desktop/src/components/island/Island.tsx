@@ -24,6 +24,7 @@ import {
   subscribeToResetPosition,
   subscribeToReloadWidget,
   subscribeToOpenAbout,
+  subscribeToToggleExpand,
 } from "../../ipc/events.ts";
 import { setActiveWidget } from "../../island/islandState.ts";
 import { widgetRegistry } from "../../island/widgetRegistry.ts";
@@ -146,6 +147,16 @@ export const Island: React.FC = () => {
           const cur = islandStore.getState().activeWidgetId;
           if (cur) {
             await islandRuntime.handleEvent({ type: "WIDGET_SELECT", widgetId: cur });
+          }
+        })
+      );
+      registerCleanup(
+        await subscribeToToggleExpand(async () => {
+          const liveIsExpanded = islandStore.getState().state === "Expanded";
+          if (liveIsExpanded) {
+            await islandRuntime.handleEvent({ type: "USER_ESCAPE" });
+          } else {
+            await islandRuntime.transitionTo("Expanded", "mouse");
           }
         })
       );
