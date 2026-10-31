@@ -1159,7 +1159,8 @@ mod tests {
         let root_pkg = std::fs::read_to_string(root.join("package.json"))
             .expect("Should read root package.json");
         assert!(
-            root_pkg.contains("\"version\": \"4.1\"")
+            root_pkg.contains("\"version\": \"4.2\"")
+                || root_pkg.contains("\"version\": \"4.1\"")
                 || root_pkg.contains("\"version\": \"4.0\"")
                 || root_pkg.contains("\"version\": \"3.8\"")
                 || root_pkg.contains("\"version\": \"3.7\"")
@@ -1177,7 +1178,8 @@ mod tests {
         let desktop_pkg = std::fs::read_to_string(root.join("apps/desktop/package.json"))
             .expect("Should read apps/desktop/package.json");
         assert!(
-            desktop_pkg.contains("\"version\": \"4.1\"")
+            desktop_pkg.contains("\"version\": \"4.2\"")
+                || desktop_pkg.contains("\"version\": \"4.1\"")
                 || desktop_pkg.contains("\"version\": \"4.0\"")
                 || desktop_pkg.contains("\"version\": \"3.8\"")
                 || desktop_pkg.contains("\"version\": \"3.7\"")
@@ -1195,7 +1197,8 @@ mod tests {
         let types_pkg = std::fs::read_to_string(root.join("packages/types/package.json"))
             .expect("Should read packages/types/package.json");
         assert!(
-            types_pkg.contains("\"version\": \"4.1\"")
+            types_pkg.contains("\"version\": \"4.2\"")
+                || types_pkg.contains("\"version\": \"4.1\"")
                 || types_pkg.contains("\"version\": \"4.0\"")
                 || types_pkg.contains("\"version\": \"3.8\"")
                 || types_pkg.contains("\"version\": \"3.7\"")
@@ -1214,7 +1217,8 @@ mod tests {
             std::fs::read_to_string(root.join("apps/desktop/src-tauri/tauri.conf.json"))
                 .expect("Should read tauri.conf.json");
         assert!(
-            tauri_conf.contains("\"version\": \"4.1.0\"")
+            tauri_conf.contains("\"version\": \"4.2.0\"")
+                || tauri_conf.contains("\"version\": \"4.1.0\"")
                 || tauri_conf.contains("\"version\": \"4.0.0\"")
                 || tauri_conf.contains("\"version\": \"3.8.0\"")
                 || tauri_conf.contains("\"version\": \"3.7.0\"")

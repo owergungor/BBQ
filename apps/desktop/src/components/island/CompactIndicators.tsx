@@ -88,10 +88,11 @@ export const CompactClipboardIndicator: React.FC = () => {
 export const CompactMediaIndicator: React.FC = () => {
   const { t } = useTranslation();
   const currentSession = useMediaState((s) => s.currentSession);
+  const rawArt = currentSession?.albumArt ?? currentSession?.album_art;
   const [artFailed, setArtFailed] = React.useState(false);
   const resolvedArt = React.useMemo(
-    () => resolveArtworkUrl(currentSession?.albumArt),
-    [currentSession?.albumArt]
+    () => resolveArtworkUrl(rawArt),
+    [rawArt]
   );
 
   React.useEffect(() => {

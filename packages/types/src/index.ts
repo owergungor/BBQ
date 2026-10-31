@@ -125,6 +125,12 @@ export interface MediaCapabilities {
   canGoPrevious: boolean;
   canSeek: boolean;
   canChangeVolume: boolean;
+  can_play?: boolean;
+  can_pause?: boolean;
+  can_go_next?: boolean;
+  can_go_previous?: boolean;
+  can_seek?: boolean;
+  can_change_volume?: boolean;
 }
 
 export interface MediaSession {
@@ -134,9 +140,13 @@ export interface MediaSession {
   artist: string | null;
   album: string | null;
   albumArt: string | null;
+  album_art?: string | null;
   durationMs: number | null;
+  duration_ms?: number | null;
   positionMs: number | null;
+  position_ms?: number | null;
   lastUpdatedTime?: number | null;
+  last_updated_time?: number | null;
   volume: number | null;
   source: string | null;
   capabilities: MediaCapabilities;

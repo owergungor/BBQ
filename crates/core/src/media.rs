@@ -13,28 +13,38 @@ pub enum PlaybackState {
 
 /// Supported playback and control capabilities reported by the media player
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(default)]
+#[serde(rename_all = "camelCase", default)]
 pub struct MediaCapabilities {
+    #[serde(alias = "can_play")]
     pub can_play: bool,
+    #[serde(alias = "can_pause")]
     pub can_pause: bool,
+    #[serde(alias = "can_go_next")]
     pub can_go_next: bool,
+    #[serde(alias = "can_go_previous")]
     pub can_go_previous: bool,
+    #[serde(alias = "can_seek")]
     pub can_seek: bool,
+    #[serde(alias = "can_change_volume")]
     pub can_change_volume: bool,
 }
 
 /// Normalized, platform-agnostic representation of an active media session
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-#[serde(default)]
+#[serde(rename_all = "camelCase", default)]
 pub struct MediaSession {
     pub id: String,
     pub state: PlaybackState,
     pub title: Option<String>,
     pub artist: Option<String>,
     pub album: Option<String>,
+    #[serde(alias = "album_art")]
     pub album_art: Option<String>,
+    #[serde(alias = "duration_ms")]
     pub duration_ms: Option<u64>,
+    #[serde(alias = "position_ms")]
     pub position_ms: Option<u64>,
+    #[serde(alias = "last_updated_time")]
     pub last_updated_time: Option<u64>,
     pub volume: Option<f32>,
     pub source: Option<String>,
@@ -121,8 +131,20 @@ mod tests {
         };
 
         let json = serde_json::to_string(&session).unwrap();
+        assert!(json.contains("\"albumArt\""));
+        assert!(json.contains("\"durationMs\""));
         let deserialized: MediaSession = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized, session);
+
+        // Verify backward-compatibility: snake_case payload also deserializes cleanly
+        let snake_json = r#"{"id":"s1","state":"playing","album_art":"data:image/png;base64,abc","duration_ms":1000,"capabilities":{"can_play":true}}"#;
+        let snake_session: MediaSession = serde_json::from_str(snake_json).unwrap();
+        assert_eq!(
+            snake_session.album_art.as_deref(),
+            Some("data:image/png;base64,abc")
+        );
+        assert_eq!(snake_session.duration_ms, Some(1000));
+        assert!(snake_session.capabilities.can_play);
     }
 
     #[test]

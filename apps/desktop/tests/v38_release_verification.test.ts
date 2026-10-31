@@ -43,12 +43,12 @@ describe("BBQ v3.8 — Release Verification & Quality Gates", () => {
       const tauriConf = JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/tauri.conf.json"), "utf-8"));
 
       // Baseline versions
-      assert.ok(rootPkg.version === "4.1" || rootPkg.version === "4.0" || rootPkg.version === "3.8", "Root package.json version must be 4.1, 4.0 or 3.8");
-      assert.ok(desktopPkg.version === "4.1" || desktopPkg.version === "4.0" || desktopPkg.version === "3.8", "Desktop package.json version must be 4.1, 4.0 or 3.8");
-      assert.ok(typesPkg.version === "4.1" || typesPkg.version === "4.0" || typesPkg.version === "3.8", "Types package.json version must be 4.1, 4.0 or 3.8");
-      assert.ok(tauriConf.version === "4.1.0" || tauriConf.version === "4.0.0" || tauriConf.version === "3.8.0", "tauri.conf.json version must be 4.1.0, 4.0.0 or 3.8.0");
-      assert.ok(APP_VERSION === "4.1" || APP_VERSION === "4.0" || APP_VERSION === "3.8", "APP_VERSION must be 4.1, 4.0 or 3.8");
-      assert.ok(APP_VERSION_LABEL === "v4.1" || APP_VERSION_LABEL === "v4.0" || APP_VERSION_LABEL === "v3.8", "APP_VERSION_LABEL must be v4.1, v4.0 or v3.8");
+      assert.ok(rootPkg.version === "4.2" || rootPkg.version === "4.1" || rootPkg.version === "4.0" || rootPkg.version === "3.8", "Root package.json version must be 4.1, 4.0 or 3.8");
+      assert.ok(desktopPkg.version === "4.2" || desktopPkg.version === "4.1" || desktopPkg.version === "4.0" || desktopPkg.version === "3.8", "Desktop package.json version must be 4.1, 4.0 or 3.8");
+      assert.ok(typesPkg.version === "4.2" || typesPkg.version === "4.1" || typesPkg.version === "4.0" || typesPkg.version === "3.8", "Types package.json version must be 4.1, 4.0 or 3.8");
+      assert.ok(tauriConf.version === "4.2.0" || tauriConf.version === "4.1.0" || tauriConf.version === "4.0.0" || tauriConf.version === "3.8.0", "tauri.conf.json version must be 4.1.0, 4.0.0 or 3.8.0");
+      assert.ok(APP_VERSION === "4.2" || APP_VERSION === "4.1" || APP_VERSION === "4.0" || APP_VERSION === "3.8", "APP_VERSION must be 4.1, 4.0 or 3.8");
+      assert.ok(APP_VERSION_LABEL === "v4.2" || APP_VERSION_LABEL === "v4.1" || APP_VERSION_LABEL === "v4.0" || APP_VERSION_LABEL === "v3.8", "APP_VERSION_LABEL must be v4.1, v4.0 or v3.8");
     });
   });
 

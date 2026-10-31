@@ -151,21 +151,64 @@ pub async fn sync_runtime_services_with_settings(
 }
 
 pub fn apply_native_window_backdrop(window: &tauri::WebviewWindow, settings: &BbqSettings) {
-    // Platform Compositor Note:
-    // Native OS window effects (Windows DWM Acrylic/Blur via SetWindowCompositionAttribute
-    // and macOS NSVisualEffectView HudWindow) operate on the entire rectangular OS window frame
-    // (e.g. 280x44 compact, 78x44 dot, 560x420 expanded) and cannot clip to arbitrary CSS
-    // border-radius or circular/notch clip-path silhouettes inside the WebView.
-    // Enabling OS-level rectangular effects causes rectangular blur bleed outside the rounded
-    // island boundaries. Therefore, we always clear OS-level rectangular window effects via
-    // `window.set_effects(None)` and rely on the WebView's hardware-accelerated CSS
-    // `backdrop-filter` strictly clipped to `.bbq-island-shell` via `overflow: hidden`,
-    // `contain: paint`, `border-radius`, and `clip-path`.
     let should_enable_native_blur = settings.island_blur_enabled
         && settings.island_transparency > 0
         && settings.island_blur > 0;
-    let _ = should_enable_native_blur;
-    let _ = window.set_effects(None);
+
+    #[cfg(target_os = "windows")]
+    {
+        let hwnd_raw = window.hwnd().map(|h| h.0 as isize).unwrap_or(0);
+        if should_enable_native_blur {
+            use tauri::utils::config::WindowEffectsConfig;
+            use tauri::window::{Color, Effect, EffectState};
+            let _ = window.set_effects(WindowEffectsConfig {
+                effects: vec![Effect::Acrylic, Effect::Blur],
+                state: Some(EffectState::Active),
+                radius: None,
+                color: Some(Color(0, 0, 0, 1)),
+            });
+
+            let scale = window.scale_factor().unwrap_or(1.0);
+            let (width, height) = window
+                .inner_size()
+                .map(|s| (s.width as i32, s.height as i32))
+                .unwrap_or((0, 0));
+            let is_expanded = (height as f64 / scale) > 100.0;
+            let _ = bbq_platform::clip_native_window_region(
+                hwnd_raw,
+                settings.island_mode.as_str(),
+                is_expanded,
+                width,
+                height,
+                scale,
+            );
+        } else {
+            let _ = window.set_effects(None);
+            let _ = bbq_platform::clear_native_window_region(hwnd_raw);
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if should_enable_native_blur {
+            use tauri::utils::config::WindowEffectsConfig;
+            use tauri::window::{Effect, EffectState};
+            let _ = window.set_effects(WindowEffectsConfig {
+                effects: vec![Effect::HudWindow],
+                state: Some(EffectState::Active),
+                radius: None,
+                color: None,
+            });
+        } else {
+            let _ = window.set_effects(None);
+        }
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = should_enable_native_blur;
+        let _ = window.set_effects(None);
+    }
 }
 
 #[tauri::command]

@@ -77,6 +77,101 @@ impl PlatformWindow for WindowsWindow {
     }
 }
 
+/// Clips a native window (HWND) to match the island shape (Dot, Notch, or Island)
+/// so that OS-level blur effects (DWM Acrylic / BlurBehind) do not bleed outside rounded corners.
+#[cfg(windows)]
+pub fn clip_native_window_region(
+    hwnd_val: isize,
+    island_mode: &str,
+    is_expanded: bool,
+    physical_width: i32,
+    physical_height: i32,
+    scale_factor: f64,
+) -> bool {
+    if hwnd_val == 0 {
+        return false;
+    }
+    let hwnd = windows::Win32::Foundation::HWND(hwnd_val as *mut std::ffi::c_void);
+
+    let (width, height) = if physical_width > 0 && physical_height > 0 {
+        (physical_width, physical_height)
+    } else {
+        let mut rect = windows::Win32::Foundation::RECT::default();
+        unsafe {
+            if windows::Win32::UI::WindowsAndMessaging::GetClientRect(hwnd, &mut rect).is_ok() {
+                (rect.right - rect.left, rect.bottom - rect.top)
+            } else {
+                (0, 0)
+            }
+        }
+    };
+
+    if width <= 0 || height <= 0 {
+        return false;
+    }
+
+    let scale = if scale_factor > 0.1 {
+        scale_factor
+    } else {
+        1.0
+    };
+
+    let hrgn = unsafe {
+        match island_mode {
+            "dot" => windows::Win32::Graphics::Gdi::CreateEllipticRgn(0, 0, width + 1, height + 1),
+            "notch" => {
+                let logical_radius = if is_expanded { 24.0 } else { 18.0 };
+                let physical_radius = (logical_radius * scale).round() as i32;
+                let diameter = physical_radius * 2;
+                windows::Win32::Graphics::Gdi::CreateRoundRectRgn(
+                    0,
+                    0,
+                    width + 1,
+                    height + 1,
+                    diameter,
+                    diameter,
+                )
+            }
+            _ => {
+                let logical_radius = if is_expanded { 24.0 } else { 20.0 };
+                let physical_radius = (logical_radius * scale).round() as i32;
+                let diameter = physical_radius * 2;
+                windows::Win32::Graphics::Gdi::CreateRoundRectRgn(
+                    0,
+                    0,
+                    width + 1,
+                    height + 1,
+                    diameter,
+                    diameter,
+                )
+            }
+        }
+    };
+
+    if hrgn.is_invalid() {
+        return false;
+    }
+
+    let success =
+        unsafe { windows::Win32::Graphics::Gdi::SetWindowRgn(hwnd, Some(hrgn), true) != 0 };
+    if !success {
+        unsafe {
+            let _ = windows::Win32::Graphics::Gdi::DeleteObject(hrgn.into());
+        }
+    }
+    success
+}
+
+/// Clears native window region clipping
+#[cfg(windows)]
+pub fn clear_native_window_region(hwnd_val: isize) -> bool {
+    if hwnd_val == 0 {
+        return false;
+    }
+    let hwnd = windows::Win32::Foundation::HWND(hwnd_val as *mut std::ffi::c_void);
+    unsafe { windows::Win32::Graphics::Gdi::SetWindowRgn(hwnd, None, true) != 0 }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct WindowsDisplay;
 

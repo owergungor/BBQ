@@ -22,6 +22,26 @@ pub use path_utils::*;
 use std::sync::Arc;
 pub use traits::*;
 
+#[cfg(target_os = "windows")]
+pub use windows::{clear_native_window_region, clip_native_window_region};
+
+#[cfg(not(target_os = "windows"))]
+pub fn clip_native_window_region(
+    _hwnd_val: isize,
+    _island_mode: &str,
+    _is_expanded: bool,
+    _physical_width: i32,
+    _physical_height: i32,
+    _scale_factor: f64,
+) -> bool {
+    false
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn clear_native_window_region(_hwnd_val: isize) -> bool {
+    false
+}
+
 /// Create the default platform provider instance for the current runtime OS
 pub fn create_default_platform_provider() -> Arc<dyn PlatformProvider> {
     #[cfg(target_os = "windows")]

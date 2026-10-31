@@ -1,6 +1,6 @@
 use crate::AppState;
 use bbq_core::IslandMode;
-use bbq_services::{DisplayServiceTrait, WindowServiceTrait};
+use bbq_services::{DisplayServiceTrait, SettingsServiceTrait, WindowServiceTrait};
 use tauri::{AppHandle, Manager, State};
 
 #[tauri::command]
@@ -210,6 +210,8 @@ pub async fn set_island_mode(
                         y: clamped_y,
                     }));
                 }
+                let settings = state.settings_service.get_settings().unwrap_or_default();
+                crate::commands::settings::apply_native_window_backdrop(&window, &settings);
             }
             let _ = state.window_service.apply_geometry(&geo).await;
         }
@@ -318,6 +320,7 @@ pub async fn reset_island_position(
             x: geo.x as f64,
             y: geo.y as f64,
         }));
+        crate::commands::settings::apply_native_window_backdrop(&window, &settings);
     }
     if let Ok(mut last) = state.last_geometry.lock() {
         *last = Some(geo.clone());
@@ -424,6 +427,8 @@ pub async fn apply_island_geometry(
                 y: clamped_y,
             }));
         }
+        let settings = state.settings_service.get_settings().unwrap_or_default();
+        crate::commands::settings::apply_native_window_backdrop(&window, &settings);
     }
     state
         .window_service

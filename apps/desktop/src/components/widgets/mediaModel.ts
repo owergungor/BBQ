@@ -67,11 +67,23 @@ export function normalizeMediaSession(
   const album = rawAlbum && rawAlbum.length > 0 ? rawAlbum : null;
   const source = rawSource && rawSource.length > 0 ? rawSource : null;
 
-  const rawDuration = typeof session.durationMs === "number" ? session.durationMs : 0;
-  const rawPosition = typeof session.positionMs === "number" ? session.positionMs : 0;
+  const rawDuration =
+    typeof session.durationMs === "number"
+      ? session.durationMs
+      : typeof session.duration_ms === "number"
+      ? session.duration_ms
+      : 0;
+  const rawPosition =
+    typeof session.positionMs === "number"
+      ? session.positionMs
+      : typeof session.position_ms === "number"
+      ? session.position_ms
+      : 0;
   const rawLastUpdated =
     typeof session.lastUpdatedTime === "number" && Number.isFinite(session.lastUpdatedTime)
       ? session.lastUpdatedTime
+      : typeof session.last_updated_time === "number" && Number.isFinite(session.last_updated_time)
+      ? session.last_updated_time
       : null;
 
   const durationMs = Number.isFinite(rawDuration) && rawDuration > 0 ? Math.floor(rawDuration) : 0;
@@ -83,7 +95,7 @@ export function normalizeMediaSession(
   const isPaused = state === "paused";
   const isStopped = state === "stopped";
 
-  const caps = session.capabilities ?? {
+  const rawCaps = session.capabilities ?? {
     canPlay: false,
     canPause: false,
     canGoNext: false,
@@ -91,13 +103,20 @@ export function normalizeMediaSession(
     canSeek: false,
     canChangeVolume: false,
   };
+  const canPlay = rawCaps.canPlay ?? rawCaps.can_play ?? false;
+  const canPause = rawCaps.canPause ?? rawCaps.can_pause ?? false;
+  const canGoNext = rawCaps.canGoNext ?? rawCaps.can_go_next ?? false;
+  const canGoPrevious = rawCaps.canGoPrevious ?? rawCaps.can_go_previous ?? false;
+  const canSeek = rawCaps.canSeek ?? rawCaps.can_seek ?? false;
+
+  const albumArt = (session.albumArt ?? session.album_art)?.trim() || null;
 
   return {
     id: session.id || "media-session",
     title,
     artist,
     album,
-    albumArt: session.albumArt?.trim() || null,
+    albumArt,
     source,
     isPlaying,
     isPaused,
@@ -107,11 +126,11 @@ export function normalizeMediaSession(
     positionMs,
     lastUpdatedTime: rawLastUpdated,
     progressPercent,
-    canPlay: caps.canPlay ?? false,
-    canPause: caps.canPause ?? false,
-    canGoNext: caps.canGoNext ?? false,
-    canGoPrevious: caps.canGoPrevious ?? false,
-    canSeek: (caps.canSeek ?? false) && durationMs > 0,
+    canPlay,
+    canPause,
+    canGoNext,
+    canGoPrevious,
+    canSeek: canSeek && durationMs > 0,
   };
 }
 

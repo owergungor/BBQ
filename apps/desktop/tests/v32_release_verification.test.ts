@@ -30,11 +30,11 @@ describe("BBQ v3.2 — Release Verification & Feature Suite", () => {
       const desktopPkg = JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "package.json"), "utf-8"));
       const typesPkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "packages/types/package.json"), "utf-8"));
 
-      assert.ok(rootPkg.version === "4.1" || rootPkg.version === "4.0" || rootPkg.version === "3.8" || rootPkg.version === "3.7" || rootPkg.version === "3.6" || rootPkg.version === "3.5" || rootPkg.version === "3.4" || rootPkg.version === "3.3" || rootPkg.version === "3.2", "Root package.json version must be valid");
-      assert.ok(desktopPkg.version === "4.1" || desktopPkg.version === "4.0" || desktopPkg.version === "3.8" || desktopPkg.version === "3.7" || desktopPkg.version === "3.6" || desktopPkg.version === "3.5" || desktopPkg.version === "3.4" || desktopPkg.version === "3.3" || desktopPkg.version === "3.2", "apps/desktop/package.json version must be valid");
-      assert.ok(typesPkg.version === "4.1" || typesPkg.version === "4.0" || typesPkg.version === "3.8" || typesPkg.version === "3.7" || typesPkg.version === "3.6" || typesPkg.version === "3.5" || typesPkg.version === "3.4" || typesPkg.version === "3.3" || typesPkg.version === "3.2", "packages/types/package.json version must be valid");
-      assert.ok(APP_VERSION === "4.1" || APP_VERSION === "4.0" || APP_VERSION === "3.8" || APP_VERSION === "3.7" || APP_VERSION === "3.6" || APP_VERSION === "3.5" || APP_VERSION === "3.4" || APP_VERSION === "3.3" || APP_VERSION === "3.2", "APP_VERSION must be valid");
-      assert.ok(APP_VERSION_LABEL === "v4.1" || APP_VERSION_LABEL === "v4.0" || APP_VERSION_LABEL === "v3.8" || APP_VERSION_LABEL === "v3.7" || APP_VERSION_LABEL === "v3.6" || APP_VERSION_LABEL === "v3.5" || APP_VERSION_LABEL === "v3.4" || APP_VERSION_LABEL === "v3.3" || APP_VERSION_LABEL === "v3.2", "APP_VERSION_LABEL must be valid");
+      assert.ok(rootPkg.version === "4.2" || rootPkg.version === "4.1" || rootPkg.version === "4.0" || rootPkg.version === "3.8" || rootPkg.version === "3.7" || rootPkg.version === "3.6" || rootPkg.version === "3.5" || rootPkg.version === "3.4" || rootPkg.version === "3.3" || rootPkg.version === "3.2", "Root package.json version must be valid");
+      assert.ok(desktopPkg.version === "4.2" || desktopPkg.version === "4.1" || desktopPkg.version === "4.0" || desktopPkg.version === "3.8" || desktopPkg.version === "3.7" || desktopPkg.version === "3.6" || desktopPkg.version === "3.5" || desktopPkg.version === "3.4" || desktopPkg.version === "3.3" || desktopPkg.version === "3.2", "apps/desktop/package.json version must be valid");
+      assert.ok(typesPkg.version === "4.2" || typesPkg.version === "4.1" || typesPkg.version === "4.0" || typesPkg.version === "3.8" || typesPkg.version === "3.7" || typesPkg.version === "3.6" || typesPkg.version === "3.5" || typesPkg.version === "3.4" || typesPkg.version === "3.3" || typesPkg.version === "3.2", "packages/types/package.json version must be valid");
+      assert.ok(APP_VERSION === "4.2" || APP_VERSION === "4.1" || APP_VERSION === "4.0" || APP_VERSION === "3.8" || APP_VERSION === "3.7" || APP_VERSION === "3.6" || APP_VERSION === "3.5" || APP_VERSION === "3.4" || APP_VERSION === "3.3" || APP_VERSION === "3.2", "APP_VERSION must be valid");
+      assert.ok(APP_VERSION_LABEL === "v4.2" || APP_VERSION_LABEL === "v4.1" || APP_VERSION_LABEL === "v4.0" || APP_VERSION_LABEL === "v3.8" || APP_VERSION_LABEL === "v3.7" || APP_VERSION_LABEL === "v3.6" || APP_VERSION_LABEL === "v3.5" || APP_VERSION_LABEL === "v3.4" || APP_VERSION_LABEL === "v3.3" || APP_VERSION_LABEL === "v3.2", "APP_VERSION_LABEL must be valid");
     });
 
     it("verifies internal toolchain version is normalized to 3.2.0 through 3.7.0 where required by Cargo & Tauri", () => {
@@ -42,11 +42,11 @@ describe("BBQ v3.2 — Release Verification & Feature Suite", () => {
       const desktopCargo = fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/Cargo.toml"), "utf-8");
       const cargoLock = fs.readFileSync(path.join(ROOT_DIR, "Cargo.lock"), "utf-8");
 
-      assert.ok(tauriConf.version === "4.1.0" || tauriConf.version === "4.0.0" || tauriConf.version === "3.8.0" || tauriConf.version === "3.7.0" || tauriConf.version === "3.6.0" || tauriConf.version === "3.5.0" || tauriConf.version === "3.4.0" || tauriConf.version === "3.3.0" || tauriConf.version === "3.2.0", "tauri.conf.json must declare SemVer compliance");
-      assert.ok(desktopCargo.includes('version = "4.1.0"') || desktopCargo.includes('version = "4.0.0"') || desktopCargo.includes('version = "3.8.0"') || desktopCargo.includes('version = "3.7.0"') || desktopCargo.includes('version = "3.6.0"') || desktopCargo.includes('version = "3.5.0"') || desktopCargo.includes('version = "3.4.0"') || desktopCargo.includes('version = "3.3.0"') || desktopCargo.includes('version = "3.2.0"'), "Desktop Cargo.toml must declare SemVer");
+      assert.ok(tauriConf.version === "4.2.0" || tauriConf.version === "4.1.0" || tauriConf.version === "4.0.0" || tauriConf.version === "3.8.0" || tauriConf.version === "3.7.0" || tauriConf.version === "3.6.0" || tauriConf.version === "3.5.0" || tauriConf.version === "3.4.0" || tauriConf.version === "3.3.0" || tauriConf.version === "3.2.0", "tauri.conf.json must declare SemVer compliance");
+      assert.ok(desktopCargo.includes('version = "4.2.0"') || desktopCargo.includes('version = "4.1.0"') || desktopCargo.includes('version = "4.0.0"') || desktopCargo.includes('version = "3.8.0"') || desktopCargo.includes('version = "3.7.0"') || desktopCargo.includes('version = "3.6.0"') || desktopCargo.includes('version = "3.5.0"') || desktopCargo.includes('version = "3.4.0"') || desktopCargo.includes('version = "3.3.0"') || desktopCargo.includes('version = "3.2.0"'), "Desktop Cargo.toml must declare SemVer");
       assert.ok(
-        cargoLock.includes('name = "bbq-desktop"\nversion = "4.1.0"') ||
-          cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.1.0"') ||
+        cargoLock.includes('name = "bbq-desktop"\nversion = "4.2.0"') || cargoLock.includes('name = "bbq-desktop"\nversion = "4.1.0"') ||
+          cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.2.0"') || cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.1.0"') ||
           cargoLock.includes('name = "bbq-desktop"\nversion = "4.0.0"') ||
           cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.0.0"') ||
           cargoLock.includes('name = "bbq-desktop"\nversion = "3.8.0"') ||
