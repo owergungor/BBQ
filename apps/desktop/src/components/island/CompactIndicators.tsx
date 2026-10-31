@@ -89,7 +89,10 @@ export const CompactMediaIndicator: React.FC = () => {
   const { t } = useTranslation();
   const currentSession = useMediaState((s) => s.currentSession);
   const [artFailed, setArtFailed] = React.useState(false);
-  const resolvedArt = resolveArtworkUrl(currentSession?.albumArt);
+  const resolvedArt = React.useMemo(
+    () => resolveArtworkUrl(currentSession?.albumArt),
+    [currentSession?.albumArt]
+  );
 
   React.useEffect(() => {
     setArtFailed(false);
@@ -129,9 +132,11 @@ export const CompactMediaIndicator: React.FC = () => {
       <div className="bbq-media-art">
         {resolvedArt && !artFailed ? (
           <img
+            key={`${currentSession.id}-${currentSession.title ?? ""}-${resolvedArt}`}
             src={resolvedArt}
             alt=""
             aria-hidden="true"
+            decoding="async"
             className="bbq-media-art-img"
             onError={() => setArtFailed(true)}
           />

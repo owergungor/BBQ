@@ -804,39 +804,62 @@ fn base64_encode(bytes: &[u8]) -> String {
 fn extract_artwork(
     props: &GlobalSystemMediaTransportControlsSessionMediaProperties,
 ) -> Option<String> {
-    const MAX_THUMBNAIL_BYTES: u32 = 3 * 1024 * 1024; // 3 MB memory bound
+    const MAX_THUMBNAIL_BYTES: u32 = 5 * 1024 * 1024; // 5 MB memory bound
     if let Ok(thumb_ref) = props.Thumbnail() {
         if let Ok(op) = thumb_ref.OpenReadAsync() {
             if let Ok(stream) = op.get() {
+                let _ = stream.Seek(0);
                 if let Ok(size) = stream.Size() {
                     if size > 0 && size <= MAX_THUMBNAIL_BYTES as u64 {
                         let size_u32 = size as u32;
-                        if let Ok(reader) =
+                        let content_type_hint = stream
+                            .ContentType()
+                            .ok()
+                            .map(|s| s.to_string().trim().to_lowercase());
+                        let reader_res = if let Ok(input_at_zero) = stream.GetInputStreamAt(0) {
+                            windows::Storage::Streams::DataReader::CreateDataReader(&input_at_zero)
+                        } else {
                             windows::Storage::Streams::DataReader::CreateDataReader(&stream)
-                        {
+                        };
+                        if let Ok(reader) = reader_res {
                             if reader
                                 .LoadAsync(size_u32)
                                 .and_then(|load_op| load_op.get())
                                 .is_ok()
                             {
-                                let mut buffer = vec![0u8; size_u32 as usize];
-                                if reader.ReadBytes(&mut buffer).is_ok() {
-                                    let b64 = base64_encode(&buffer);
-                                    let mime = if buffer.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
-                                        "image/png"
-                                    } else if buffer.starts_with(&[0xFF, 0xD8, 0xFF]) {
-                                        "image/jpeg"
-                                    } else if buffer.len() >= 12
-                                        && &buffer[0..4] == b"RIFF"
-                                        && &buffer[8..12] == b"WEBP"
-                                    {
-                                        "image/webp"
-                                    } else if buffer.starts_with(b"BM") {
-                                        "image/bmp"
-                                    } else {
-                                        "image/jpeg"
-                                    };
-                                    return Some(format!("data:{};base64,{}", mime, b64));
+                                let loaded_len = reader
+                                    .UnconsumedBufferLength()
+                                    .unwrap_or(size_u32)
+                                    .min(size_u32);
+                                if loaded_len > 0 {
+                                    let mut buffer = vec![0u8; loaded_len as usize];
+                                    if reader.ReadBytes(&mut buffer).is_ok() {
+                                        let b64 = base64_encode(&buffer);
+                                        let mime = if buffer.starts_with(&[0x89, 0x50, 0x4E, 0x47])
+                                        {
+                                            "image/png"
+                                        } else if buffer.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                                            "image/jpeg"
+                                        } else if buffer.len() >= 12
+                                            && &buffer[0..4] == b"RIFF"
+                                            && &buffer[8..12] == b"WEBP"
+                                        {
+                                            "image/webp"
+                                        } else if buffer.starts_with(b"GIF8") {
+                                            "image/gif"
+                                        } else if buffer.starts_with(b"BM") {
+                                            "image/bmp"
+                                        } else if let Some(ref ct) = content_type_hint {
+                                            if ct.starts_with("image/") {
+                                                ct.as_str()
+                                            } else {
+                                                "image/jpeg"
+                                            }
+                                        } else {
+                                            "image/jpeg"
+                                        };
+                                        return Some(format!("data:{};base64,{}", mime, b64));
+                                    }
                                 }
                             }
                         }
@@ -964,6 +987,28 @@ fn extract_session_from_smtc(
 }
 
 #[cfg(windows)]
+fn spawn_delayed_artwork_retry(
+    session: GlobalSystemMediaTransportControlsSession,
+    subs: Arc<Mutex<Vec<MediaEventSink>>>,
+) {
+    std::thread::spawn(move || {
+        for delay_ms in [250u64, 500u64] {
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            if let Some(updated) = extract_session_from_smtc(&session) {
+                if updated.album_art.is_some() {
+                    if let Ok(listeners) = subs.lock() {
+                        for l in listeners.iter() {
+                            l(MediaEvent::SessionChanged(Some(updated.clone())));
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    });
+}
+
+#[cfg(windows)]
 fn attach_session_listeners(
     session: &GlobalSystemMediaTransportControlsSession,
     subs: Arc<Mutex<Vec<MediaEventSink>>>,
@@ -982,10 +1027,19 @@ fn attach_session_listeners(
         >::new(move |sender, _args| {
             if let Some(s) = sender.as_ref() {
                 if let Some(media_session) = extract_session_from_smtc(s) {
+                    let needs_art_retry = media_session.album_art.is_none()
+                        && media_session
+                            .title
+                            .as_deref()
+                            .map(|t| !t.trim().is_empty())
+                            .unwrap_or(false);
                     if let Ok(listeners) = subs_props.lock() {
                         for l in listeners.iter() {
                             l(MediaEvent::SessionChanged(Some(media_session.clone())));
                         }
+                    }
+                    if needs_art_retry {
+                        spawn_delayed_artwork_retry(s.clone(), subs_props.clone());
                     }
                 }
             }
@@ -1019,10 +1073,21 @@ fn attach_session_listeners(
             TimelinePropertiesChangedEventArgs,
         >::new(move |sender, _args| {
             if let Some(s) = sender.as_ref() {
-                if let Some(media_session) = extract_session_from_smtc(s) {
-                    if let Ok(listeners) = subs_timeline.lock() {
-                        for l in listeners.iter() {
-                            l(MediaEvent::SessionChanged(Some(media_session.clone())));
+                let session_id = s
+                    .SourceAppUserModelId()
+                    .ok()
+                    .map(|id| id.to_string())
+                    .unwrap_or_else(|| "windows_smtc".to_string());
+                if let Ok(timeline) = s.GetTimelineProperties() {
+                    if let Ok(pos) = timeline.Position() {
+                        let position_ms = (pos.Duration / 10_000).max(0) as u64;
+                        if let Ok(listeners) = subs_timeline.lock() {
+                            for l in listeners.iter() {
+                                l(MediaEvent::PositionChanged {
+                                    session_id: session_id.clone(),
+                                    position_ms,
+                                });
+                            }
                         }
                     }
                 }

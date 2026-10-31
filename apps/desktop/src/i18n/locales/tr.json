@@ -145,6 +145,10 @@
       "posTop": "Üst",
       "posCenter": "Orta",
       "posBottom": "Alt",
+      "horizontalPos": "Yatay Konum",
+      "horizontalPosDesc": "Adanın ekrandaki yatay yerleşimi.",
+      "posLeft": "Sol",
+      "posRight": "Sağ",
       "dotSize": "Nokta Boyutu",
       "dotSizeDesc": "Nokta modundaki dairesel adanın çapı."
     },

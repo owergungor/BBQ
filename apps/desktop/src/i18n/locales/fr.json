@@ -145,6 +145,10 @@
       "posTop": "Haut",
       "posCenter": "Centre",
       "posBottom": "Bas",
+      "horizontalPos": "Position horizontale",
+      "horizontalPosDesc": "Emplacement horizontal physique de l'îlot sur l'écran.",
+      "posLeft": "Gauche",
+      "posRight": "Droite",
       "dotSize": "Taille du point",
       "dotSizeDesc": "Diamètre de l'îlot circulaire en mode Point."
     },

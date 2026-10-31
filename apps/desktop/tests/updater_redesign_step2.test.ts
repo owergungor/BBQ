@@ -135,20 +135,20 @@ describe("BBQ v3.6 — Step 2: Redesigned Update Settings & Custom BBQ Update UI
 
     it("transitions idle -> checking -> update_available when remote version is higher", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "4.1.0",
-        mockReleaseNotes: "Exciting v4.1 features",
+        mockAvailableVersion: "4.2.0",
+        mockReleaseNotes: "Exciting v4.2 features",
       });
 
       const hasUpdate = await checkForUpdates();
       assert.equal(hasUpdate, true);
       assert.equal(updaterStore.getState().status, "update_available");
-      assert.equal(updaterStore.getState().availableVersion, "4.1.0");
-      assert.equal(updaterStore.getState().releaseNotes, "Exciting v4.1 features");
+      assert.equal(updaterStore.getState().availableVersion, "4.2.0");
+      assert.equal(updaterStore.getState().releaseNotes, "Exciting v4.2 features");
     });
 
     it("transitions available -> downloading -> installing -> success during install", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "4.1.0",
+        mockAvailableVersion: "4.2.0",
         downloadDurationMs: 40,
       });
 
@@ -178,7 +178,7 @@ describe("BBQ v3.6 — Step 2: Redesigned Update Settings & Custom BBQ Update UI
 
     it("prevents duplicate concurrent update operations", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "4.1.0",
+        mockAvailableVersion: "4.2.0",
         downloadDurationMs: 60,
       });
 

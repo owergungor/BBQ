@@ -21,9 +21,9 @@ pub mod timer;
 pub use capabilities::{CapabilityStatus, PlatformCapabilities};
 
 pub use settings::{
-    is_valid_hex_color, validate_setting_entry, BbqSettings, ThemePreference,
-    MAX_CLIPBOARD_MAX_ENTRIES, MAX_CLIPBOARD_RETENTION_DAYS, MAX_DISABLED_WIDGETS, MAX_HOTKEY_LEN,
-    MIN_CLIPBOARD_MAX_ENTRIES, MIN_CLIPBOARD_RETENTION_DAYS,
+    compose_island_position, decompose_island_position, is_valid_hex_color, validate_setting_entry,
+    BbqSettings, ThemePreference, MAX_CLIPBOARD_MAX_ENTRIES, MAX_CLIPBOARD_RETENTION_DAYS,
+    MAX_DISABLED_WIDGETS, MAX_HOTKEY_LEN, MIN_CLIPBOARD_MAX_ENTRIES, MIN_CLIPBOARD_RETENTION_DAYS,
 };
 
 pub use geometry::{

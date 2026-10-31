@@ -94,8 +94,48 @@ fn default_island_vertical_position() -> String {
     "top".to_string()
 }
 
+fn default_island_horizontal_position() -> String {
+    "center".to_string()
+}
+
 fn default_dot_size() -> u32 {
     DEFAULT_DOT_SIZE
+}
+
+/// Composes legacy `island_position` string from independent vertical and horizontal positions.
+pub fn compose_island_position(vertical: &str, horizontal: &str) -> String {
+    let v = vertical.trim().to_lowercase();
+    let h = horizontal.trim().to_lowercase();
+    match (v.as_str(), h.as_str()) {
+        ("top", "left") => "top-left".to_string(),
+        ("top", "right") => "top-right".to_string(),
+        ("top", _) => "top-center".to_string(),
+        ("center", "left") => "center-left".to_string(),
+        ("center", "right") => "center-right".to_string(),
+        ("center", _) => "center".to_string(),
+        ("bottom", "left") => "bottom-left".to_string(),
+        ("bottom", "right") => "bottom-right".to_string(),
+        ("bottom", _) => "bottom-center".to_string(),
+        (_, "left") => "top-left".to_string(),
+        (_, "right") => "top-right".to_string(),
+        _ => "top-center".to_string(),
+    }
+}
+
+/// Decomposes a legacy `island_position` string into `(vertical, horizontal)`.
+pub fn decompose_island_position(pos: &str) -> (&'static str, &'static str) {
+    match pos.trim().to_lowercase().as_str() {
+        "top-left" => ("top", "left"),
+        "top-right" => ("top", "right"),
+        "top-center" => ("top", "center"),
+        "center-left" => ("center", "left"),
+        "center-right" => ("center", "right"),
+        "center" | "center-center" => ("center", "center"),
+        "bottom-left" => ("bottom", "left"),
+        "bottom-right" => ("bottom", "right"),
+        "bottom-center" => ("bottom", "center"),
+        _ => ("top", "center"),
+    }
 }
 
 /// Strongly typed, persistent user preferences for BBQ
@@ -142,6 +182,8 @@ pub struct BbqSettings {
     pub island_mode: String,
     #[serde(default = "default_island_vertical_position")]
     pub island_vertical_position: String,
+    #[serde(default = "default_island_horizontal_position")]
+    pub island_horizontal_position: String,
     #[serde(default = "default_dot_size")]
     pub dot_size: u32,
 }
@@ -193,6 +235,7 @@ impl Default for BbqSettings {
             language: "en".to_string(),
             island_mode: "island".to_string(),
             island_vertical_position: "top".to_string(),
+            island_horizontal_position: "center".to_string(),
             dot_size: DEFAULT_DOT_SIZE,
         }
     }
@@ -314,6 +357,17 @@ impl BbqSettings {
                 return Err(BbqError::Validation(format!(
                     "Invalid island_vertical_position '{}'. Must be one of: top, center, bottom",
                     self.island_vertical_position
+                )));
+            }
+        }
+
+        let horiz_lower = self.island_horizontal_position.trim().to_lowercase();
+        match horiz_lower.as_str() {
+            "left" | "center" | "right" => {}
+            _ => {
+                return Err(BbqError::Validation(format!(
+                    "Invalid island_horizontal_position '{}'. Must be one of: left, center, right",
+                    self.island_horizontal_position
                 )));
             }
         }
@@ -516,6 +570,18 @@ pub fn validate_setting_entry(key: &str, value: &str) -> BbqResult<()> {
                 _ => {
                     return Err(BbqError::Validation(format!(
                         "Invalid island_vertical_position '{}'. Must be one of: top, center, bottom",
+                        value
+                    )));
+                }
+            }
+        }
+        "island_horizontal_position" => {
+            let lower = value.trim().to_lowercase();
+            match lower.as_str() {
+                "left" | "center" | "right" => {}
+                _ => {
+                    return Err(BbqError::Validation(format!(
+                        "Invalid island_horizontal_position '{}'. Must be one of: left, center, right",
                         value
                     )));
                 }
@@ -746,9 +812,10 @@ mod tests {
         assert!(validate_setting_entry("auto_update_schedule", "startup").is_ok());
         assert!(validate_setting_entry("last_update_check_at", "1728000000").is_ok());
 
-        // BBQ v4.0: island_mode, island_vertical_position, dot_size
+        // BBQ v4.0 / v4.1: island_mode, island_vertical_position, island_horizontal_position, dot_size
         assert_eq!(settings.island_mode, "island");
         assert_eq!(settings.island_vertical_position, "top");
+        assert_eq!(settings.island_horizontal_position, "center");
         assert_eq!(settings.dot_size, 38);
 
         assert!(validate_setting_entry("island_mode", "island").is_ok());
@@ -760,6 +827,40 @@ mod tests {
         assert!(validate_setting_entry("island_vertical_position", "center").is_ok());
         assert!(validate_setting_entry("island_vertical_position", "bottom").is_ok());
         assert!(validate_setting_entry("island_vertical_position", "middle").is_err());
+
+        assert!(validate_setting_entry("island_horizontal_position", "left").is_ok());
+        assert!(validate_setting_entry("island_horizontal_position", "center").is_ok());
+        assert!(validate_setting_entry("island_horizontal_position", "right").is_ok());
+        assert!(validate_setting_entry("island_horizontal_position", "middle").is_err());
+
+        assert_eq!(compose_island_position("top", "left"), "top-left");
+        assert_eq!(compose_island_position("top", "center"), "top-center");
+        assert_eq!(compose_island_position("top", "right"), "top-right");
+        assert_eq!(compose_island_position("center", "left"), "center-left");
+        assert_eq!(compose_island_position("center", "center"), "center");
+        assert_eq!(compose_island_position("center", "right"), "center-right");
+        assert_eq!(compose_island_position("bottom", "left"), "bottom-left");
+        assert_eq!(compose_island_position("bottom", "center"), "bottom-center");
+        assert_eq!(compose_island_position("bottom", "right"), "bottom-right");
+
+        assert_eq!(decompose_island_position("top-left"), ("top", "left"));
+        assert_eq!(decompose_island_position("top-center"), ("top", "center"));
+        assert_eq!(decompose_island_position("top-right"), ("top", "right"));
+        assert_eq!(decompose_island_position("center-left"), ("center", "left"));
+        assert_eq!(decompose_island_position("center"), ("center", "center"));
+        assert_eq!(
+            decompose_island_position("center-right"),
+            ("center", "right")
+        );
+        assert_eq!(decompose_island_position("bottom-left"), ("bottom", "left"));
+        assert_eq!(
+            decompose_island_position("bottom-center"),
+            ("bottom", "center")
+        );
+        assert_eq!(
+            decompose_island_position("bottom-right"),
+            ("bottom", "right")
+        );
 
         assert!(validate_setting_entry("dot_size", "38").is_ok());
         assert!(validate_setting_entry("dot_size", "32").is_ok());

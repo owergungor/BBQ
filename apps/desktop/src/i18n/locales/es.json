@@ -145,6 +145,10 @@
       "posTop": "Superior",
       "posCenter": "Centro",
       "posBottom": "Inferior",
+      "horizontalPos": "Posición Horizontal",
+      "horizontalPosDesc": "Ubicación horizontal física de la isla en la pantalla.",
+      "posLeft": "Izquierda",
+      "posRight": "Derecha",
       "dotSize": "Tamaño del punto",
       "dotSizeDesc": "Diámetro de la isla circular en modo Punto."
     },

@@ -79,7 +79,7 @@ export const MediaWidget: React.FC = () => {
     refreshSystemState();
   }, []);
 
-  const resolvedArt = resolveArtworkUrl(meta?.albumArt);
+  const resolvedArt = useMemo(() => resolveArtworkUrl(meta?.albumArt), [meta?.albumArt]);
 
   // Reset art error when artwork URL or current track changes
   useEffect(() => {
@@ -345,9 +345,11 @@ export const MediaWidget: React.FC = () => {
           <div className="bbq-media-art-hero">
             {resolvedArt && !artError ? (
               <img
+                key={`${meta.id}-${meta.title}-${resolvedArt}`}
                 src={resolvedArt}
                 alt=""
                 aria-hidden="true"
+                decoding="async"
                 className="bbq-media-art-hero-img"
                 onError={() => setArtError(true)}
               />

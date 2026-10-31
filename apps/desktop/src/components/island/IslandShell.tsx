@@ -4,7 +4,7 @@ import type { IslandMachineState } from "../../island/islandState.ts";
 import type { WidgetSizingContract } from "@bbq/types";
 import { Icon } from "../common/Icon.tsx";
 
-import { useSettingsState } from "../../state/settingsState.ts";
+import { useSettingsState, composeIslandPosition } from "../../state/settingsState.ts";
 import { resolveEffectiveCompactWidth } from "../../island/geometryResolution.ts";
 import { useTranslation } from "../../i18n/index.ts";
 
@@ -53,13 +53,15 @@ export const IslandShell: React.FC<IslandShellProps> = ({
 }) => {
   const { t } = useTranslation();
   const userCompactWidth = useSettingsState((s) => s.settings.island_width);
-  const islandPosition = useSettingsState((s) => s.settings.island_position || "top-center");
   const islandMode = useSettingsState((s) => s.settings.island_mode || "island");
   const islandVerticalPosition = useSettingsState((s) => s.settings.island_vertical_position || "top");
+  const islandHorizontalPosition = useSettingsState((s) => s.settings.island_horizontal_position || "center");
+  const islandPosition = composeIslandPosition(islandVerticalPosition, islandHorizontalPosition);
   const dotSize = useSettingsState((s) => s.settings.dot_size || 38);
   const modeClass = `mode-${mode.toLowerCase()}`;
   const styleModeClass = `mode-${islandMode}`;
   const vposClass = `vpos-${islandVerticalPosition}`;
+  const hposClass = `hpos-${islandHorizontalPosition}`;
   const stateClass = `state-${state.toLowerCase()}`;
   const mediaClass = hasMedia ? "has-media" : "";
   const dragClass = isDragOver ? "drag-over" : "";
@@ -153,8 +155,9 @@ export const IslandShell: React.FC<IslandShellProps> = ({
       data-anchor={islandPosition}
       data-island-mode={islandMode}
       data-vertical-pos={islandVerticalPosition}
+      data-horizontal-pos={islandHorizontalPosition}
       data-move-hud={moveHud ? "true" : undefined}
-      className={`bbq-island-shell ${modeClass} ${styleModeClass} ${vposClass} ${stateClass} ${mediaClass} ${dragClass} ${moveClass}`.trim()}
+      className={`bbq-island-shell ${modeClass} ${styleModeClass} ${vposClass} ${hposClass} ${stateClass} ${mediaClass} ${dragClass} ${moveClass}`.trim()}
       style={dynamicStyle}
       onPointerDown={onPointerDown}
       onMouseEnter={onMouseEnter}

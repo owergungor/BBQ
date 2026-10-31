@@ -15,6 +15,20 @@ export function createDomainStore<T>(initialState: T): DomainStore<T> {
 
   const setState = (updater: Partial<T> | ((prev: T) => Partial<T>)) => {
     const nextPartial = typeof updater === "function" ? updater(state) : updater;
+    if (!nextPartial || typeof nextPartial !== "object") return;
+    if (state && typeof state === "object") {
+      const keys = Object.keys(nextPartial) as Array<keyof T>;
+      if (keys.length === 0) return;
+      let changed = false;
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        if (!Object.is(state[k], nextPartial[k])) {
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) return;
+    }
     state = { ...state, ...nextPartial };
     listeners.forEach((listener) => listener());
   };

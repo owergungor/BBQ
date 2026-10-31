@@ -61,6 +61,8 @@ export type IslandStyleMode = 'island' | 'notch' | 'dot';
 
 export type IslandVerticalPosition = 'top' | 'center' | 'bottom';
 
+export type IslandHorizontalPosition = 'left' | 'center' | 'right';
+
 export type AutoUpdateSchedule =
   | 'startup'
   | 'daily'
@@ -296,6 +298,7 @@ export interface BbqSettings {
   language?: SupportedLanguage;
   island_mode?: IslandStyleMode;
   island_vertical_position?: IslandVerticalPosition;
+  island_horizontal_position?: IslandHorizontalPosition;
   dot_size?: number;
   /** @deprecated Obsolete legacy setting retained only for backwards compatibility with older stored configs */
   auto_update_schedule?: AutoUpdateSchedule;

@@ -13,35 +13,55 @@ pub fn get_island_state(state: State<'_, AppState>) -> Result<IslandMode, String
 }
 
 pub fn resolve_anchor(settings: &bbq_core::BbqSettings) -> bbq_core::IslandAnchor {
-    let raw_anchor = bbq_core::IslandAnchor::from_str_name(&settings.island_position);
-    match settings.island_vertical_position.as_str() {
-        "center" => match raw_anchor {
-            bbq_core::IslandAnchor::TopLeft
-            | bbq_core::IslandAnchor::BottomLeft
-            | bbq_core::IslandAnchor::CenterLeft => bbq_core::IslandAnchor::CenterLeft,
-            bbq_core::IslandAnchor::TopRight
-            | bbq_core::IslandAnchor::BottomRight
-            | bbq_core::IslandAnchor::CenterRight => bbq_core::IslandAnchor::CenterRight,
-            _ => bbq_core::IslandAnchor::Center,
-        },
-        "bottom" => match raw_anchor {
-            bbq_core::IslandAnchor::TopLeft
-            | bbq_core::IslandAnchor::BottomLeft
-            | bbq_core::IslandAnchor::CenterLeft => bbq_core::IslandAnchor::BottomLeft,
-            bbq_core::IslandAnchor::TopRight
-            | bbq_core::IslandAnchor::BottomRight
-            | bbq_core::IslandAnchor::CenterRight => bbq_core::IslandAnchor::BottomRight,
-            _ => bbq_core::IslandAnchor::BottomCenter,
-        },
-        _ => match raw_anchor {
-            bbq_core::IslandAnchor::BottomLeft | bbq_core::IslandAnchor::CenterLeft => {
-                bbq_core::IslandAnchor::TopLeft
+    let v = settings.island_vertical_position.trim().to_lowercase();
+    let h = settings.island_horizontal_position.trim().to_lowercase();
+    let (mig_v, mig_h) = bbq_core::decompose_island_position(&settings.island_position);
+    let vert = if matches!(v.as_str(), "top" | "center" | "bottom") {
+        v.as_str()
+    } else {
+        mig_v
+    };
+    let horiz = if matches!(h.as_str(), "left" | "center" | "right") {
+        h.as_str()
+    } else {
+        mig_h
+    };
+
+    match (vert, horiz) {
+        ("top", "left") => bbq_core::IslandAnchor::TopLeft,
+        ("top", "right") => bbq_core::IslandAnchor::TopRight,
+        ("top", _) => bbq_core::IslandAnchor::TopCenter,
+        ("center", "left") => bbq_core::IslandAnchor::CenterLeft,
+        ("center", "right") => bbq_core::IslandAnchor::CenterRight,
+        ("center", _) => bbq_core::IslandAnchor::Center,
+        ("bottom", "left") => bbq_core::IslandAnchor::BottomLeft,
+        ("bottom", "right") => bbq_core::IslandAnchor::BottomRight,
+        ("bottom", _) => bbq_core::IslandAnchor::BottomCenter,
+        _ => bbq_core::IslandAnchor::TopCenter,
+    }
+}
+
+pub fn apply_notch_edge_alignment(
+    geo: &mut bbq_core::IslandGeometry,
+    display: &bbq_core::DisplayInfo,
+    settings: &bbq_core::BbqSettings,
+) {
+    if settings.island_mode.trim().eq_ignore_ascii_case("notch") {
+        match settings
+            .island_vertical_position
+            .trim()
+            .to_lowercase()
+            .as_str()
+        {
+            "top" => {
+                geo.y = display.work_area.y;
             }
-            bbq_core::IslandAnchor::BottomRight | bbq_core::IslandAnchor::CenterRight => {
-                bbq_core::IslandAnchor::TopRight
+            "bottom" => {
+                geo.y = (display.work_area.y + display.work_area.height as i32 - geo.height as i32)
+                    .max(display.work_area.y);
             }
-            _ => raw_anchor,
-        },
+            _ => {}
+        }
     }
 }
 
@@ -107,7 +127,8 @@ pub async fn set_island_mode(
         };
 
         let anchor = resolve_anchor(&settings);
-        let geo = bbq_core::calculate_island_geometry(&target_disp, calc_state, dims, anchor);
+        let mut geo = bbq_core::calculate_island_geometry(&target_disp, calc_state, dims, anchor);
+        apply_notch_edge_alignment(&mut geo, &target_disp, &settings);
 
         let should_apply = if let Ok(mut last) = state.last_geometry.lock() {
             if let Some(ref last_geo) = *last {
@@ -285,7 +306,8 @@ pub async fn reset_island_position(
     };
 
     let anchor = resolve_anchor(&settings);
-    let geo = bbq_core::calculate_island_geometry(&display, calc_state, dims, anchor);
+    let mut geo = bbq_core::calculate_island_geometry(&display, calc_state, dims, anchor);
+    apply_notch_edge_alignment(&mut geo, &display, &settings);
 
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
@@ -317,13 +339,12 @@ pub async fn calculate_island_geometry(
         .get_target_display(display_id.as_deref())
         .await
         .map_err(|e| e.to_string())?;
-    let anchor = anchor.unwrap_or(bbq_core::IslandAnchor::TopCenter);
-    Ok(bbq_core::calculate_island_geometry(
-        &display,
-        layout_state,
-        widget_dims,
-        anchor,
-    ))
+    use bbq_services::SettingsServiceTrait;
+    let settings = state.settings_service.get_settings().unwrap_or_default();
+    let anchor = anchor.unwrap_or_else(|| resolve_anchor(&settings));
+    let mut geo = bbq_core::calculate_island_geometry(&display, layout_state, widget_dims, anchor);
+    apply_notch_edge_alignment(&mut geo, &display, &settings);
+    Ok(geo)
 }
 
 #[tauri::command]
@@ -409,4 +430,91 @@ pub async fn apply_island_geometry(
         .apply_geometry(&clamped)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bbq_core::{BbqSettings, DisplayInfo, DisplayRect, IslandAnchor, IslandGeometry};
+
+    #[test]
+    fn test_resolve_anchor_all_nine_combinations() {
+        let cases = [
+            ("top", "left", IslandAnchor::TopLeft),
+            ("top", "center", IslandAnchor::TopCenter),
+            ("top", "right", IslandAnchor::TopRight),
+            ("center", "left", IslandAnchor::CenterLeft),
+            ("center", "center", IslandAnchor::Center),
+            ("center", "right", IslandAnchor::CenterRight),
+            ("bottom", "left", IslandAnchor::BottomLeft),
+            ("bottom", "center", IslandAnchor::BottomCenter),
+            ("bottom", "right", IslandAnchor::BottomRight),
+        ];
+
+        for (v, h, expected) in cases {
+            let settings = BbqSettings {
+                island_vertical_position: v.to_string(),
+                island_horizontal_position: h.to_string(),
+                island_position: bbq_core::compose_island_position(v, h),
+                ..Default::default()
+            };
+            assert_eq!(resolve_anchor(&settings), expected, "Failed for ({v}, {h})");
+        }
+    }
+
+    #[test]
+    fn test_notch_edge_alignment_top_bottom_center() {
+        let display = DisplayInfo {
+            id: "disp-1".to_string(),
+            name: "Primary".to_string(),
+            is_primary: true,
+            scale_factor: 1.0,
+            bounds: DisplayRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: DisplayRect {
+                x: 0,
+                y: 24,
+                width: 1920,
+                height: 1016,
+            },
+        };
+
+        let mut geo_top = IslandGeometry {
+            x: 820,
+            y: 36,
+            width: 280,
+            height: 44,
+            display_id: "disp-1".to_string(),
+            anchor: IslandAnchor::TopCenter,
+            scale_factor: 1.0,
+        };
+        let settings_top = BbqSettings {
+            island_mode: "notch".to_string(),
+            island_vertical_position: "top".to_string(),
+            ..Default::default()
+        };
+        apply_notch_edge_alignment(&mut geo_top, &display, &settings_top);
+        assert_eq!(geo_top.y, 24);
+
+        let mut geo_bottom = IslandGeometry {
+            x: 820,
+            y: 984,
+            width: 280,
+            height: 44,
+            display_id: "disp-1".to_string(),
+            anchor: IslandAnchor::BottomCenter,
+            scale_factor: 1.0,
+        };
+        let settings_bottom = BbqSettings {
+            island_mode: "notch".to_string(),
+            island_vertical_position: "bottom".to_string(),
+            ..Default::default()
+        };
+        apply_notch_edge_alignment(&mut geo_bottom, &display, &settings_bottom);
+        assert_eq!(geo_bottom.y, 24 + 1016 - 44);
+    }
 }

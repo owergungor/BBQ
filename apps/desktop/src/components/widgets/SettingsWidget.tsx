@@ -142,7 +142,12 @@ export const SettingsWidget: React.FC = () => {
   const handleResetIslandPosition = async () => {
     try {
       await bbqCommands.resetIslandPosition();
-      await updateSettingsBatch({ island_position: "top-center", move_hud: false });
+      await updateSettingsBatch({
+        island_vertical_position: "top",
+        island_horizontal_position: "center",
+        island_position: "top-center",
+        move_hud: false,
+      });
       showStatus(t("settings.status.islandPositionReset") || "Island position reset to default");
     } catch {
       showStatus("Failed to reset position");
@@ -428,23 +433,9 @@ export const SettingsWidget: React.FC = () => {
     >
       {/* Accessible Landmark Heading */}
       <h2 className="bbq-sr-only">Settings</h2>
-
-      {/* Header status */}
       {statusMessage && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            marginBottom: "4px",
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{ fontSize: "11px", color: "var(--bbq-accent)", fontWeight: 500 }}
-            role="status"
-            aria-live="polite"
-          >
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: "4px", flexShrink: 0 }}>
+          <span style={{ fontSize: "11px", color: "var(--bbq-accent)", fontWeight: 500 }} role="status" aria-live="polite">
             {statusMessage}
           </span>
         </div>
@@ -455,15 +446,7 @@ export const SettingsWidget: React.FC = () => {
         className="bbq-settings-tablist"
         role="tablist"
         aria-label="Settings Categories"
-        style={{
-          display: "flex",
-          gap: "4px",
-          marginBottom: "8px",
-          borderBottom: "1px solid var(--bbq-border-subtle)",
-          overflowX: "visible",
-          flexShrink: 0,
-          position: "relative",
-        }}
+        style={{ display: "flex", gap: "4px", marginBottom: "8px", borderBottom: "1px solid var(--bbq-border-subtle)", overflowX: "visible", flexShrink: 0, position: "relative" }}
       >
         {tabs.map((tab, idx) => {
           const isSelected = activeTab === tab.id;
@@ -539,6 +522,7 @@ export const SettingsWidget: React.FC = () => {
             islandPosition={settings.island_position || "top-center"}
             islandMode={settings.island_mode || "island"}
             islandVerticalPosition={settings.island_vertical_position || "top"}
+            islandHorizontalPosition={settings.island_horizontal_position || "center"}
             alwaysOnTop={settings.always_on_top ?? true}
             autoExpandOnEvent={settings.auto_expand_on_event}
             onDraftWidthChange={setDraftWidth} onDraftHeightChange={setDraftHeight}

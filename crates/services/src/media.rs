@@ -92,8 +92,8 @@ impl MediaService {
     }
 
     /// Dispatch media event internally to update local cache and notify listeners
-    pub fn handle_media_event(&self, event: MediaEvent) {
-        match &event {
+    pub fn handle_media_event(&self, mut event: MediaEvent) {
+        match &mut event {
             MediaEvent::SessionChanged(opt) => {
                 let mut current = self
                     .current_session
@@ -105,7 +105,18 @@ impl MediaService {
                     .unwrap_or_else(|e| e.into_inner());
                 let mut state = self.service_state.lock().unwrap_or_else(|e| e.into_inner());
 
-                if let Some(ref session) = opt {
+                if let Some(ref mut session) = opt {
+                    if session.album_art.is_none() && session.title.is_some() {
+                        if let Some(existing) = known.get(&session.id) {
+                            if existing.title == session.title
+                                && existing.artist == session.artist
+                                && existing.album == session.album
+                                && existing.album_art.is_some()
+                            {
+                                session.album_art = existing.album_art.clone();
+                            }
+                        }
+                    }
                     known.insert(session.id.clone(), session.clone());
                     *current = Self::select_active_session(&known);
                     *state = if session.state == PlaybackState::Playing {
@@ -319,7 +330,16 @@ impl MediaServiceTrait for MediaService {
                 .unwrap_or_else(|e| e.into_inner());
             current.clone()
         };
-        if cached.is_some() {
+        if let Some(ref c) = cached {
+            if c.album_art.is_some() {
+                return Ok(cached);
+            }
+            if let Ok(Some(fresh)) = self.platform.current_session().await {
+                if fresh.album_art.is_some() {
+                    self.handle_media_event(MediaEvent::SessionChanged(Some(fresh.clone())));
+                    return Ok(Some(fresh));
+                }
+            }
             return Ok(cached);
         }
         if let Ok(Some(session)) = self.platform.current_session().await {

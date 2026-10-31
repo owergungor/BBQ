@@ -68,7 +68,9 @@ pub async fn sync_runtime_services_with_settings(
     let position_changed = prev.map(|p| p.island_position.as_str())
         != Some(current.island_position.as_str())
         || prev.map(|p| p.island_vertical_position.as_str())
-            != Some(current.island_vertical_position.as_str());
+            != Some(current.island_vertical_position.as_str())
+        || prev.map(|p| p.island_horizontal_position.as_str())
+            != Some(current.island_horizontal_position.as_str());
 
     if target_display_changed || dims_changed || position_changed {
         if let Ok(mut last) = state.last_geometry.lock() {
@@ -103,29 +105,11 @@ pub async fn sync_runtime_services_with_settings(
                 }
             };
 
-            let anchor = bbq_core::IslandAnchor::from_str_name(&current.island_position);
-            let anchor = match current.island_vertical_position.as_str() {
-                "center" => match anchor {
-                    bbq_core::IslandAnchor::TopLeft
-                    | bbq_core::IslandAnchor::BottomLeft
-                    | bbq_core::IslandAnchor::CenterLeft => bbq_core::IslandAnchor::CenterLeft,
-                    bbq_core::IslandAnchor::TopRight
-                    | bbq_core::IslandAnchor::BottomRight
-                    | bbq_core::IslandAnchor::CenterRight => bbq_core::IslandAnchor::CenterRight,
-                    _ => bbq_core::IslandAnchor::Center,
-                },
-                "bottom" => match anchor {
-                    bbq_core::IslandAnchor::TopLeft
-                    | bbq_core::IslandAnchor::BottomLeft
-                    | bbq_core::IslandAnchor::CenterLeft => bbq_core::IslandAnchor::BottomLeft,
-                    bbq_core::IslandAnchor::TopRight
-                    | bbq_core::IslandAnchor::BottomRight
-                    | bbq_core::IslandAnchor::CenterRight => bbq_core::IslandAnchor::BottomRight,
-                    _ => bbq_core::IslandAnchor::BottomCenter,
-                },
-                _ => anchor,
-            };
+            // let anchor = bbq_core::IslandAnchor::from_str_name(&current.island_position);
+            let anchor = crate::commands::island::resolve_anchor(current);
             let geo = bbq_core::calculate_island_geometry(&display, layout_state, dims, anchor);
+            let mut geo = geo;
+            crate::commands::island::apply_notch_edge_alignment(&mut geo, &display, current);
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
                     width: geo.width as f64,
@@ -167,37 +151,21 @@ pub async fn sync_runtime_services_with_settings(
 }
 
 pub fn apply_native_window_backdrop(window: &tauri::WebviewWindow, settings: &BbqSettings) {
+    // Platform Compositor Note:
+    // Native OS window effects (Windows DWM Acrylic/Blur via SetWindowCompositionAttribute
+    // and macOS NSVisualEffectView HudWindow) operate on the entire rectangular OS window frame
+    // (e.g. 280x44 compact, 78x44 dot, 560x420 expanded) and cannot clip to arbitrary CSS
+    // border-radius or circular/notch clip-path silhouettes inside the WebView.
+    // Enabling OS-level rectangular effects causes rectangular blur bleed outside the rounded
+    // island boundaries. Therefore, we always clear OS-level rectangular window effects via
+    // `window.set_effects(None)` and rely on the WebView's hardware-accelerated CSS
+    // `backdrop-filter` strictly clipped to `.bbq-island-shell` via `overflow: hidden`,
+    // `contain: paint`, `border-radius`, and `clip-path`.
     let should_enable_native_blur = settings.island_blur_enabled
         && settings.island_transparency > 0
         && settings.island_blur > 0;
-
-    if should_enable_native_blur {
-        #[cfg(target_os = "windows")]
-        {
-            use tauri::window::{Effect, EffectsBuilder};
-            let builder = EffectsBuilder::new().effect(Effect::Acrylic);
-            if window.set_effects(builder.build()).is_err() {
-                let fallback = EffectsBuilder::new().effect(Effect::Blur);
-                let _ = window.set_effects(fallback.build());
-            }
-        }
-
-        #[cfg(target_os = "macos")]
-        {
-            use tauri::window::{Effect, EffectState, EffectsBuilder};
-            let builder = EffectsBuilder::new()
-                .effect(Effect::HudWindow)
-                .state(EffectState::Active);
-            let _ = window.set_effects(builder.build());
-        }
-
-        #[cfg(target_os = "linux")]
-        {
-            let _ = window;
-        }
-    } else {
-        let _ = window.set_effects(None);
-    }
+    let _ = should_enable_native_blur;
+    let _ = window.set_effects(None);
 }
 
 #[tauri::command]

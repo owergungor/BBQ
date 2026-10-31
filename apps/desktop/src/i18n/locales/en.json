@@ -145,6 +145,10 @@
       "posTop": "Top",
       "posCenter": "Center",
       "posBottom": "Bottom",
+      "horizontalPos": "Horizontal Position",
+      "horizontalPosDesc": "Physical horizontal screen placement of the island.",
+      "posLeft": "Left",
+      "posRight": "Right",
       "dotSize": "Dot Size",
       "dotSizeDesc": "Diameter of the circular island in Dot mode."
     },

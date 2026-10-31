@@ -240,7 +240,12 @@ export async function extractAmbientColor(
   return new Promise<AmbientPalette>((resolve) => {
     try {
       const img = new Image();
-      if (!imageUrl.startsWith("data:")) {
+      if (
+        !imageUrl.startsWith("data:") &&
+        !imageUrl.startsWith("blob:") &&
+        !imageUrl.startsWith("asset:") &&
+        !/^https?:\/\/asset\.localhost/i.test(imageUrl)
+      ) {
         img.crossOrigin = "Anonymous";
       }
 
@@ -337,17 +342,31 @@ export function resolveArtworkUrl(raw: string | null | undefined): string | null
   if (!trimmed) return null;
 
   // Base64 data URIs (PNG, JPEG, WEBP, GIF, BMP, etc.)
-  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(trimmed)) {
+  if (/^data:image\/[a-zA-Z0-9.+-]+(?:;charset=[^;,]+)?;base64,/i.test(trimmed)) {
+    const commaIdx = trimmed.indexOf(",");
+    if (commaIdx !== -1) {
+      const header = trimmed.slice(0, commaIdx + 1);
+      const payload = trimmed.slice(commaIdx + 1).replace(/\s+/g, "");
+      return payload.length > 0 ? `${header}${payload}` : null;
+    }
     return trimmed;
   }
 
   // Remote HTTPS URLs
-  if (trimmed.startsWith("https://")) {
+  if (
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("http://127.0.0.1") ||
+    trimmed.startsWith("http://localhost")
+  ) {
     return trimmed;
   }
 
   // Already converted asset URLs
-  if (trimmed.startsWith("asset://") || /^https?:\/\/asset\.localhost/i.test(trimmed)) {
+  if (
+    trimmed.startsWith("asset://") ||
+    trimmed.startsWith("blob:") ||
+    /^https?:\/\/asset\.localhost/i.test(trimmed)
+  ) {
     return trimmed;
   }
 

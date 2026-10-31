@@ -1,5 +1,10 @@
 import { createDomainStore } from "./createStore.ts";
-import type { BbqSettings } from "@bbq/types";
+import type {
+  BbqSettings,
+  IslandHorizontalPosition,
+  IslandPosition,
+  IslandVerticalPosition,
+} from "@bbq/types";
 import { bbqCommands } from "../ipc/commands.ts";
 import { subscribeToSettingsChanged } from "../ipc/events.ts";
 
@@ -121,8 +126,86 @@ export const defaultSettings: BbqSettings = {
   language: "en",
   island_mode: "island",
   island_vertical_position: "top",
+  island_horizontal_position: "center",
   dot_size: 38,
 };
+
+export function composeIslandPosition(
+  vertical?: string | null,
+  horizontal?: string | null
+): IslandPosition {
+  const v = (vertical || "top").trim().toLowerCase();
+  const h = (horizontal || "center").trim().toLowerCase();
+  if (v === "center") {
+    if (h === "left") return "center-left";
+    if (h === "right") return "center-right";
+    return "center";
+  }
+  if (v === "bottom") {
+    if (h === "left") return "bottom-left";
+    if (h === "right") return "bottom-right";
+    return "bottom-center";
+  }
+  if (h === "left") return "top-left";
+  if (h === "right") return "top-right";
+  return "top-center";
+}
+
+export function decomposeIslandPosition(pos?: string | null): {
+  vertical: IslandVerticalPosition;
+  horizontal: IslandHorizontalPosition;
+} {
+  const clean = (pos || "top-center").trim().toLowerCase();
+  switch (clean) {
+    case "top-left":
+      return { vertical: "top", horizontal: "left" };
+    case "top-right":
+      return { vertical: "top", horizontal: "right" };
+    case "top-center":
+      return { vertical: "top", horizontal: "center" };
+    case "center-left":
+      return { vertical: "center", horizontal: "left" };
+    case "center-right":
+      return { vertical: "center", horizontal: "right" };
+    case "center":
+    case "center-center":
+      return { vertical: "center", horizontal: "center" };
+    case "bottom-left":
+      return { vertical: "bottom", horizontal: "left" };
+    case "bottom-right":
+      return { vertical: "bottom", horizontal: "right" };
+    case "bottom-center":
+      return { vertical: "bottom", horizontal: "center" };
+    default:
+      return { vertical: "top", horizontal: "center" };
+  }
+}
+
+export function normalizePositionSettings(raw: Partial<BbqSettings>): BbqSettings {
+  const hasExplicitVert =
+    raw.island_vertical_position === "top" ||
+    raw.island_vertical_position === "center" ||
+    raw.island_vertical_position === "bottom";
+  const hasExplicitHoriz =
+    raw.island_horizontal_position === "left" ||
+    raw.island_horizontal_position === "center" ||
+    raw.island_horizontal_position === "right";
+  const decomposed = decomposeIslandPosition(raw.island_position);
+  const vertical: IslandVerticalPosition = hasExplicitVert
+    ? (raw.island_vertical_position as IslandVerticalPosition)
+    : decomposed.vertical;
+  const horizontal: IslandHorizontalPosition = hasExplicitHoriz
+    ? (raw.island_horizontal_position as IslandHorizontalPosition)
+    : decomposed.horizontal;
+  const composed = composeIslandPosition(vertical, horizontal);
+  return {
+    ...defaultSettings,
+    ...raw,
+    island_vertical_position: vertical,
+    island_horizontal_position: horizontal,
+    island_position: composed,
+  };
+}
 
 export function isEffectiveLight(theme: BbqSettings["theme"]): boolean {
   if (theme === "light") return true;
@@ -178,7 +261,7 @@ function loadCachedSettings(): BbqSettings | null {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object") {
-          return { ...defaultSettings, ...parsed };
+          return normalizePositionSettings(parsed);
         }
       }
     } catch {
@@ -290,6 +373,9 @@ export function applyThemeAndMotionToDom(settings: BbqSettings): void {
       }
       if (settings.island_vertical_position) {
         document.documentElement.setAttribute("data-vertical-pos", settings.island_vertical_position);
+      }
+      if (settings.island_horizontal_position) {
+        document.documentElement.setAttribute("data-horizontal-pos", settings.island_horizontal_position);
       }
       if (typeof settings.dot_size === "number") {
         document.documentElement.style.setProperty("--bbq-dot-size", `${settings.dot_size}px`);
@@ -424,17 +510,17 @@ export function initSettingsState(force = false): Promise<void> {
         };
 
         settingsStore.setState({
-          settings: merged,
+          settings: normalizePositionSettings(merged),
           isLoading: false,
           isLoaded: true,
         });
 
-        applyThemeAndMotionToDom(merged);
+        applyThemeAndMotionToDom(normalizePositionSettings(merged));
 
         const storage = getLocalStorage();
         if (storage) {
           try {
-            storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(merged));
+            storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(normalizePositionSettings(merged)));
           } catch {
             // Ignore storage failure
           }
@@ -460,12 +546,13 @@ export function initSettingsState(force = false): Promise<void> {
           custom_accent_color:
             updatedSettings.custom_accent_color || current.custom_accent_color || null,
         };
-        settingsStore.setState({ settings: merged });
-        applyThemeAndMotionToDom(merged);
+        const normalizedMerged = normalizePositionSettings(merged);
+        settingsStore.setState({ settings: normalizedMerged });
+        applyThemeAndMotionToDom(normalizePositionSettings(merged));
         const storage = getLocalStorage();
         if (storage) {
           try {
-            storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(merged));
+            storage.setItem(LOCAL_STORAGE_SETTINGS_KEY, JSON.stringify(normalizePositionSettings(merged)));
           } catch {
             // Ignore
           }
@@ -537,6 +624,9 @@ export function coerceSettingValue(key: keyof BbqSettings, value: string): unkno
       return value === "top-center" ||
         value === "top-left" ||
         value === "top-right" ||
+        value === "center" ||
+        value === "center-left" ||
+        value === "center-right" ||
         value === "bottom-left" ||
         value === "bottom-center" ||
         value === "bottom-right"
@@ -550,6 +640,20 @@ export function coerceSettingValue(key: keyof BbqSettings, value: string): unkno
 
     case "island_blur_enabled":
       return value === "true";
+
+    case "island_vertical_position":
+      return value === "top" || value === "center" || value === "bottom" ? value : "top";
+
+    case "island_horizontal_position":
+      return value === "left" || value === "center" || value === "right" ? value : "center";
+
+    case "island_mode":
+      return value === "island" || value === "notch" || value === "dot" ? value : "island";
+
+    case "dot_size": {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? Math.min(64, Math.max(32, Math.round(parsed))) : 38;
+    }
 
     case "island_blur": {
       const parsed = Number(value);
@@ -587,6 +691,20 @@ export async function updateSetting(key: string, value: string): Promise<boolean
           nextSettings.custom_accent_color = current.custom_accent_color;
         }
 
+        if (typedKey === "island_vertical_position" || typedKey === "island_horizontal_position") {
+          nextSettings.island_position = composeIslandPosition(
+            nextSettings.island_vertical_position,
+            nextSettings.island_horizontal_position
+          );
+        } else if (typedKey === "island_position") {
+          const decomposed = decomposeIslandPosition(String(parsedValue));
+          nextSettings.island_vertical_position = decomposed.vertical;
+          nextSettings.island_horizontal_position = decomposed.horizontal;
+          nextSettings.island_position = composeIslandPosition(
+            decomposed.vertical,
+            decomposed.horizontal
+          );
+        }
         settingsStore.setState({ settings: nextSettings, error: null });
         applyThemeAndMotionToDom(nextSettings);
 
@@ -621,6 +739,23 @@ export async function updateSettingsBatch(patch: Partial<BbqSettings>): Promise<
 
   const current = settingsStore.getState().settings;
   const nextSettings: BbqSettings = { ...current, ...patch };
+  if (
+    patch.island_vertical_position !== undefined ||
+    patch.island_horizontal_position !== undefined
+  ) {
+    nextSettings.island_position = composeIslandPosition(
+      nextSettings.island_vertical_position,
+      nextSettings.island_horizontal_position
+    );
+  } else if (patch.island_position !== undefined) {
+    const decomposed = decomposeIslandPosition(patch.island_position);
+    nextSettings.island_vertical_position = decomposed.vertical;
+    nextSettings.island_horizontal_position = decomposed.horizontal;
+    nextSettings.island_position = composeIslandPosition(
+      decomposed.vertical,
+      decomposed.horizontal
+    );
+  }
 
   // Preserve existing custom color if switching to a preset so user doesn't lose their custom hex
   if (patch.accent_color && patch.accent_color !== "custom" && !patch.custom_accent_color) {

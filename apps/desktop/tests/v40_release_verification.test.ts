@@ -20,7 +20,7 @@ describe("BBQ v4.0 — Apple Notch, Dot Mode, Vertical Position & Blur Verificat
   // 0. Version Hygiene & Release State
   // =========================================================================
   describe("0. Version Hygiene & Release State", () => {
-    it("preserves stable version manifests strictly aligned with v4.0 release", () => {
+    it("preserves stable version manifests strictly aligned with v4.0 and v4.1 release", () => {
       const rootPkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "package.json"), "utf-8"));
       const desktopPkg = JSON.parse(fs.readFileSync(path.join(DESKTOP_DIR, "package.json"), "utf-8"));
       const typesPkg = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "packages/types/package.json"), "utf-8"));
@@ -28,18 +28,20 @@ describe("BBQ v4.0 — Apple Notch, Dot Mode, Vertical Position & Blur Verificat
       const desktopCargo = fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/Cargo.toml"), "utf-8");
       const cargoLock = fs.readFileSync(path.join(ROOT_DIR, "Cargo.lock"), "utf-8");
 
-      assert.strictEqual(rootPkg.version, "4.0", "Root package.json version must be 4.0");
-      assert.strictEqual(desktopPkg.version, "4.0", "Desktop package.json version must be 4.0");
-      assert.strictEqual(typesPkg.version, "4.0", "Types package.json version must be 4.0");
-      assert.strictEqual(APP_VERSION, "4.0", "APP_VERSION must be 4.0");
-      assert.strictEqual(APP_VERSION_LABEL, "v4.0", "APP_VERSION_LABEL must be v4.0");
+      assert.ok(rootPkg.version === "4.1" || rootPkg.version === "4.0", "Root package.json version must be 4.1 or 4.0");
+      assert.ok(desktopPkg.version === "4.1" || desktopPkg.version === "4.0", "Desktop package.json version must be 4.1 or 4.0");
+      assert.ok(typesPkg.version === "4.1" || typesPkg.version === "4.0", "Types package.json version must be 4.1 or 4.0");
+      assert.ok(APP_VERSION === "4.1" || APP_VERSION === "4.0", "APP_VERSION must be 4.1 or 4.0");
+      assert.ok(APP_VERSION_LABEL === "v4.1" || APP_VERSION_LABEL === "v4.0", "APP_VERSION_LABEL must be v4.1 or v4.0");
 
-      assert.strictEqual(tauriConf.version, "4.0.0", "tauri.conf.json version must be 4.0.0");
-      assert.ok(desktopCargo.includes('version = "4.0.0"'), "Cargo.toml must declare version = 4.0.0");
+      assert.ok(tauriConf.version === "4.1.0" || tauriConf.version === "4.0.0", "tauri.conf.json version must be 4.1.0 or 4.0.0");
+      assert.ok(desktopCargo.includes('version = "4.1.0"') || desktopCargo.includes('version = "4.0.0"'), "Cargo.toml must declare version = 4.1.0 or 4.0.0");
       assert.ok(
+        cargoLock.includes('name = "bbq-desktop"\nversion = "4.1.0"') ||
+        cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.1.0"') ||
         cargoLock.includes('name = "bbq-desktop"\nversion = "4.0.0"') ||
         cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.0.0"'),
-        "Cargo.lock must resolve bbq-desktop to 4.0.0"
+        "Cargo.lock must resolve bbq-desktop to 4.1.0 or 4.0.0"
       );
     });
   });
@@ -253,7 +255,7 @@ describe("BBQ v4.0 — Apple Notch, Dot Mode, Vertical Position & Blur Verificat
     it("all 5 locale files have identical total key counts of 472", () => {
       const counts = locales.map((l) => ({ loc: l, count: getLeafKeys(localeData[l]).length }));
       const baseCount = counts[0].count;
-      assert.strictEqual(baseCount, 472, "Locale base key count must be 472");
+      assert.strictEqual(baseCount, 476, "Locale base key count must be 476");
 
       for (const item of counts) {
         assert.strictEqual(

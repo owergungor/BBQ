@@ -276,6 +276,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, onClose }) => {
       action: async () => {
         await bbqCommands.resetIslandPosition();
         await updateSetting("move_hud", "false");
+        await updateSetting("island_vertical_position", "top");
+        await updateSetting("island_horizontal_position", "center");
         await updateSetting("island_position", "top-center");
         onClose();
       },

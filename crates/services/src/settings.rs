@@ -198,6 +198,7 @@ impl SettingsServiceTrait for SettingsService {
         if let Some(oc) = get_val("onboarding_completed") {
             settings.onboarding_completed = oc == "true";
         }
+        let mut has_legacy_pos = false;
         if let Some(pos) = get_val("island_position") {
             let trimmed = pos.trim().to_lowercase();
             match trimmed.as_str() {
@@ -205,6 +206,7 @@ impl SettingsServiceTrait for SettingsService {
                 | "center-left" | "center-right" | "bottom-left" | "bottom-center"
                 | "bottom-right" => {
                     settings.island_position = trimmed;
+                    has_legacy_pos = true;
                 }
                 _ => {}
             }
@@ -218,6 +220,7 @@ impl SettingsServiceTrait for SettingsService {
                 _ => {}
             }
         }
+        let (mig_v, mig_h) = bbq_core::decompose_island_position(&settings.island_position);
         if let Some(ivp) = get_val("island_vertical_position") {
             let trimmed = ivp.trim().to_lowercase();
             match trimmed.as_str() {
@@ -226,7 +229,24 @@ impl SettingsServiceTrait for SettingsService {
                 }
                 _ => {}
             }
+        } else if has_legacy_pos {
+            settings.island_vertical_position = mig_v.to_string();
         }
+        if let Some(ihp) = get_val("island_horizontal_position") {
+            let trimmed = ihp.trim().to_lowercase();
+            match trimmed.as_str() {
+                "left" | "center" | "right" => {
+                    settings.island_horizontal_position = trimmed;
+                }
+                _ => {}
+            }
+        } else if has_legacy_pos {
+            settings.island_horizontal_position = mig_h.to_string();
+        }
+        settings.island_position = bbq_core::compose_island_position(
+            &settings.island_vertical_position,
+            &settings.island_horizontal_position,
+        );
         if let Some(ds) = get_val("dot_size") {
             if let Ok(num) = ds.parse::<u32>() {
                 if (32..=64).contains(&num) {
@@ -270,6 +290,12 @@ impl SettingsServiceTrait for SettingsService {
         validate_setting_entry(key, value)?;
         self.repo.set(key, value)?;
 
+        if key == "island_position" {
+            let (v, h) = bbq_core::decompose_island_position(value);
+            self.repo.set("island_vertical_position", v)?;
+            self.repo.set("island_horizontal_position", h)?;
+        }
+
         if key == "start_at_login" {
             if let Some(ref autostart) = self.autostart {
                 let autostart = autostart.clone();
@@ -283,6 +309,9 @@ impl SettingsServiceTrait for SettingsService {
         }
 
         let updated = self.get_settings()?;
+        if key == "island_vertical_position" || key == "island_horizontal_position" {
+            self.repo.set("island_position", &updated.island_position)?;
+        }
         self.notify_change(&updated);
         Ok(())
     }
@@ -446,9 +475,20 @@ impl SettingsServiceTrait for SettingsService {
             "island_vertical_position",
             &settings.island_vertical_position,
         )?;
+        self.repo.set(
+            "island_horizontal_position",
+            &settings.island_horizontal_position,
+        )?;
+        let composed_pos = bbq_core::compose_island_position(
+            &settings.island_vertical_position,
+            &settings.island_horizontal_position,
+        );
+        self.repo.set("island_position", &composed_pos)?;
         self.repo.set("dot_size", &settings.dot_size.to_string())?;
 
-        self.notify_change(settings);
+        let mut normalized = settings.clone();
+        normalized.island_position = composed_pos;
+        self.notify_change(&normalized);
         Ok(())
     }
 
@@ -541,5 +581,38 @@ mod tests {
         // Unset keys still resolve to defaults
         assert!(loaded.always_on_top);
         assert_eq!(loaded.global_hotkey, BbqSettings::default().global_hotkey);
+    }
+
+    #[test]
+    fn test_v41_island_position_migration_and_sync() {
+        let db = DatabaseManager::open_in_memory().expect("in-memory db");
+        let repo = db.settings_repository();
+        let service = SettingsService::new(repo.clone());
+
+        // Legacy saved value "bottom-right" without explicit vertical/horizontal keys
+        repo.set("island_position", "bottom-right")
+            .expect("set legacy position");
+        let loaded = service.get_settings().expect("load migrated settings");
+        assert_eq!(loaded.island_vertical_position, "bottom");
+        assert_eq!(loaded.island_horizontal_position, "right");
+        assert_eq!(loaded.island_position, "bottom-right");
+
+        // Updating horizontal position updates composed island_position
+        service
+            .update_setting("island_horizontal_position", "left")
+            .expect("update horizontal position");
+        let after_horiz = service.get_settings().expect("load after horiz");
+        assert_eq!(after_horiz.island_vertical_position, "bottom");
+        assert_eq!(after_horiz.island_horizontal_position, "left");
+        assert_eq!(after_horiz.island_position, "bottom-left");
+
+        // Updating vertical position updates composed island_position
+        service
+            .update_setting("island_vertical_position", "center")
+            .expect("update vertical position");
+        let after_vert = service.get_settings().expect("load after vert");
+        assert_eq!(after_vert.island_vertical_position, "center");
+        assert_eq!(after_vert.island_horizontal_position, "left");
+        assert_eq!(after_vert.island_position, "center-left");
     }
 }

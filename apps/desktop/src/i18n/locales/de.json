@@ -145,6 +145,10 @@
       "posTop": "Oben",
       "posCenter": "Mitte",
       "posBottom": "Unten",
+      "horizontalPos": "Horizontale Position",
+      "horizontalPosDesc": "Physische horizontale Bildschirmausrichtung des Islands.",
+      "posLeft": "Links",
+      "posRight": "Rechts",
       "dotSize": "Punktgröße",
       "dotSizeDesc": "Durchmesser des kreisförmigen Islands im Dot-Modus."
     },

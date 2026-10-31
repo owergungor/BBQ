@@ -17,7 +17,7 @@ import { ReminderWidget } from "../widgets/ReminderWidget.tsx";
 import { LauncherWidget } from "../widgets/LauncherWidget.tsx";
 import { DropWidget } from "../widgets/DropWidget.tsx";
 import { SettingsWidget } from "../widgets/SettingsWidget.tsx";
-import { useSettingsState, initSettingsState } from "../../state/settingsState.ts";
+import { useSettingsState } from "../../state/settingsState.ts";
 import { getOrderedActiveWidgets } from "../../island/compactOrder.ts";
 import { subscribeToDatabaseRecovered } from "../../ipc/events.ts";
 import { Icon } from "../common/Icon.tsx";
@@ -97,7 +97,7 @@ export const IslandContent: React.FC<IslandContentProps> = ({
   const compactIndicatorOrder = useSettingsState((s) => s.settings.compact_indicator_order);
 
   useEffect(() => {
-    initSettingsState();
+    // Settings state is initialized eagerly on module import in settingsState.ts
   }, []);
 
   useEffect(() => {

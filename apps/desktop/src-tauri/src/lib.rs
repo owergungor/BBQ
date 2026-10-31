@@ -395,11 +395,16 @@ pub fn run() {
                         };
                         let anchor =
                             crate::commands::island::resolve_anchor(&initial_settings_clone);
-                        let geo = bbq_core::calculate_island_geometry(
+                        let mut geo = bbq_core::calculate_island_geometry(
                             &target_display,
                             calc_state,
                             dims,
                             anchor,
+                        );
+                        crate::commands::island::apply_notch_edge_alignment(
+                            &mut geo,
+                            &target_display,
+                            &initial_settings_clone,
                         );
                         if let Some(state_ref) = handle_geo.try_state::<AppState>() {
                             if let Ok(mut last) = state_ref.last_geometry.lock() {

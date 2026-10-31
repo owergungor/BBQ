@@ -4,6 +4,7 @@ import type {
   PlatformCapabilities,
   IslandStyleMode,
   IslandVerticalPosition,
+  IslandHorizontalPosition,
 } from "@bbq/types";
 import type { WidgetDefinition } from "../../../island/widgetRegistry.ts";
 
@@ -16,6 +17,18 @@ export type SettingsTab =
   | "widgets"
   | "update"
   | "about";
+
+export const VERTICAL_POSITION_OPTIONS: { value: IslandVerticalPosition; label: string }[] = [
+  { value: "top", label: "Top" },
+  { value: "center", label: "Center" },
+  { value: "bottom", label: "Bottom" },
+];
+
+export const HORIZONTAL_POSITION_OPTIONS: { value: IslandHorizontalPosition; label: string }[] = [
+  { value: "left", label: "Left" },
+  { value: "center", label: "Center" },
+  { value: "right", label: "Right" },
+];
 
 export const POSITION_OPTIONS: { value: string; label: string }[] = [
   { value: "top-center", label: "Top Center" },
@@ -49,6 +62,7 @@ export interface IslandSettingsTabProps {
   islandPosition: string;
   islandMode?: IslandStyleMode;
   islandVerticalPosition?: IslandVerticalPosition;
+  islandHorizontalPosition?: IslandHorizontalPosition;
   draftDotSize?: number;
   alwaysOnTop: boolean;
   autoExpandOnEvent: boolean;

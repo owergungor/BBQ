@@ -11,9 +11,10 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
   draftTransparency,
   draftBlur = 20,
   blurEnabled = true,
-  islandPosition,
+  islandPosition: _islandPosition,
   islandMode = "island",
   islandVerticalPosition = "top",
+  islandHorizontalPosition = "center",
   draftDotSize = 38,
   alwaysOnTop,
   autoExpandOnEvent,
@@ -45,13 +46,10 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
     { value: "bottom", label: t("settings.island.posBottom") || "Bottom" },
   ];
 
-  const positionOptions = [
-    { value: "top-center", label: t("settings.island.posTopCenter") || "Top Center" },
-    { value: "top-left", label: t("settings.island.posTopLeft") || "Top Left" },
-    { value: "top-right", label: t("settings.island.posTopRight") || "Top Right" },
-    { value: "bottom-left", label: t("settings.island.posBottomLeft") || "Bottom Left" },
-    { value: "bottom-center", label: t("settings.island.posBottomCenter") || "Bottom Center" },
-    { value: "bottom-right", label: t("settings.island.posBottomRight") || "Bottom Right" },
+  const horizontalOptions = [
+    { value: "left", label: t("settings.island.posLeft") || "Left" },
+    { value: "center", label: t("settings.island.posCenter") || "Center" },
+    { value: "right", label: t("settings.island.posRight") || "Right" },
   ];
 
   return (
@@ -77,6 +75,7 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
         />
       </div>
 
+      {/* v4.1 replaced combined id="island-position-select" with independent vertical and horizontal selects */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <label
@@ -95,6 +94,27 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
           value={islandVerticalPosition || "top"}
           options={verticalOptions}
           onChange={(val) => onToggle("island_vertical_position", val)}
+        />
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <label
+            htmlFor="island-horizontal-pos-select"
+            style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}
+          >
+            {t("settings.island.horizontalPos") || "Horizontal Position"}
+          </label>
+          <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
+            {t("settings.island.horizontalPosDesc") || "Physical horizontal screen placement of the island."}
+          </span>
+        </div>
+        <ThemeSelect
+          id="island-horizontal-pos-select"
+          className="bbq-select"
+          value={islandHorizontalPosition || "center"}
+          options={horizontalOptions}
+          onChange={(val) => onToggle("island_horizontal_position", val)}
         />
       </div>
 
@@ -168,27 +188,6 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
         onCommit={onCommitHeight}
       />
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <label
-            htmlFor="island-position-select"
-            style={{ fontWeight: 500, fontSize: "12px", color: "var(--bbq-text)", display: "block" }}
-          >
-            {t("settings.island.position") || "Island Position"}
-          </label>
-          <span style={{ fontSize: "11px", color: "var(--bbq-text-muted)", display: "block", marginTop: "2px" }}>
-            {t("settings.island.positionDesc") || "Physical screen placement of the island."}
-          </span>
-        </div>
-        <ThemeSelect
-          id="island-position-select"
-          className="bbq-select"
-          value={islandPosition || "top-center"}
-          options={positionOptions}
-          onChange={(val) => onToggle("island_position", val)}
-        />
-      </div>
-
       <div style={{ display: "flex", gap: "8px", marginTop: "2px" }}>
         <button
           type="button"
@@ -228,6 +227,8 @@ export const IslandSettingsTab: React.FC<IslandSettingsTabProps> = ({
               ? onResetPosition
               : async () => {
                   await bbqCommands.resetIslandPosition();
+                  await onToggle("island_vertical_position", "top");
+                  await onToggle("island_horizontal_position", "center");
                   await onToggle("island_position", "top-center");
                   await onToggle("move_hud", false);
                 }

@@ -473,7 +473,7 @@ impl PlatformMedia for MacOsMedia {
                 set tName to name of current track
                 set tArtist to artist of current track
                 set tAlbum to album of current track
-                return pState & "\t" & tName & "\t" & tArtist & "\t" & tAlbum
+                return pState & "\t" & tName & "\t" & tArtist & "\t" & tAlbum & "\t"
             end tell
         else if application "Spotify" is running then
             tell application "Spotify"
@@ -481,7 +481,8 @@ impl PlatformMedia for MacOsMedia {
                 set tName to name of current track
                 set tArtist to artist of current track
                 set tAlbum to album of current track
-                return pState & "\t" & tName & "\t" & tArtist & "\t" & tAlbum
+                set tArt to artwork url of current track
+                return pState & "\t" & tName & "\t" & tArtist & "\t" & tAlbum & "\t" & tArt
             end tell
         else
             return ""
@@ -525,6 +526,11 @@ impl PlatformMedia for MacOsMedia {
             .get(3)
             .filter(|s| !s.is_empty())
             .map(|s| s.to_string());
+        let album_art = parts
+            .get(4)
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
 
         Ok(Some(MediaSession {
             id: "macos_active".to_string(),
@@ -532,7 +538,7 @@ impl PlatformMedia for MacOsMedia {
             title: Some(title),
             artist,
             album,
-            album_art: None,
+            album_art,
             duration_ms: None,
             position_ms: None,
             last_updated_time: Some(

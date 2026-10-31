@@ -12,7 +12,12 @@ import { initializeDropStore } from "../../state/dropState.ts";
 import { initializeReminderStore } from "../../state/reminderState.ts";
 import { initHotkeyStore } from "../../state/hotkeyState.ts";
 import { setDragOver, inspectDrop } from "../../state/dropState.ts";
-import { settingsStore, useSettingsState, updateSetting } from "../../state/settingsState.ts";
+import {
+  settingsStore,
+  useSettingsState,
+  updateSetting,
+  composeIslandPosition,
+} from "../../state/settingsState.ts";
 import { bbqCommands } from "../../ipc/commands.ts";
 import {
   subscribeToIslandMode,
@@ -48,7 +53,9 @@ export const Island: React.FC = () => {
 
   const disabledWidgets = useSettingsState((s) => s.settings.disabled_widgets);
   const compactIndicatorOrder = useSettingsState((s) => s.settings.compact_indicator_order);
-  const islandPosition = useSettingsState((s) => s.settings.island_position || "top-center");
+  const islandVerticalPosition = useSettingsState((s) => s.settings.island_vertical_position || "top");
+  const islandHorizontalPosition = useSettingsState((s) => s.settings.island_horizontal_position || "center");
+  const islandPosition = composeIslandPosition(islandVerticalPosition, islandHorizontalPosition);
   const moveHud = useSettingsState((s) => s.settings.move_hud ?? false);
   const settingsTabHeight = settingsTabHeightStore.useStore((s) => s.height);
   const isUpdateModalOpen = useUpdaterState((s) => s.isModalOpen);

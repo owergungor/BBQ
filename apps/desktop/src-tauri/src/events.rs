@@ -44,7 +44,8 @@ pub fn wire_service_events(handle: &AppHandle, state: &AppState) {
                 bbq_core::MediaEvent::SessionChanged(session) => {
                     let _ = app_media.emit("bbq://media_changed", session);
                 }
-                bbq_core::MediaEvent::MetadataChanged { .. } => {
+                bbq_core::MediaEvent::MetadataChanged { .. }
+                | bbq_core::MediaEvent::PositionChanged { .. } => {
                     let media_svc = media_clone_events.clone();
                     let app = app_media.clone();
                     tauri::async_runtime::spawn(async move {
@@ -266,16 +267,18 @@ pub fn wire_service_events(handle: &AppHandle, state: &AppState) {
                     tauri::async_runtime::spawn(async move {
                         if let Ok(active_display) = d_svc.get_active_display().await {
                             use bbq_services::SettingsServiceTrait;
-                            let pos_name = s_svc
-                                .get_settings()
-                                .map(|s| s.island_position)
-                                .unwrap_or_else(|_| "top-center".to_string());
-                            let anchor = bbq_core::IslandAnchor::from_str_name(&pos_name);
-                            let geo = bbq_core::calculate_island_geometry(
+                            let settings = s_svc.get_settings().unwrap_or_default();
+                            let anchor = crate::commands::island::resolve_anchor(&settings);
+                            let mut geo = bbq_core::calculate_island_geometry(
                                 &active_display,
                                 bbq_core::IslandLayoutState::Expanded,
                                 None,
                                 anchor,
+                            );
+                            crate::commands::island::apply_notch_edge_alignment(
+                                &mut geo,
+                                &active_display,
+                                &settings,
                             );
                             if let Some(ref window) = window_opt {
                                 let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {

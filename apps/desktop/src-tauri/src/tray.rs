@@ -291,6 +291,12 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                         let _ = state.settings_service.update_setting("move_hud", "false");
                         let _ = state
                             .settings_service
+                            .update_setting("island_vertical_position", "top");
+                        let _ = state
+                            .settings_service
+                            .update_setting("island_horizontal_position", "center");
+                        let _ = state
+                            .settings_service
                             .update_setting("island_position", "top-center");
                         if let Ok(updated) = state.settings_service.get_settings() {
                             let _ = app.emit("bbq://settings_changed", &updated);
