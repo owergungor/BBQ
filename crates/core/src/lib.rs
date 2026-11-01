@@ -27,7 +27,8 @@ pub use settings::{
 };
 
 pub use geometry::{
-    calculate_island_geometry, clamp_geometry_to_display, ContentPolicy, DisplayCapabilities,
+    calculate_island_geometry, clamp_geometry_to_display, generate_notch_polygon_points,
+    generate_notch_svg_path, sample_cubic_bezier, ContentPolicy, DisplayCapabilities,
     DisplayGeometrySupport, DisplayInfo, DisplayRect, IslandAnchor, IslandGeometry,
     IslandLayoutState, WidgetDimensions, WidgetSizingConstraints, WidgetSizingContract,
     DEFAULT_DROP_HEIGHT, DEFAULT_DROP_WIDTH, DEFAULT_HOVER_HEIGHT, DEFAULT_HOVER_WIDTH,

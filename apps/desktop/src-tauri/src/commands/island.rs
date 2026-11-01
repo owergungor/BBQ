@@ -107,6 +107,23 @@ pub async fn set_island_mode(
                     ..Default::default()
                 }),
             ),
+            bbq_core::IslandLayoutState::Hovering => {
+                let (w, h) = if settings.island_mode == "dot" {
+                    (settings.dot_size + 6, settings.dot_size + 6)
+                } else {
+                    (settings.island_width + 40, settings.island_height + 6)
+                };
+                (
+                    bbq_core::IslandLayoutState::Hovering,
+                    Some(bbq_core::WidgetDimensions {
+                        preferred_width: Some(w),
+                        preferred_height: Some(h),
+                        compact_width: Some(w),
+                        compact_height: Some(h),
+                        ..Default::default()
+                    }),
+                )
+            }
             _ => {
                 let (w, h) = if settings.island_mode == "dot" {
                     (settings.dot_size, settings.dot_size)
@@ -114,7 +131,7 @@ pub async fn set_island_mode(
                     (settings.island_width, settings.island_height)
                 };
                 (
-                    bbq_core::IslandLayoutState::Hovering,
+                    bbq_core::IslandLayoutState::Idle,
                     Some(bbq_core::WidgetDimensions {
                         preferred_width: Some(w),
                         preferred_height: Some(h),
@@ -210,10 +227,17 @@ pub async fn set_island_mode(
                         y: clamped_y,
                     }));
                 }
-                let settings = state.settings_service.get_settings().unwrap_or_default();
-                crate::commands::settings::apply_native_window_backdrop(&window, &settings);
             }
             let _ = state.window_service.apply_geometry(&geo).await;
+            if let Some(window) = app.get_webview_window("main") {
+                let settings = state.settings_service.get_settings().unwrap_or_default();
+                crate::commands::settings::apply_native_window_backdrop_with_size(
+                    &window,
+                    &settings,
+                    Some(geo.width),
+                    Some(geo.height),
+                );
+            }
         }
     }
 
@@ -288,6 +312,23 @@ pub async fn reset_island_position(
                 ..Default::default()
             }),
         ),
+        IslandMode::Active => {
+            let (w, h) = if settings.island_mode == "dot" {
+                (settings.dot_size + 6, settings.dot_size + 6)
+            } else {
+                (settings.island_width + 40, settings.island_height + 6)
+            };
+            (
+                bbq_core::IslandLayoutState::Hovering,
+                Some(bbq_core::WidgetDimensions {
+                    preferred_width: Some(w),
+                    preferred_height: Some(h),
+                    compact_width: Some(w),
+                    compact_height: Some(h),
+                    ..Default::default()
+                }),
+            )
+        }
         _ => {
             let (w, h) = if settings.island_mode == "dot" {
                 (settings.dot_size, settings.dot_size)
@@ -295,7 +336,7 @@ pub async fn reset_island_position(
                 (settings.island_width, settings.island_height)
             };
             (
-                bbq_core::IslandLayoutState::Hovering,
+                bbq_core::IslandLayoutState::Idle,
                 Some(bbq_core::WidgetDimensions {
                     preferred_width: Some(w),
                     preferred_height: Some(h),
@@ -320,12 +361,20 @@ pub async fn reset_island_position(
             x: geo.x as f64,
             y: geo.y as f64,
         }));
-        crate::commands::settings::apply_native_window_backdrop(&window, &settings);
     }
     if let Ok(mut last) = state.last_geometry.lock() {
         *last = Some(geo.clone());
     }
     let _ = state.window_service.apply_geometry(&geo).await;
+    if let Some(window) = app.get_webview_window("main") {
+        let settings = state.settings_service.get_settings().unwrap_or_default();
+        crate::commands::settings::apply_native_window_backdrop_with_size(
+            &window,
+            &settings,
+            Some(geo.width),
+            Some(geo.height),
+        );
+    }
     Ok(())
 }
 
@@ -427,14 +476,22 @@ pub async fn apply_island_geometry(
                 y: clamped_y,
             }));
         }
-        let settings = state.settings_service.get_settings().unwrap_or_default();
-        crate::commands::settings::apply_native_window_backdrop(&window, &settings);
     }
-    state
+    let res = state
         .window_service
         .apply_geometry(&clamped)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string());
+    if let Some(window) = app.get_webview_window("main") {
+        let settings = state.settings_service.get_settings().unwrap_or_default();
+        crate::commands::settings::apply_native_window_backdrop_with_size(
+            &window,
+            &settings,
+            Some(clamped.width),
+            Some(clamped.height),
+        );
+    }
+    res
 }
 
 #[cfg(test)]

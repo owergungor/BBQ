@@ -433,8 +433,14 @@ pub fn calculate_island_geometry(
         match layout_state {
             IslandLayoutState::Idle => (cw, ch, cw, ch),
             IslandLayoutState::Hovering => {
-                let hover_w = cw + (DEFAULT_HOVER_WIDTH.saturating_sub(DEFAULT_IDLE_WIDTH));
-                let hover_h = ch + (DEFAULT_HOVER_HEIGHT.saturating_sub(DEFAULT_IDLE_HEIGHT));
+                let (hover_w, hover_h) = if cw == ch && cw <= 64 {
+                    (cw + 6, ch + 6)
+                } else {
+                    (
+                        cw + (DEFAULT_HOVER_WIDTH.saturating_sub(DEFAULT_IDLE_WIDTH)),
+                        ch + (DEFAULT_HOVER_HEIGHT.saturating_sub(DEFAULT_IDLE_HEIGHT)),
+                    )
+                };
                 (hover_w, hover_h, cw, ch)
             }
             IslandLayoutState::DraggingOver => (DEFAULT_DROP_WIDTH, DEFAULT_DROP_HEIGHT, cw, ch),
@@ -474,15 +480,20 @@ pub fn calculate_island_geometry(
                     .compact_height
                     .or(pref.preferred_height)
                     .unwrap_or(DEFAULT_IDLE_HEIGHT);
-                let hover_w = if base_w == DEFAULT_IDLE_WIDTH {
-                    DEFAULT_HOVER_WIDTH
+                let (hover_w, hover_h) = if base_w == base_h && base_w <= 64 {
+                    (base_w + 6, base_h + 6)
                 } else {
-                    base_w + (DEFAULT_HOVER_WIDTH.saturating_sub(DEFAULT_IDLE_WIDTH))
-                };
-                let hover_h = if base_h == DEFAULT_IDLE_HEIGHT {
-                    DEFAULT_HOVER_HEIGHT
-                } else {
-                    base_h + (DEFAULT_HOVER_HEIGHT.saturating_sub(DEFAULT_IDLE_HEIGHT))
+                    let hw = if base_w == DEFAULT_IDLE_WIDTH {
+                        DEFAULT_HOVER_WIDTH
+                    } else {
+                        base_w + (DEFAULT_HOVER_WIDTH.saturating_sub(DEFAULT_IDLE_WIDTH))
+                    };
+                    let hh = if base_h == DEFAULT_IDLE_HEIGHT {
+                        DEFAULT_HOVER_HEIGHT
+                    } else {
+                        base_h + (DEFAULT_HOVER_HEIGHT.saturating_sub(DEFAULT_IDLE_HEIGHT))
+                    };
+                    (hw, hh)
                 };
                 (hover_w, hover_h, base_w, base_h)
             }
@@ -681,6 +692,155 @@ impl From<&IslandGeometry> for DisplayRect {
             width: geo.width,
             height: geo.height,
         }
+    }
+}
+
+/// Helper function to sample a point along a 2D cubic bezier curve at parameter t in [0, 1].
+pub fn sample_cubic_bezier(
+    p0: (f64, f64),
+    p1: (f64, f64),
+    p2: (f64, f64),
+    p3: (f64, f64),
+    t: f64,
+) -> (f64, f64) {
+    let u = 1.0 - t;
+    let tt = t * t;
+    let uu = u * u;
+    let uuu = uu * u;
+    let ttt = tt * t;
+
+    let x = uuu * p0.0 + 3.0 * uu * t * p1.0 + 3.0 * u * tt * p2.0 + ttt * p3.0;
+    let y = uuu * p0.1 + 3.0 * uu * t * p1.1 + 3.0 * u * tt * p2.1 + ttt * p3.1;
+    (x, y)
+}
+
+/// Authoritative notch shape points generator for SVG and Win32 polygon region clipping.
+/// Top-left and top-right corners curve outward (convex flare),
+/// and bottom-left and bottom-right corners curve inward (concave rounding).
+pub fn generate_notch_polygon_points(
+    width: i32,
+    height: i32,
+    r_top: i32,
+    r_bottom: i32,
+    is_bottom: bool,
+) -> Vec<(i32, i32)> {
+    if width <= 0 || height <= 0 {
+        return Vec::new();
+    }
+    let r_top = r_top.clamp(2, width / 4).min(height / 3);
+    let r_bottom = r_bottom.clamp(2, width / 4).min(height / 2);
+
+    let mut raw_points: Vec<(f64, f64)> = Vec::with_capacity(40);
+    let steps = 8;
+
+    // Curve 1: Top-left outward flare (0, 0) -> (r_top, r_top)
+    for i in 0..=steps {
+        let t = i as f64 / steps as f64;
+        let p0 = (0.0, 0.0);
+        let p1 = (r_top as f64 * 0.552, 0.0);
+        let p2 = (r_top as f64, r_top as f64 * 0.448);
+        let p3 = (r_top as f64, r_top as f64);
+        raw_points.push(sample_cubic_bezier(p0, p1, p2, p3, t));
+    }
+
+    // Curve 2: Bottom-left inward rounding (r_top, H - r_bottom) -> (r_top + r_bottom, H)
+    for i in 0..=steps {
+        let t = i as f64 / steps as f64;
+        let p0 = (r_top as f64, (height - r_bottom) as f64);
+        let p1 = (r_top as f64, height as f64 - r_bottom as f64 * 0.448);
+        let p2 = (r_top as f64 + r_bottom as f64 * 0.448, height as f64);
+        let p3 = ((r_top + r_bottom) as f64, height as f64);
+        raw_points.push(sample_cubic_bezier(p0, p1, p2, p3, t));
+    }
+
+    // Curve 3: Bottom-right inward rounding (W - r_top - r_bottom, H) -> (W - r_top, H - r_bottom)
+    for i in 0..=steps {
+        let t = i as f64 / steps as f64;
+        let p0 = ((width - r_top - r_bottom) as f64, height as f64);
+        let p1 = (
+            width as f64 - r_top as f64 - r_bottom as f64 * 0.448,
+            height as f64,
+        );
+        let p2 = (
+            (width - r_top) as f64,
+            height as f64 - r_bottom as f64 * 0.448,
+        );
+        let p3 = ((width - r_top) as f64, (height - r_bottom) as f64);
+        raw_points.push(sample_cubic_bezier(p0, p1, p2, p3, t));
+    }
+
+    // Curve 4: Top-right outward flare (W - r_top, r_top) -> (W, 0)
+    for i in 0..=steps {
+        let t = i as f64 / steps as f64;
+        let p0 = ((width - r_top) as f64, r_top as f64);
+        let p1 = ((width - r_top) as f64, r_top as f64 * 0.448);
+        let p2 = (width as f64 - r_top as f64 * 0.448, 0.0);
+        let p3 = (width as f64, 0.0);
+        raw_points.push(sample_cubic_bezier(p0, p1, p2, p3, t));
+    }
+
+    if is_bottom {
+        raw_points
+            .into_iter()
+            .map(|(x, y)| (x.round() as i32, (height as f64 - y).round() as i32))
+            .collect()
+    } else {
+        raw_points
+            .into_iter()
+            .map(|(x, y)| (x.round() as i32, y.round() as i32))
+            .collect()
+    }
+}
+
+/// Generates SVG path string `d` attribute for Notch matching the authoritative geometry.
+pub fn generate_notch_svg_path(
+    width: f64,
+    height: f64,
+    r_top: f64,
+    r_bottom: f64,
+    is_bottom: bool,
+) -> String {
+    let r_t = r_top.clamp(2.0, width / 4.0).min(height / 3.0);
+    let r_b = r_bottom.clamp(2.0, width / 4.0).min(height / 2.0);
+
+    if is_bottom {
+        format!(
+            "M 0,{h:.1} C {p1x:.1},{h:.1} {rt:.1},{p2y:.1} {rt:.1},{y1:.1} L {rt:.1},{rt2:.1} C {rt:.1},{p3y:.1} {p4x:.1},0 {x2:.1},0 L {x3:.1},0 C {p5x:.1},0 {w_rt:.1},{p6y:.1} {w_rt:.1},{rt2:.1} L {w_rt:.1},{y1:.1} C {w_rt:.1},{p2y:.1} {p7x:.1},{h:.1} {w:.1},{h:.1} Z",
+            w = width,
+            h = height,
+            rt = r_t,
+            p1x = r_t * 0.552,
+            p2y = height - r_t * 0.448,
+            y1 = height - r_t,
+            rt2 = r_b,
+            p3y = r_b * 0.448,
+            p4x = r_t + r_b * 0.448,
+            x2 = r_t + r_b,
+            x3 = width - r_t - r_b,
+            p5x = width - r_t - r_b * 0.448,
+            w_rt = width - r_t,
+            p6y = r_b * 0.448,
+            p7x = width - r_t * 0.448,
+        )
+    } else {
+        format!(
+            "M 0,0 C {p1x:.1},0 {rt:.1},{p2y:.1} {rt:.1},{rt:.1} L {rt:.1},{h_rb:.1} C {rt:.1},{p3y:.1} {p4x:.1},{h:.1} {x2:.1},{h:.1} L {x3:.1},{h:.1} C {p5x:.1},{h:.1} {w_rt:.1},{p6y:.1} {w_rt:.1},{h_rb:.1} L {w_rt:.1},{rt:.1} C {w_rt:.1},{p7y:.1} {p8x:.1},0 {w:.1},0 Z",
+            w = width,
+            h = height,
+            rt = r_t,
+            p1x = r_t * 0.552,
+            p2y = r_t * 0.448,
+            h_rb = height - r_b,
+            p3y = height - r_b * 0.448,
+            p4x = r_t + r_b * 0.448,
+            x2 = r_t + r_b,
+            x3 = width - r_t - r_b,
+            p5x = width - r_t - r_b * 0.448,
+            w_rt = width - r_t,
+            p6y = height - r_b * 0.448,
+            p7y = r_t * 0.448,
+            p8x = width - r_t * 0.448,
+        )
     }
 }
 

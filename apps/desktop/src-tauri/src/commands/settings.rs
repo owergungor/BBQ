@@ -83,8 +83,32 @@ pub async fn sync_runtime_services_with_settings(
         {
             let mode = *state.current_mode.lock().unwrap_or_else(|e| e.into_inner());
             let (layout_state, dims) = match mode {
-                IslandMode::Expanded | IslandMode::Interacting | IslandMode::Expanding => {
-                    (bbq_core::IslandLayoutState::Expanded, None)
+                IslandMode::Expanded | IslandMode::Interacting | IslandMode::Expanding => (
+                    bbq_core::IslandLayoutState::Expanded,
+                    Some(bbq_core::WidgetDimensions {
+                        preferred_width: Some(520),
+                        preferred_height: Some(360),
+                        expanded_width: Some(520),
+                        expanded_height: Some(360),
+                        ..Default::default()
+                    }),
+                ),
+                IslandMode::Active => {
+                    let (w, h) = if current.island_mode == "dot" {
+                        (current.dot_size + 6, current.dot_size + 6)
+                    } else {
+                        (current.island_width + 40, current.island_height + 6)
+                    };
+                    (
+                        bbq_core::IslandLayoutState::Hovering,
+                        Some(bbq_core::WidgetDimensions {
+                            preferred_width: Some(w),
+                            preferred_height: Some(h),
+                            compact_width: Some(w),
+                            compact_height: Some(h),
+                            ..Default::default()
+                        }),
+                    )
                 }
                 _ => {
                     let (w, h) = if current.island_mode == "dot" {
@@ -93,7 +117,7 @@ pub async fn sync_runtime_services_with_settings(
                         (current.island_width, current.island_height)
                     };
                     (
-                        bbq_core::IslandLayoutState::Hovering,
+                        bbq_core::IslandLayoutState::Idle,
                         Some(bbq_core::WidgetDimensions {
                             preferred_width: Some(w),
                             preferred_height: Some(h),
@@ -151,6 +175,16 @@ pub async fn sync_runtime_services_with_settings(
 }
 
 pub fn apply_native_window_backdrop(window: &tauri::WebviewWindow, settings: &BbqSettings) {
+    apply_native_window_backdrop_with_size(window, settings, None, None);
+}
+
+pub fn apply_native_window_backdrop_with_size(
+    window: &tauri::WebviewWindow,
+    settings: &BbqSettings,
+    target_width: Option<u32>,
+    target_height: Option<u32>,
+) {
+    let _ = (&target_width, &target_height);
     let should_enable_native_blur = settings.island_blur_enabled
         && settings.island_transparency > 0
         && settings.island_blur > 0;
@@ -169,10 +203,16 @@ pub fn apply_native_window_backdrop(window: &tauri::WebviewWindow, settings: &Bb
             });
 
             let scale = window.scale_factor().unwrap_or(1.0);
-            let (width, height) = window
-                .inner_size()
-                .map(|s| (s.width as i32, s.height as i32))
-                .unwrap_or((0, 0));
+            let (width, height) = match (target_width, target_height) {
+                (Some(w), Some(h)) => (
+                    (w as f64 * scale).round() as i32,
+                    (h as f64 * scale).round() as i32,
+                ),
+                _ => window
+                    .inner_size()
+                    .map(|s| (s.width as i32, s.height as i32))
+                    .unwrap_or((0, 0)),
+            };
             let is_expanded = (height as f64 / scale) > 100.0;
             let _ = bbq_platform::clip_native_window_region(
                 hwnd_raw,
@@ -181,6 +221,7 @@ pub fn apply_native_window_backdrop(window: &tauri::WebviewWindow, settings: &Bb
                 width,
                 height,
                 scale,
+                Some(settings.island_vertical_position.as_str()),
             );
         } else {
             let _ = window.set_effects(None);

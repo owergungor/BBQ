@@ -464,7 +464,7 @@ export const CompactIslandPill: React.FC<CompactIslandPillProps> = ({ state, act
   const isEnabled = (id: string) => !disabledWidgets.includes(id);
 
   // Dot mode compact circular rendering
-  if (islandMode === "dot" && state === "Idle") {
+  if ((islandMode === "dot" && state === "Idle") || (islandMode === "dot" && state !== "Expanded")) {
     let iconName: any = null;
     if (userLockedWidget && activeWidgetId && isEnabled(activeWidgetId)) {
       switch (activeWidgetId) {

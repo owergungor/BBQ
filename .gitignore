@@ -20,6 +20,7 @@ apps/desktop/src-tauri/target/
 local_data/
 cache/
 scratch/
+.agents/**/.agents/
 
 # OS / Editor
 .DS_Store

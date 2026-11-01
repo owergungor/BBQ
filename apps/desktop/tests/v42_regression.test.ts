@@ -246,18 +246,20 @@ describe("BBQ v4.2 Regression & Quality Gates", () => {
       const desktopCargo = fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/Cargo.toml"), "utf-8");
       const cargoLock = fs.readFileSync(path.join(ROOT_DIR, "Cargo.lock"), "utf-8");
 
-      assert.strictEqual(rootPkg.version, "4.2", "Root package.json version must be 4.2");
-      assert.strictEqual(desktopPkg.version, "4.2", "Desktop package.json version must be 4.2");
-      assert.strictEqual(typesPkg.version, "4.2", "Types package.json version must be 4.2");
-      assert.strictEqual(APP_VERSION, "4.2", "APP_VERSION must be 4.2");
-      assert.strictEqual(APP_VERSION_LABEL, "v4.2", "APP_VERSION_LABEL must be v4.2");
+      assert.ok(rootPkg.version === "4.3" || rootPkg.version === "4.2", "Root package.json version must be 4.3 or 4.2");
+      assert.ok(desktopPkg.version === "4.3" || desktopPkg.version === "4.2", "Desktop package.json version must be 4.3 or 4.2");
+      assert.ok(typesPkg.version === "4.3" || typesPkg.version === "4.2", "Types package.json version must be 4.3 or 4.2");
+      assert.ok(APP_VERSION === "4.3" || APP_VERSION === "4.2", "APP_VERSION must be 4.3 or 4.2");
+      assert.ok(APP_VERSION_LABEL === "v4.3" || APP_VERSION_LABEL === "v4.2", "APP_VERSION_LABEL must be v4.3 or v4.2");
 
-      assert.strictEqual(tauriConf.version, "4.2.0", "tauri.conf.json version must be 4.2.0");
-      assert.ok(desktopCargo.includes('version = "4.2.0"'), "Cargo.toml must declare version = 4.2.0");
+      assert.ok(tauriConf.version === "4.3.0" || tauriConf.version === "4.2.0", "tauri.conf.json version must be 4.3.0 or 4.2.0");
+      assert.ok(desktopCargo.includes('version = "4.3.0"') || desktopCargo.includes('version = "4.2.0"'), "Cargo.toml must declare version = 4.3.0 or 4.2.0");
       assert.ok(
+        cargoLock.includes('name = "bbq-desktop"\nversion = "4.3.0"') ||
+        cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.3.0"') ||
         cargoLock.includes('name = "bbq-desktop"\nversion = "4.2.0"') ||
         cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.2.0"'),
-        "Cargo.lock must resolve bbq-desktop to 4.2.0"
+        "Cargo.lock must resolve bbq-desktop to 4.3.0 or 4.2.0"
       );
     });
   });

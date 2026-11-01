@@ -6,6 +6,7 @@ import { Icon } from "../common/Icon.tsx";
 
 import { useSettingsState, composeIslandPosition } from "../../state/settingsState.ts";
 import { resolveEffectiveCompactWidth } from "../../island/geometryResolution.ts";
+import { getNotchSvgPath } from "./notchGeometry.ts";
 import { useTranslation } from "../../i18n/index.ts";
 
 interface IslandShellProps {
@@ -144,6 +145,39 @@ export const IslandShell: React.FC<IslandShellProps> = ({
       height: expHeight,
       maxHeight: expHeight,
     };
+  }
+
+  let notchPath = "";
+  if (islandMode === "notch" && islandVerticalPosition !== "center") {
+    let w = 240;
+    let h = 38;
+    if (state === "Expanded") {
+      w = sizing?.expanded.preferredWidth || 520;
+      h = expandedHeight || sizing?.expanded.preferredHeight || 360;
+    } else if (state === "Hovering") {
+      const resolvedW = resolveEffectiveCompactWidth({
+        contentMinWidth: contentWidth,
+        userCompactWidth,
+        widgetSizing: sizing,
+      });
+      w = resolvedW + 40;
+      h = 44;
+    } else {
+      const resolvedW = resolveEffectiveCompactWidth({
+        contentMinWidth: contentWidth,
+        userCompactWidth,
+        widgetSizing: sizing,
+      });
+      w = Math.min(480, Math.max(160, resolvedW));
+      h = 38;
+    }
+    const rTop = state === "Expanded" ? 14 : 12;
+    const rBottom = state === "Expanded" ? 24 : 18;
+    notchPath = getNotchSvgPath(w, h, rTop, rBottom, islandVerticalPosition === "bottom");
+    if (notchPath) {
+      dynamicStyle.clipPath = `path('${notchPath}')`;
+      (dynamicStyle as any).WebkitClipPath = `path('${notchPath}')`;
+    }
   }
 
   return (

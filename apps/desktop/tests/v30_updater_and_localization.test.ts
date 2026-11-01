@@ -258,7 +258,7 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
 
     it("transitions idle -> checking -> update_available when new version is available", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "4.3",
+        mockAvailableVersion: "4.4",
         mockReleaseNotes: "New features and bug fixes",
         mockReleaseDate: "2026-10-15T00:00:00Z",
       });
@@ -266,19 +266,19 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
       await checkForUpdates();
       const state = updaterStore.getState();
       assert.strictEqual(state.status, "update_available");
-      assert.strictEqual(state.availableVersion, "4.3");
+      assert.strictEqual(state.availableVersion, "4.4");
       assert.strictEqual(state.releaseNotes, "New features and bug fixes");
     });
 
     it("supports download, progress reporting, and completion", async () => {
       setSimulatedUpdater({
-        mockAvailableVersion: "4.3",
+        mockAvailableVersion: "4.4",
         downloadDurationMs: 40,
       });
 
       updaterStore.setState({
         status: "update_available",
-        availableVersion: "4.3",
+        availableVersion: "4.4",
       });
 
       await downloadAndInstallUpdate();
@@ -846,8 +846,8 @@ describe("BBQ v3.0 — Auto-Updater Engine & Localization Verification", () => {
   // 8. Release Version Consistency & Release Workflow Integrity
   // =========================================================================
   describe("8. Release Version Consistency & Release Workflow Integrity", () => {
-    const EXPECTED_VERSION = "4.2";
-    const CARGO_INTERNAL_VERSION = "4.2.0";
+    const EXPECTED_VERSION = "4.3";
+    const CARGO_INTERNAL_VERSION = "4.3.0";
 
     it("verifies shipped application version is consistently 3.1 across all manifests and sources", () => {
       const rootPkgPath = path.join(ROOT_DIR, "package.json");

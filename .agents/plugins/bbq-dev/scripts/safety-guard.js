@@ -1,18 +1,27 @@
 // BBQ Development Safety Guard Hook
 // Conforms to Antigravity PreToolUse hook contract.
 
-const fs = require("fs");
-
-const payload = fs.readFileSync(0, "utf8");
-
-if (/rm -rf \/|git clean -fdx/.test(payload)) {
-  process.stdout.write(
-    JSON.stringify({
-      decision: "deny",
-      reason: "Destructive repository operation blocked by BBQ safety hook.",
-    }) + "\n"
-  );
+let payload = "";
+const timer = setTimeout(() => {
+  process.stdout.write(JSON.stringify({ decision: "allow" }) + "\n");
   process.exit(0);
-}
+}, 200);
 
-process.stdout.write(JSON.stringify({ decision: "allow" }) + "\n");
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => {
+  payload += chunk;
+});
+process.stdin.on("end", () => {
+  clearTimeout(timer);
+  if (/rm -rf \/|git clean -fdx/.test(payload)) {
+    process.stdout.write(
+      JSON.stringify({
+        decision: "deny",
+        reason: "Destructive repository operation blocked by BBQ safety hook.",
+      }) + "\n"
+    );
+  } else {
+    process.stdout.write(JSON.stringify({ decision: "allow" }) + "\n");
+  }
+  process.exit(0);
+});

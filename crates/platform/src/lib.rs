@@ -33,6 +33,7 @@ pub fn clip_native_window_region(
     _physical_width: i32,
     _physical_height: i32,
     _scale_factor: f64,
+    _vertical_pos: Option<&str>,
 ) -> bool {
     false
 }

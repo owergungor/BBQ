@@ -87,6 +87,7 @@ pub fn clip_native_window_region(
     physical_width: i32,
     physical_height: i32,
     scale_factor: f64,
+    vertical_pos: Option<&str>,
 ) -> bool {
     if hwnd_val == 0 {
         return false;
@@ -116,31 +117,109 @@ pub fn clip_native_window_region(
         1.0
     };
 
+    let is_bottom = vertical_pos
+        .map(|v| v.trim().eq_ignore_ascii_case("bottom"))
+        .unwrap_or(false);
+    let is_center = vertical_pos
+        .map(|v| v.trim().eq_ignore_ascii_case("center"))
+        .unwrap_or(false);
+
+    let (x0, y0, shell_w, shell_h) = if is_expanded {
+        let target_w = (520.0 * scale).round() as i32;
+        let target_h = (360.0 * scale).round() as i32;
+        let sw = target_w.min(width);
+        let sh = target_h.min(height);
+        let x_offset = (width - sw) / 2;
+        let y_offset = if is_bottom {
+            height - sh
+        } else if is_center {
+            (height - sh) / 2
+        } else {
+            0
+        };
+        (x_offset, y_offset, sw, sh)
+    } else {
+        (0, 0, width, height)
+    };
+
     let hrgn = unsafe {
         match island_mode {
-            "dot" => windows::Win32::Graphics::Gdi::CreateEllipticRgn(0, 0, width + 1, height + 1),
+            "dot" => {
+                if !is_expanded {
+                    let size = shell_w.min(shell_h);
+                    windows::Win32::Graphics::Gdi::CreateEllipticRgn(
+                        x0,
+                        y0,
+                        x0 + size + 1,
+                        y0 + size + 1,
+                    )
+                } else {
+                    let logical_radius = 24.0;
+                    let physical_radius = (logical_radius * scale).round() as i32;
+                    let diameter = physical_radius * 2;
+                    windows::Win32::Graphics::Gdi::CreateRoundRectRgn(
+                        x0,
+                        y0,
+                        x0 + shell_w + 1,
+                        y0 + shell_h + 1,
+                        diameter,
+                        diameter,
+                    )
+                }
+            }
             "notch" => {
-                let logical_radius = if is_expanded { 24.0 } else { 18.0 };
-                let physical_radius = (logical_radius * scale).round() as i32;
-                let diameter = physical_radius * 2;
-                windows::Win32::Graphics::Gdi::CreateRoundRectRgn(
-                    0,
-                    0,
-                    width + 1,
-                    height + 1,
-                    diameter,
-                    diameter,
-                )
+                if is_center {
+                    let logical_radius = if is_expanded { 24.0 } else { 18.0 };
+                    let physical_radius = (logical_radius * scale).round() as i32;
+                    let diameter = physical_radius * 2;
+                    windows::Win32::Graphics::Gdi::CreateRoundRectRgn(
+                        x0,
+                        y0,
+                        x0 + shell_w + 1,
+                        y0 + shell_h + 1,
+                        diameter,
+                        diameter,
+                    )
+                } else {
+                    let (r_top_logical, r_bottom_logical) = if is_expanded {
+                        (14.0, 24.0)
+                    } else {
+                        (12.0, 18.0)
+                    };
+                    let r_top_phys = (r_top_logical * scale).round() as i32;
+                    let r_bottom_phys = (r_bottom_logical * scale).round() as i32;
+
+                    let raw_points = bbq_core::generate_notch_polygon_points(
+                        shell_w,
+                        shell_h,
+                        r_top_phys,
+                        r_bottom_phys,
+                        is_bottom,
+                    );
+
+                    let win_points: Vec<windows::Win32::Foundation::POINT> = raw_points
+                        .into_iter()
+                        .map(|(x, y)| windows::Win32::Foundation::POINT {
+                            x: x + x0,
+                            y: y + y0,
+                        })
+                        .collect();
+
+                    windows::Win32::Graphics::Gdi::CreatePolygonRgn(
+                        win_points.as_slice(),
+                        windows::Win32::Graphics::Gdi::WINDING,
+                    )
+                }
             }
             _ => {
                 let logical_radius = if is_expanded { 24.0 } else { 20.0 };
                 let physical_radius = (logical_radius * scale).round() as i32;
                 let diameter = physical_radius * 2;
                 windows::Win32::Graphics::Gdi::CreateRoundRectRgn(
-                    0,
-                    0,
-                    width + 1,
-                    height + 1,
+                    x0,
+                    y0,
+                    x0 + shell_w + 1,
+                    y0 + shell_h + 1,
                     diameter,
                     diameter,
                 )

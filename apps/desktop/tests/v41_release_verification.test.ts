@@ -359,17 +359,17 @@ describe("BBQ v4.1 — Blur Clipping, Notch Radius, 9-Anchor Position Grid & Art
       const desktopCargo = fs.readFileSync(path.join(DESKTOP_DIR, "src-tauri/Cargo.toml"), "utf-8");
       const cargoLock = fs.readFileSync(path.join(ROOT_DIR, "Cargo.lock"), "utf-8");
 
-      assert.ok(rootPkg.version === "4.2" || rootPkg.version === "4.1", "Root package.json version must be 4.1");
-      assert.ok(desktopPkg.version === "4.2" || desktopPkg.version === "4.1", "Desktop package.json version must be 4.1");
-      assert.ok(typesPkg.version === "4.2" || typesPkg.version === "4.1", "Types package.json version must be 4.1");
-      assert.ok(APP_VERSION === "4.2" || APP_VERSION === "4.1", "APP_VERSION must be 4.1");
-      assert.ok(APP_VERSION_LABEL === "v4.2" || APP_VERSION_LABEL === "v4.1", "APP_VERSION_LABEL must be v4.1");
+      assert.ok(rootPkg.version === "4.3" || rootPkg.version === "4.2" || rootPkg.version === "4.1", "Root package.json version must be 4.1");
+      assert.ok(desktopPkg.version === "4.3" || desktopPkg.version === "4.2" || desktopPkg.version === "4.1", "Desktop package.json version must be 4.1");
+      assert.ok(typesPkg.version === "4.3" || typesPkg.version === "4.2" || typesPkg.version === "4.1", "Types package.json version must be 4.1");
+      assert.ok(APP_VERSION === "4.3" || APP_VERSION === "4.2" || APP_VERSION === "4.1", "APP_VERSION must be 4.1");
+      assert.ok(APP_VERSION_LABEL === "v4.3" || APP_VERSION_LABEL === "v4.2" || APP_VERSION_LABEL === "v4.1", "APP_VERSION_LABEL must be v4.1");
 
-      assert.ok(tauriConf.version === "4.2.0" || tauriConf.version === "4.1.0", "tauri.conf.json version must be 4.1.0");
-      assert.ok(desktopCargo.includes('version = "4.2.0"') || desktopCargo.includes('version = "4.1.0"'), "Cargo.toml must declare version = 4.1.0");
+      assert.ok(tauriConf.version === "4.3.0" || tauriConf.version === "4.2.0" || tauriConf.version === "4.1.0", "tauri.conf.json version must be 4.1.0");
+      assert.ok(desktopCargo.includes('version = "4.3.0"') || desktopCargo.includes('version = "4.2.0"') || desktopCargo.includes('version = "4.1.0"'), "Cargo.toml must declare version = 4.1.0");
       assert.ok(
-        cargoLock.includes('name = "bbq-desktop"\nversion = "4.2.0"') || cargoLock.includes('name = "bbq-desktop"\nversion = "4.1.0"') ||
-        cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.2.0"') || cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.1.0"'),
+        cargoLock.includes('name = "bbq-desktop"\nversion = "4.3.0"') || cargoLock.includes('name = "bbq-desktop"\nversion = "4.2.0"') || cargoLock.includes('name = "bbq-desktop"\nversion = "4.1.0"') ||
+        cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.3.0"') || cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.2.0"') || cargoLock.includes('name = "bbq-desktop"\r\nversion = "4.1.0"'),
         "Cargo.lock must resolve bbq-desktop to 4.1.0"
       );
     });
