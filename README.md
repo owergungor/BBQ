@@ -1,5 +1,18 @@
 # BBQ
 
+> **BBQ has been discontinued.**
+>
+> BBQ is no longer actively developed or maintained.  
+> Version 4.3 is the final official release.  
+>
+> No further features, bug fixes, or releases are planned.  
+>
+> The source code and existing releases remain available for reference and historical use.  
+>
+> Thank you to everyone who used, tested, and supported BBQ.
+
+---
+
 [![CI](https://github.com/owergungor/BBQ/actions/workflows/ci.yml/badge.svg)](https://github.com/owergungor/BBQ/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/owergungor/BBQ?include_prereleases&sort=semver)](https://github.com/owergungor/BBQ/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -86,6 +99,7 @@ For platform prerequisites and detailed setup instructions, see the [Development
 
 ## Project Links
 
+- [Project Status](PROJECT_STATUS.md)
 - [Releases](https://github.com/owergungor/BBQ/releases)
 - [Issues](https://github.com/owergungor/BBQ/issues)
 - [Architecture](docs/ARCHITECTURE.md)
